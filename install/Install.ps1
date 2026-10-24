@@ -24,10 +24,14 @@ param(
     [ValidateSet('User', 'Machine')]
     [string] $Scope = 'User',
     [string[]] $Years = @('2024', '2025', '2026'),
-    [string] $PackageRoot = $PSScriptRoot
+    [string] $PackageRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Windows PowerShell 5.1 can leave $PSScriptRoot empty in param() defaults: resolve the package folder here.
+if (-not $PackageRoot) { $PackageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
+$PackageRoot = (Resolve-Path $PackageRoot).Path
 
 function Test-Admin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -78,6 +82,8 @@ foreach ($year in $Years) {
     # Replace the previous CausaFix binaries of this year only.
     Get-ChildItem -Path $paths.Bin -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force
     Copy-Item -Path (Join-Path $source '*') -Destination $paths.Bin -Recurse -Force
+    # Files downloaded from the internet are marked as blocked; Revit may refuse to load them.
+    Get-ChildItem -Path $paths.Bin -Recurse -File | Unblock-File
 
     $assembly = Join-Path $paths.Bin 'CausaFix.Addin.dll'
     $manifest = $template.Replace('{ASSEMBLY_PATH}', [System.Security.SecurityElement]::Escape($assembly))
