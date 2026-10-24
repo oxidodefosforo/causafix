@@ -218,6 +218,7 @@ namespace Autodesk.Revit.DB
         public Parameter get_Parameter(Definition d) => throw X.N();
         public IList<Parameter> GetOrderedParameters() => throw X.N();
         public bool Pinned { get => throw X.N(); set => throw X.N(); }
+        public ElementId OwnerViewId => throw X.N();
         public ElementId ChangeTypeId(ElementId typeId) => throw X.N();
         public Autodesk.Revit.DB.ExtensibleStorage.Entity GetEntity(Autodesk.Revit.DB.ExtensibleStorage.Schema schema) => throw X.N();
         public void SetEntity(Autodesk.Revit.DB.ExtensibleStorage.Entity entity) => throw X.N();

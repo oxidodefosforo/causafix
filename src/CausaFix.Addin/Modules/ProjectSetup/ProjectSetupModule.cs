@@ -52,6 +52,8 @@ namespace CausaFix.Addin.Modules.ProjectSetup
                     _window.Activate();
                     return Result.Succeeded;
                 }
+                SetupCatalogReader.Trace = m => Services.Log.Info("Project Setup " + m);
+                Services.Log.Info("Project Setup: command start (CausaFix " + Services.Version + " built " + System.IO.File.GetLastWriteTime(typeof(ProjectSetupCommand).Assembly.Location).ToString("yyyy-MM-dd HH:mm") + ", Revit " + commandData.Application.Application.VersionNumber + ")");
                 var dispatcher = new RevitDispatcher();
                 var service = new ProjectSetupService(dispatcher);
                 var window = new ProjectSetupWindow();

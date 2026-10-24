@@ -258,9 +258,12 @@ namespace CausaFix.ProjectSetup.ViewModels
 
         public async Task InitializeAsync()
         {
+            _log.Info("Project Setup: open");
             await RunBusy("Connecting to the model", async ct => { await _gw.BindActiveDocument(); });
+            _log.Info("Project Setup: bound to document");
             await RefreshCatalogAsync();
             if (_cfg.ViewSets.Count == 0) SeedDefaults();
+            _log.Info("Project Setup: ready");
         }
 
         public async Task RefreshCatalogAsync()
@@ -268,11 +271,15 @@ namespace CausaFix.ProjectSetup.ViewModels
             SetupCatalog cat = null;
             await RunBusy("Reading levels, view types, templates and sheets", async ct => { cat = await _gw.ReadCatalog(); });
             if (cat == null) return;
+            _log.Info("Project Setup: catalog received (" + cat.Levels.Count + " levels, " + cat.Views.Count + " plan views, " + cat.Sheets.Count + " sheets)");
             _cat = cat;
             if (string.IsNullOrEmpty(_cfg.DocumentKey)) _cfg.DocumentKey = _gw.DocumentKey;
             SyncLevels();
+            _log.Info("Project Setup: levels synced");
             LoadEditors();
+            _log.Info("Project Setup: editors loaded");
             RebuildCatalogLists();
+            _log.Info("Project Setup: lists bound");
             OnPropertyChanged(nameof(DocumentTitle));
             OnPropertyChanged(nameof(ProjectNumber));
             Status = _cat.Levels.Count + " level(s), " + _cat.Templates.Count + " template(s), " + _cat.TitleBlocks.Count + " title block type(s), " + _cat.Sheets.Count + " sheet(s) read from '" + _cat.DocumentTitle + "'.";

@@ -11,6 +11,23 @@ namespace CausaFix.Addin.Modules.ProjectSetup
         public ProjectSetupWindow()
         {
             InitializeComponent();
+            // Safety net: an exception raised by this tool on Revit's UI thread must not close Revit.
+            Dispatcher.UnhandledException += OnDispatcherException;
+            Closed += (s, e) => Dispatcher.UnhandledException -= OnDispatcherException;
+        }
+
+        private void OnDispatcherException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        {
+            string trace = e.Exception?.ToString() ?? string.Empty;
+            if (trace.IndexOf("CausaFix", StringComparison.Ordinal) < 0) return; // not ours: leave it to Revit
+            e.Handled = true;
+            CausaFix.Addin.Shared.Services.Log.Error("Project Setup: unhandled UI exception (Revit kept open)", e.Exception);
+            try
+            {
+                MessageBox.Show(this, "Project Setup hit an error and stopped this action (Revit was kept open):\n\n" + e.Exception.Message +
+                                      "\n\nDetails are in the CausaFix log.", "CausaFix Project Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception) { }
         }
 
         public bool ForceClose { get; set; }
