@@ -16,12 +16,15 @@ using CausaFix.ProjectSetup.Profiles;
 namespace CausaFix.ProjectSetup.ViewModels
 {
     /// <summary>
-    /// Project Setup window: Levels → View Sets → Sheets → Placement → Review. Everything is a draft until Run Setup;
-    /// editing a step never calls Revit except explicit actions (Refresh, Pick..., Run, Show).
+    /// Project Setup window: Levels → View Sets → Sheets → Numbering → Placement → Review. Everything is a draft until Run
+    /// Setup; editing a step never calls Revit except explicit actions (Refresh, Pick..., Run, Show) and the read-only
+    /// value reading of a Revit parameter just added to a name rule.
     /// </summary>
-    public sealed class ProjectSetupViewModel : ObservableObject
+    public sealed partial class ProjectSetupViewModel : ObservableObject
     {
-        public const int ReviewStep = 4;
+        public const int NumberingStep = 3;
+        public const int PlacementStep = 4;
+        public const int ReviewStep = 5;
 
         private readonly IProjectSetupGateway _gw;
         private readonly ISetupDialogs _dialogs;
@@ -85,6 +88,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             DeleteProfileCommand = new RelayCommand(() => Guard(DeleteProfile), () => !string.IsNullOrEmpty(SelectedProfile));
             ImportProfileCommand = new RelayCommand(() => Guard(ImportProfile));
             ExportProfileCommand = new RelayCommand(() => Guard(ExportProfile), () => !string.IsNullOrEmpty(SelectedProfile));
+            InitSheetFeatures(err);
             ReloadProfiles();
         }
 
@@ -115,6 +119,8 @@ namespace CausaFix.ProjectSetup.ViewModels
         public IEnumerable<AlignmentMethod> AlignmentMethods => (AlignmentMethod[])Enum.GetValues(typeof(AlignmentMethod));
         public IEnumerable<SheetFrame> SheetFrames => (SheetFrame[])Enum.GetValues(typeof(SheetFrame));
         public IEnumerable<ViewportRotationOption> Rotations => (ViewportRotationOption[])Enum.GetValues(typeof(ViewportRotationOption));
+        /// <summary>Sheet modes offered in the UI (the format-1 "shared by number" mode is migrated to compositions).</summary>
+        public IEnumerable<SheetMode> SheetModesUi => new[] { SheetMode.OnePerView, SheetMode.ExistingSheet, SheetMode.None };
         public IList<string> GroupKeys { get; private set; } = new List<string>();
         public string TokenHelp => "Tokens: " + string.Join(" ", NamePattern.Tokens.Select(t => "{" + t + "}")) + "  ·  {Sequence:000} pads with zeros  ·  {LevelName:upper} / :lower  ·  {{ }} for literal braces";
 
@@ -162,7 +168,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             var keys = Groups.Select(g => g.Key).ToList();
             if (keys.SequenceEqual(GroupKeys)) return;
             GroupKeys = keys;
-            RebuildGroupKeys();
+            OnPropertyChanged(nameof(GroupKeys));
         }
 
         public SetupMode Mode
@@ -188,6 +194,7 @@ namespace CausaFix.ProjectSetup.ViewModels
                 if (!Set(ref _step, value)) return;
                 if (value == ReviewStep) Rebuild();
                 RefreshExamples();
+                if (value == NumberingStep) RefreshPendingRenumbers();
             }
         }
 
@@ -198,6 +205,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             {
                 if (!Set(ref _selectedSet, value)) return;
                 RebuildSelectedLists();
+                RebuildSetBuilders();
                 DuplicateSetCommand.Refresh(); RemoveSetCommand.Refresh();
             }
         }
@@ -208,9 +216,9 @@ namespace CausaFix.ProjectSetup.ViewModels
             set { if (Set(ref _selectedGroup, value)) { RemoveGroupCommand.Refresh(); AddSlotCommand.Refresh(); PickGridsCommand.Refresh(); PickPointCommand.Refresh(); PickSecondGridsCommand.Refresh(); PickReferenceCommand.Refresh(); } }
         }
 
-        public PlanRowItem SelectedRow { get => _selectedRow; set { if (Set(ref _selectedRow, value)) RaisePreview(); } }
+        public PlanRowItem SelectedRow { get => _selectedRow; set { if (Set(ref _selectedRow, value)) { RaisePreview(); RebuildRowTitle(); } } }
         public bool ErrorsOnly { get => _errorsOnly; set { if (Set(ref _errorsOnly, value)) FillRows(); } }
-        public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) { RunCommand.Refresh(); RefreshCommand.Refresh(); CancelCommand.Refresh(); PickGridsCommand.Refresh(); PickPointCommand.Refresh(); PickReferenceCommand.Refresh(); } } }
+        public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) { RunCommand.Refresh(); RefreshCommand.Refresh(); CancelCommand.Refresh(); PickGridsCommand.Refresh(); PickPointCommand.Refresh(); PickReferenceCommand.Refresh(); PickReferenceTitleCommand?.Refresh(); } } }
         public string BusyText { get => _busyText; private set => Set(ref _busyText, value); }
         public string Status { get => _status; set => Set(ref _status, value ?? ""); }
         public string DocumentTitle => _cat.DocumentTitle;
@@ -269,10 +277,11 @@ namespace CausaFix.ProjectSetup.ViewModels
         public async Task RefreshCatalogAsync()
         {
             SetupCatalog cat = null;
-            await RunBusy("Reading levels, view types, templates and sheets", async ct => { cat = await _gw.ReadCatalog(); });
+            await RunBusy("Reading levels, view types, templates and sheets", async ct => { cat = await _gw.ReadCatalog(PlanBuilder.ReferencedParams(_cfg)); });
             if (cat == null) return;
-            _log.Info("Project Setup: catalog received (" + cat.Levels.Count + " levels, " + cat.Views.Count + " plan views, " + cat.Sheets.Count + " sheets)");
+            _log.Info("Project Setup: catalog received (" + cat.Levels.Count + " levels, " + cat.Views.Count + " plan views, " + cat.Sheets.Count + " sheets, " + cat.Parameters.Count + " parameters)");
             _cat = cat;
+            _fieldOptions = null;
             if (string.IsNullOrEmpty(_cfg.DocumentKey)) _cfg.DocumentKey = _gw.DocumentKey;
             SyncLevels();
             _log.Info("Project Setup: levels synced");
@@ -291,8 +300,8 @@ namespace CausaFix.ProjectSetup.ViewModels
         {
             var vft = _cat.ViewFamilyTypes.FirstOrDefault(v => v.Family == PlanFamily.FloorPlan);
             var tb = _cat.TitleBlocks.FirstOrDefault();
-            _cfg.ViewSets.Add(new ViewSetRule { Name = "Lighting", Code = "LTG", DisciplineCode = "E", Family = PlanFamily.FloorPlan, ViewFamilyTypeUniqueId = vft?.UniqueId ?? "", TitleBlockUniqueId = tb?.UniqueId ?? "", SheetNumberPattern = "{DisciplineCode}-1{Sequence:00}", Sequence = new SequenceSettings { Start = 1, Increment = 1, Scope = SequenceScope.PerViewSet } });
-            _cfg.ViewSets.Add(new ViewSetRule { Name = "Power", Code = "PWR", DisciplineCode = "E", Family = PlanFamily.FloorPlan, ViewFamilyTypeUniqueId = vft?.UniqueId ?? "", TitleBlockUniqueId = tb?.UniqueId ?? "", SheetNumberPattern = "{DisciplineCode}-2{Sequence:00}", Sequence = new SequenceSettings { Start = 1, Increment = 1, Scope = SequenceScope.PerViewSet } });
+            _cfg.ViewSets.Add(NewRule("Lighting", "LTG", vft?.UniqueId, tb?.UniqueId, "1"));
+            _cfg.ViewSets.Add(NewRule("Power", "PWR", vft?.UniqueId, tb?.UniqueId, "2"));
             if (tb != null && tb.WidthMm > 0)
             {
                 _cfg.UsableRightMm = tb.WidthMm - 200;
@@ -333,6 +342,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             SelectedGroup = Groups.FirstOrDefault(g => g.Key == keepGroup) ?? Groups.FirstOrDefault();
             Placements.Clear();
             foreach (var p in _cfg.Placements) Placements.Add(new PlacementItem(p, Changed));
+            LoadSheetEditors();
             OnPropertyChanged(nameof(Mode)); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ToleranceMm)); RebuildGroupKeys();
             foreach (var n in new[] { nameof(UsableLeft), nameof(UsableBottom), nameof(UsableRight), nameof(UsableTop), nameof(AllowRealignPinned), nameof(ProjectNumber) }) OnPropertyChanged(n);
             _suspend = false;
@@ -364,6 +374,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             {
                 RebuildSelectedLists();   // only when the family changed
                 RebuildGroupKeys();
+                RebuildChoiceLists();     // only when keys/names changed
                 RefreshExamples();
                 if (Step == ReviewStep) Rebuild();
             }
@@ -376,6 +387,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             var probe = SetupJson.Clone(_cfg);
             probe.Mode = SetupMode.FullSetup;
             var plan = PlanBuilder.Build(probe, _cat, _gw.DocumentKey);
+            RefreshBuilderPreviews(plan);
             foreach (var vs in ViewSets)
             {
                 var row = plan.Rows.FirstOrDefault(r => r.RuleKey == vs.Rule.Key);
@@ -437,7 +449,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         private void AddSet()
         {
             var vft = _cat.ViewFamilyTypes.FirstOrDefault(v => v.Family == PlanFamily.FloorPlan);
-            var r = new ViewSetRule { Name = "New set", Code = "NEW", ViewFamilyTypeUniqueId = vft?.UniqueId ?? "", TitleBlockUniqueId = _cat.TitleBlocks.FirstOrDefault()?.UniqueId ?? "" };
+            var r = NewRule("New set", "NEW", vft?.UniqueId, _cat.TitleBlocks.FirstOrDefault()?.UniqueId, (_cfg.ViewSets.Count + 1).ToString());
             _cfg.ViewSets.Add(r);
             var item = NewSetItem(r);
             ViewSets.Add(item);
@@ -461,6 +473,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         {
             if (!_dialogs.Confirm("Remove View Set", "Remove View Set '" + SelectedSet.Name + "' from the configuration? Views and sheets already created are not deleted.")) return;
             _cfg.ViewSets.Remove(SelectedSet.Rule);
+            foreach (var c in _cfg.Compositions) c.Members.RemoveAll(m => m.ViewSetKey == SelectedSet.Rule.Key);
             ViewSets.Remove(SelectedSet);
             SelectedSet = ViewSets.FirstOrDefault();
             Changed();
@@ -600,20 +613,25 @@ namespace CausaFix.ProjectSetup.ViewModels
         {
             string keep = _selectedRow?.Row.RowKey;
             Rows.Clear();
-            foreach (var r in _plan.Rows)
+            // Grouped by sheet in the Review: the sheet's primary first, then its members.
+            var order = _plan.Rows.Select((r, i) => (r, i)).OrderBy(x => string.IsNullOrEmpty(x.r.SheetKey) ? 1 : 0)
+                             .ThenBy(x => x.r.SheetKey == null ? 0 : _plan.Rows.FindIndex(y => y.SheetKey == x.r.SheetKey))
+                             .ThenBy(x => x.r.IsSheetPrimary ? 0 : 1).ThenBy(x => x.i).Select(x => x.r);
+            foreach (var r in order)
             {
                 if (ErrorsOnly && r.Status != RowStatus.Error) continue;
                 Rows.Add(new PlanRowItem(r, _cfg, Rebuild));
             }
             _selectedRow = Rows.FirstOrDefault(r => r.Row.RowKey == keep) ?? Rows.FirstOrDefault();
             OnPropertyChanged(nameof(SelectedRow));
+            RebuildRowTitle();
         }
 
+        /// <summary>Opens the renumbering preview (Numbering step): nothing is renumbered without approving the list.</summary>
         private void RegenerateNumbers()
         {
-            if (!_dialogs.Confirm("Regenerate numbering", "Renumber the sequence of every row from its start value? Sheet numbers shown in Review will change; nothing is written until Run Setup.")) return;
-            PlanBuilder.RegenerateSequences(_cfg, _cfg.SequenceAssignments.Keys.ToList());
-            Rebuild();
+            PreviewRenumber();
+            Step = NumberingStep;
         }
 
         private void RaisePreview() => OnPropertyChanged(nameof(Preview));
@@ -625,19 +643,31 @@ namespace CausaFix.ProjectSetup.ViewModels
             var tb = _cat.TitleBlock(row?.TitleBlockUniqueId) ?? _cat.TitleBlocks.FirstOrDefault();
             if (tb != null && tb.WidthMm > 0) { d.WidthMm = tb.WidthMm; d.HeightMm = tb.HeightMm; d.SizeKnown = true; d.Title = tb.Display; }
             else { d.WidthMm = 841; d.HeightMm = 594; d.Notes.Add("Sheet size unknown (title block does not report it): A1 outline shown as an estimate."); }
-            var sameSheet = row == null ? new List<PlanRow>() : _plan.Rows.Where(r => r.SheetKey == row.SheetKey && r.Include).ToList();
-            foreach (var r in sameSheet.Count > 0 ? sameSheet : new List<PlanRow>())
+            var sameSheet = row == null || string.IsNullOrEmpty(row.SheetKey) ? new List<PlanRow>() : _plan.Rows.Where(r => r.SheetKey == row.SheetKey && r.Include).ToList();
+            foreach (var og in sameSheet.Where(r => !string.IsNullOrEmpty(r.OverlayGroupId)).GroupBy(r => r.OverlayGroupId))
+            {
+                var r0 = og.First();
+                var s0 = _cfg.Group(r0.GroupKey)?.Slot(r0.SlotName);
+                if (s0 != null) d.Overlays.Add(("Overlay " + string.Join(" + ", og.Select(x => x.ViewName)), s0.Xmm, s0.Ymm, og.Count()));
+            }
+            foreach (var r in sameSheet.Where(r => string.IsNullOrEmpty(r.OverlayGroupId)))
             {
                 var g = _cfg.Group(r.GroupKey);
                 var s = g?.Slot(r.SlotName);
                 if (s != null) d.Anchors.Add((r.GroupKey + "/" + s.Name + " · " + r.ViewName, s.Xmm, s.Ymm, s.Frame.ToString()));
             }
+            AddTitlePreview(d, sameSheet);
             if (row == null)
                 foreach (var g in _cfg.Groups) foreach (var s in g.Slots) d.Anchors.Add((g.Key + "/" + s.Name, s.Xmm, s.Ymm, s.Frame.ToString()));
             if (d.Anchors.Any(a => a.frame == SheetFrame.TitleBlock.ToString())) d.Notes.Add("Title-block-relative anchors are drawn assuming the title block origin is at the sheet origin (estimate).");
             if (_result != null && row != null)
-                foreach (var rr in _result.Rows.Where(x => sameSheet.Any(s => s.RowKey == x.RowKey) && x.BoxMm != null)) d.MeasuredBoxes.Add((rr.ViewName, rr.BoxMm));
-            d.Notes.Add(d.MeasuredBoxes.Count > 0 ? "Solid boxes: viewport outlines measured in Revit after the run." : "Viewport extents are known only after Run Setup (measured in Revit).");
+                foreach (var rr in _result.Rows.Where(x => sameSheet.Any(s => s.RowKey == x.RowKey)))
+                {
+                    if (rr.BoxMm != null) d.MeasuredBoxes.Add((rr.ViewName, rr.BoxMm));
+                    if (rr.LabelMm != null) d.MeasuredLabels.Add((rr.ViewName, rr.LabelMm));
+                }
+            d.Notes.Add(d.MeasuredBoxes.Count > 0 ? "Solid boxes: viewport and title outlines measured in Revit after the run." : "Viewport extents are known only after Run Setup (measured in Revit); grey boxes are existing viewports as read from the model.");
+            if (d.Overlays.Count > 0) d.Notes.Add("Overlay: one anchor for all members. The drawing shows the intended overlay; only the Revit measurement after the run proves it.");
             return d;
         }
 
@@ -732,6 +762,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         private void ApplyLoaded(SetupConfig c)
         {
             var report = ProfilePortability.Prepare(c, _cat, _gw.DocumentKey);
+            if (c.LoadedFormat < SetupConfig.CurrentFormat) report.Migrated.Add("Profile format " + c.LoadedFormat + " → " + SetupConfig.CurrentFormat + ": patterns became Build Name rules (or Advanced rules where noted), Sheet Number patterns became numbering profiles. Numbers and associations are kept.");
             _cfg = c;
             _result = null;
             Results.Clear();
@@ -740,6 +771,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             Rebuild();
             RefreshExamples();
             Status = "Profile '" + c.Name + "' loaded.";
+            foreach (var w in _plan.GlobalWarnings.Where(w => w.Contains("shared sheets by number"))) report.Migrated.Add(w);
             if (!report.Complete) _dialogs.Info("Profile '" + c.Name + "' – review these references", report + "\n\nNames are kept only as hints; nothing was matched by name.");
         }
 

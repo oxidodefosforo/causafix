@@ -92,4 +92,44 @@ namespace CausaFix.Revit.ProjectSetup
             _doc.Regenerate();
         }
     }
+
+    /// <summary>
+    /// ITitleProbe over a real viewport (mm of paper): Viewport.GetBoxOutline / GetLabelOutline, LabelOffset (local frame,
+    /// from the box's lower-left corner with Rotation = None to the start of the title line) and LabelLineLength.
+    /// Every change regenerates before measuring again.
+    /// </summary>
+    internal sealed class RevitTitleProbe : ITitleProbe
+    {
+        private readonly Document _doc;
+        private readonly Viewport _vp;
+        public RevitTitleProbe(Document doc, Viewport vp) { _doc = doc; _vp = vp; }
+
+        public static Box2 Mm(Outline o) => new Box2(o.MinimumPoint.X * AlignmentMath.MmPerFoot, o.MinimumPoint.Y * AlignmentMath.MmPerFoot,
+                                                      o.MaximumPoint.X * AlignmentMath.MmPerFoot, o.MaximumPoint.Y * AlignmentMath.MmPerFoot);
+
+        public Box2 ViewportBox() { _doc.Regenerate(); return Mm(_vp.GetBoxOutline()); }
+
+        public Box2? LabelBox()
+        {
+            _doc.Regenerate();
+            Outline o;
+            try { o = _vp.GetLabelOutline(); }
+            catch (Autodesk.Revit.Exceptions.ApplicationException) { return null; }
+            if (o == null) return null;
+            var b = Mm(o);
+            return b.Width < 1e-6 && b.Height < 1e-6 ? (Box2?)null : b;
+        }
+
+        public P2 LabelOffset
+        {
+            get { var v = _vp.LabelOffset; return new P2(v.X * AlignmentMath.MmPerFoot, v.Y * AlignmentMath.MmPerFoot); }
+            set { _vp.LabelOffset = new XYZ(AlignmentMath.MmToFeet(value.X), AlignmentMath.MmToFeet(value.Y), 0); _doc.Regenerate(); }
+        }
+
+        public double LineLength
+        {
+            get => _vp.LabelLineLength * AlignmentMath.MmPerFoot;
+            set { _vp.LabelLineLength = AlignmentMath.MmToFeet(value); _doc.Regenerate(); }
+        }
+    }
 }

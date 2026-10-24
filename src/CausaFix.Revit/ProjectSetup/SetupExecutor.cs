@@ -12,7 +12,8 @@ namespace CausaFix.Revit.ProjectSetup
 {
     /// <summary>
     /// Executes an approved plan atomically inside one TransactionGroup (one Undo):
-    ///   1 temporary names (frees names/numbers for swaps) → 2 views → 3 sheets → 4 viewports → 5 alignment + verification.
+    ///   1 temporary names (frees names/numbers for swaps) → 2 views → 3 sheets → 4 viewports → 5 alignment + verification
+    ///   → 6 view titles (after the drawing is final; verified not to move the drawing).
     /// Any failure of an included row, or an alignment outside tolerance, rolls everything back, so no orphan
     /// views/sheets are left. The plan is re-validated against the live document. Never saves or synchronises.
     /// </summary>
@@ -65,7 +66,8 @@ namespace CausaFix.Revit.ProjectSetup
                        && Step("CausaFix Setup: views", failures, () => { progress?.Report("Creating/updating views"); DoViews(rows); })
                        && Step("CausaFix Setup: sheets", failures, () => { progress?.Report("Creating/updating sheets"); DoSheets(rows); })
                        && Step("CausaFix Setup: viewports", failures, () => { progress?.Report("Placing viewports"); DoViewports(rows); })
-                       && Step("CausaFix Setup: alignment", failures, () => { progress?.Report("Aligning and verifying"); DoAlignment(rows); });
+                       && Step("CausaFix Setup: alignment", failures, () => { progress?.Report("Aligning and verifying"); DoAlignment(rows); })
+                       && Step("CausaFix Setup: view titles", failures, () => { progress?.Report("Placing view titles"); DoTitles(rows); });
 
                 result.RevitMessages.AddRange(failures.Messages);
                 if (ok && _failures.Count == 0)
@@ -269,7 +271,8 @@ namespace CausaFix.Revit.ProjectSetup
 
         private void DoSheets(List<PlanRow> rows)
         {
-            foreach (var r in rows)
+            // The primary row of each sheet defines it (number, name, title block); members only share it.
+            foreach (var r in rows.OrderBy(x => x.IsSheetPrimary ? 0 : 1))
             {
                 if (r.SheetAction == SheetAction.None || r.SheetAction == SheetAction.Skip) continue;
                 if (_sheets.TryGetValue(r.SheetKey, out ViewSheet shared)) { _results[r.RowKey].SheetUniqueId = shared.UniqueId; continue; }
@@ -314,6 +317,16 @@ namespace CausaFix.Revit.ProjectSetup
         {
             foreach (var r in rows)
             {
+                if (r.PlaceAction == PlaceAction.None && (r.TitleAction == TitleAction.Apply || r.Updates.Contains("viewport:type")))
+                {
+                    // Update Titles Only: the viewport must already exist; nothing is placed or moved.
+                    var existingVp = Get<Viewport>(r.ExistingViewportUniqueId);
+                    if (existingVp == null) { Fail(r, "The viewport no longer exists."); return; }
+                    _viewports[r.RowKey] = existingVp;
+                    _results[r.RowKey].ViewportUniqueId = existingVp.UniqueId;
+                    if (!ChangeViewportType(r, existingVp)) return;
+                    continue;
+                }
                 if (r.PlaceAction != PlaceAction.Place && r.PlaceAction != PlaceAction.Realign) continue;
                 View view = _views.TryGetValue(r.RowKey, out View v) ? v : Get<View>(r.ExistingViewUniqueId);
                 ViewSheet sheet = _sheets.TryGetValue(r.SheetKey, out ViewSheet s) ? s : Get<ViewSheet>(r.ExistingSheetUniqueId);
@@ -337,9 +350,25 @@ namespace CausaFix.Revit.ProjectSetup
                             : r.Rotation == ViewportRotationOption.Counterclockwise ? ViewportRotation.Counterclockwise : ViewportRotation.None;
                     if (vp.Rotation != rot) vp.Rotation = rot;
                 }
+                else if (!ChangeViewportType(r, vp)) return;
                 _viewports[r.RowKey] = vp;
                 _results[r.RowKey].ViewportUniqueId = vp.UniqueId;
             }
+        }
+
+        /// <summary>Viewport type change of an existing viewport (title shown/hidden). The type itself is never edited.</summary>
+        private bool ChangeViewportType(PlanRow r, Viewport vp)
+        {
+            if (!r.Updates.Contains("viewport:type") || string.IsNullOrEmpty(r.ViewportTypeUniqueId)) return true;
+            var t = _doc.GetElement(r.ViewportTypeUniqueId);
+            if (t == null) { Fail(r, "Viewport type no longer exists."); return false; }
+            if (vp.GetTypeId() == t.Id) return true;
+            if (vp.Pinned && !_cfg.AllowRealignPinned) { Note(r, RowOutcome.Skipped, "Viewport is pinned; its type was not changed."); return true; }
+            string lockReason = Editable(vp);
+            if (lockReason != null) { Fail(r, lockReason); return false; }
+            vp.ChangeTypeId(t.Id);
+            Note(r, RowOutcome.Updated, "Viewport type set to '" + t.Name + "'.");
+            return true;
         }
 
         private XYZ ProvisionalPoint(PlanRow r, ViewSheet sheet)
@@ -367,9 +396,11 @@ namespace CausaFix.Revit.ProjectSetup
         private void DoAlignment(List<PlanRow> rows)
         {
             double tol = AlignmentMath.MmToFeet(_cfg.ToleranceMm <= 0 ? 0.1 : _cfg.ToleranceMm);
-            var references = new Dictionary<string, Affine2>(); // first aligned transform per group+slot, for the overlay check
-            foreach (var r in rows)
+            var references = new Dictionary<string, Affine2>(); // first aligned transform per group+slot (or overlay), for the overlay check
+            // Overlay primaries first: the other members are verified against them.
+            foreach (var r in rows.OrderBy(x => x.Role == MemberRole.Secondary ? 1 : 0))
             {
+                if (r.PlaceAction != PlaceAction.Place && r.PlaceAction != PlaceAction.Realign) continue;
                 if (!_viewports.TryGetValue(r.RowKey, out Viewport vp)) continue;
                 var view = _doc.GetElement(vp.ViewId) as View;
                 var sheet = _doc.GetElement(vp.SheetId) as ViewSheet;
@@ -397,7 +428,8 @@ namespace CausaFix.Revit.ProjectSetup
                     {
                         if (!g.Anchor.IsSet) { Fail(r, "No model anchor for group " + g.Key + "."); return; }
                         if (SheetGeometry.HasNonRectangularCrop(view)) _results[r.RowKey].Message += " Non-rectangular crop: supported for anchor alignment (single crop region, one transform).";
-                        string refKey = g.Key + "|" + slot.Name;
+                        bool overlay = !string.IsNullOrEmpty(r.OverlayGroupId);
+                        string refKey = overlay ? "ovl|" + r.OverlayGroupId : g.Key + "|" + slot.Name;
                         Affine2? reference = references.TryGetValue(refKey, out Affine2 a) ? a : (Affine2?)null;
                         P2? second = g.Anchor.HasSecond ? new P2(g.Anchor.X2, g.Anchor.Y2) : (P2?)null;
                         rep = AlignmentRunner.AlignAnchor(probe, new P2(g.Anchor.X, g.Anchor.Y), target, tol, reference, second);
@@ -429,11 +461,85 @@ namespace CausaFix.Revit.ProjectSetup
                 switch (rep.Outcome)
                 {
                     case AlignmentOutcome.Aligned: Note(r, rep.Moved ? RowOutcome.Aligned : RowOutcome.Unchanged, rep.Message + " Error " + rep.ErrorMm.ToString("0.###") + " mm."); break;
-                    case AlignmentOutcome.AnchorAlignedDifferentScaleOrientation: Note(r, RowOutcome.AnchorAlignedDifferentScale, rep.Message); break;
+                    case AlignmentOutcome.AnchorAlignedDifferentScaleOrientation:
+                        if (!string.IsNullOrEmpty(r.OverlayGroupId)) { Fail(r, "Overlay member does not coincide with the primary: " + rep.Message + (rr.SecondPointErrorMm.HasValue ? " Second point error " + rr.SecondPointErrorMm.Value.ToString("0.###") + " mm." : "")); return; }
+                        Note(r, RowOutcome.AnchorAlignedDifferentScale, rep.Message); break;
                     default: Fail(r, rep.Message); return;
                 }
             }
         }
+
+        // ------------------------------------------------------------------ 6. view titles
+
+        private void DoTitles(List<PlanRow> rows)
+        {
+            double tol = Math.Max(0.05, _cfg.ToleranceMm <= 0 ? 0.1 : _cfg.ToleranceMm);
+            foreach (var r in rows)
+            {
+                if (r.TitleAction != TitleAction.Apply || r.Title == null || !r.Title.Applies) continue;
+                if (!_viewports.TryGetValue(r.RowKey, out Viewport vp)) continue;
+                var rr = _results[r.RowKey];
+                if (vp.Pinned && !_cfg.AllowRealignPinned) { Note(r, RowOutcome.Skipped, "Viewport is pinned; its title was not moved."); continue; }
+                string lockReason = Editable(vp);
+                if (lockReason != null) { Fail(r, lockReason); return; }
+                var view = _doc.GetElement(vp.ViewId) as View;
+                var sheet = _doc.GetElement(vp.SheetId) as ViewSheet;
+
+                // Fixed point (mm on the sheet), converting from the title block frame when asked.
+                var t = r.Title;
+                P2 fixedMm = new P2(t.FixedXmm, t.FixedYmm);
+                if (t.IsFixed && t.Frame == SheetFrame.TitleBlock)
+                {
+                    var tbs = SetupCatalogReader.TitleBlocksOn(_doc, sheet);
+                    if (tbs.Count != 1) { Note(r, RowOutcome.TitleNotPlaced, "Title: sheet " + sheet.SheetNumber + " has " + tbs.Count + " title blocks; a title-block-relative position needs exactly one."); continue; }
+                    var p = SheetGeometry.ToAffine(tbs[0].GetTransform()).Apply(new P2(AlignmentMath.MmToFeet(t.FixedXmm), AlignmentMath.MmToFeet(t.FixedYmm)));
+                    fixedMm = new P2(AlignmentMath.FeetToMm(p.X), AlignmentMath.FeetToMm(p.Y));
+                }
+                Box2? envelope = null;
+                if (!t.IsFixed && t.RelativeTo == TitleRelativeTo.OverlayEnvelope && !string.IsNullOrEmpty(r.OverlayGroupId))
+                {
+                    var boxes = rows.Where(x => x.OverlayGroupId == r.OverlayGroupId && _viewports.ContainsKey(x.RowKey))
+                                    .Select(x => RevitTitleProbe.Mm(_viewports[x.RowKey].GetBoxOutline())).ToList();
+                    if (boxes.Count > 0) envelope = Box2.Union(boxes);
+                }
+
+                // The drawing must not move: measure before and after.
+                var drawing = new RevitViewportProbe(_doc, view, vp);
+                Affine2 before;
+                try { before = drawing.MeasureModelToSheet(); }
+                catch (InvalidOperationException) { before = Affine2.Identity; }
+                XYZ centerBefore = vp.GetBoxCenter();
+
+                var probe = new RevitTitleProbe(_doc, vp);
+                TitleReport rep;
+                try
+                {
+                    rep = TitleRunner.Place(probe, t, envelope, fixedMm, TitleGeometry.QuarterTurns(RotationOf(vp)), r.TitleExtraXmm, r.TitleExtraYmm, tol);
+                }
+                catch (Autodesk.Revit.Exceptions.ApplicationException ex) { Note(r, RowOutcome.TitleNotPlaced, "Title: Revit refused the change (" + ex.Message + ")."); continue; }
+
+                XYZ centerAfter = vp.GetBoxCenter();
+                double moved = (centerAfter - centerBefore).GetLength();
+                try
+                {
+                    var after = drawing.MeasureModelToSheet();
+                    moved = Math.Max(moved, Math.Max(Math.Abs(after.Tx - before.Tx), Math.Abs(after.Ty - before.Ty)));
+                }
+                catch (InvalidOperationException) { }
+                if (moved > 1e-6) { Fail(r, "Moving the title moved the drawing by " + AlignmentMath.FeetToMm(moved).ToString("0.###") + " mm; nothing was kept."); return; }
+
+                if (rep.FinalLabel.HasValue) rr.LabelMm = rep.FinalLabel.Value.ToArray();
+                rr.TitleErrorMm = rep.NoTitle ? (double?)null : rep.ErrorMm;
+                if (rep.Placed) Note(r, RowOutcome.TitlePlaced, rep.Message);
+                else if (rep.NoTitle) Note(r, RowOutcome.Skipped, rep.Message);
+                else Note(r, RowOutcome.TitleNotPlaced, "Title: " + rep.Message);
+                if (rr.LabelMm != null && (rr.LabelMm[0] < _cfg.UsableLeftMm || rr.LabelMm[1] < _cfg.UsableBottomMm || rr.LabelMm[2] > _cfg.UsableRightMm || rr.LabelMm[3] > _cfg.UsableTopMm))
+                    rr.Message += " The title extends outside the configured usable area.";
+            }
+        }
+
+        private static ViewportRotationOption RotationOf(Viewport vp)
+            => vp.Rotation == ViewportRotation.Clockwise ? ViewportRotationOption.Clockwise : vp.Rotation == ViewportRotation.Counterclockwise ? ViewportRotationOption.Counterclockwise : ViewportRotationOption.None;
 
         private void CheckMargins(PlanRow r, RowResult rr)
         {

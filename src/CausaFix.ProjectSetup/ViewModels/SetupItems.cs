@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CausaFix.Core.Mvvm;
 using CausaFix.ProjectSetup.Model;
+using CausaFix.ProjectSetup.Naming;
 using CausaFix.ProjectSetup.Planning;
 
 namespace CausaFix.ProjectSetup.ViewModels
@@ -114,6 +115,13 @@ namespace CausaFix.ProjectSetup.ViewModels
         public string ViewportTypeUniqueId { get => Rule.ViewportTypeUniqueId; set => Upd(Rule.ViewportTypeUniqueId, value ?? Rule.ViewportTypeUniqueId, v => Rule.ViewportTypeUniqueId = v, nameof(ViewportTypeUniqueId)); }
         public ViewportRotationOption Rotation { get => Rule.Rotation; set => Upd(Rule.Rotation, value, v => Rule.Rotation = v, nameof(Rotation)); }
         public string Zone { get => Rule.Zone; set => Upd(Rule.Zone, value ?? "", v => Rule.Zone = v, nameof(Zone)); }
+        public string Condition { get => Rule.Condition; set => Upd(Rule.Condition, (value ?? "").Trim(), v => Rule.Condition = v, nameof(Condition)); }
+        public string Purpose { get => Rule.Purpose; set => Upd(Rule.Purpose, (value ?? "").Trim(), v => Rule.Purpose = v, nameof(Purpose)); }
+        public string Series { get => Rule.Series; set => Upd(Rule.Series, (value ?? "").Trim(), v => Rule.Series = v, nameof(Series)); }
+        public string NumberingProfileKey { get => Rule.NumberingProfileKey; set => Upd(Rule.NumberingProfileKey, value ?? Rule.NumberingProfileKey, v => Rule.NumberingProfileKey = v, nameof(NumberingProfileKey)); }
+        private string _composition = string.Empty;
+        /// <summary>Name of the Views on Sheet composition this View Set belongs to (its sheet is decided there).</summary>
+        public string Composition { get => _composition; set => Set(ref _composition, value ?? ""); }
 
         /// <summary>Levels this rule is limited to (empty = all selected).</summary>
         public ObservableCollection<Selectable<LevelItem>> Levels { get; } = new ObservableCollection<Selectable<LevelItem>>();
@@ -179,7 +187,17 @@ namespace CausaFix.ProjectSetup.ViewModels
         public string Template => Row.TemplateName;
         public string Scale => Row.EffectiveScale > 0 ? "1:" + Row.EffectiveScale + (string.IsNullOrEmpty(Row.ScaleNote) ? "" : " (" + Row.ScaleNote + ")") : "";
         public string TitleBlock => Row.TitleBlockName;
-        public string Slot => Row.PlaceAction == PlaceAction.None ? "" : Row.GroupKey + " / " + Row.SlotName + " · " + (Row.Method == AlignmentMethod.ModelAnchor ? "Anchor" : "Centre");
+        public string Slot => Row.PlaceAction == PlaceAction.None ? "" : Row.GroupKey + " / " + Row.SlotName + " · " + (Row.Method == AlignmentMethod.ModelAnchor ? "Anchor" : "Centre") + (string.IsNullOrEmpty(Row.OverlayGroupId) ? "" : " · overlay");
+        /// <summary>Group header of the Review (rows grouped by sheet).</summary>
+        public string SheetGroup => string.IsNullOrEmpty(Row.SheetKey) ? "(no sheet)" : "Sheet " + (string.IsNullOrEmpty(Row.SheetNumber) ? "?" : Row.SheetNumber) + "  " + Row.SheetName +
+                                    (string.IsNullOrEmpty(Row.CompositionName) ? "" : "   [" + Row.CompositionName + " · " + Row.CompositionMode + "]") +
+                                    (Row.RenumberPending ? "   renumber pending → " + Row.ProposedSheetNumber : "");
+        public string Role => Row.Role == MemberRole.None ? "" : Row.Role + (Row.ShowsTitle ? "" : " · title hidden");
+        public string Numbering => Row.IsSheetPrimary ? Row.NumberingProfileName + (Row.Sequence.HasValue ? " #" + Row.Sequence.Value : "") : "";
+        public string TitleText => Row.TitleAction == TitleAction.Apply ? Row.Title?.Describe() ?? "" : Row.ShowsTitle ? "Keep existing" : "Hidden (viewport type)";
+        /// <summary>Component breakdown of every name of the row (sources and values), for the inspector.</summary>
+        public string NameDetails => string.Join("\n", Row.Names.Where(n => n.Value.Produced).Select(n => NameFields.TargetLabel(n.Key) + " = '" + n.Value.Text + "'" + (n.Value.FromFixedValue ? "  (edited / from the sheet)" : "") + "\n    " + n.Value.Breakdown));
+        public string SheetNumberText => Row.RenumberPending ? Row.SheetNumber + " → " + Row.ProposedSheetNumber + " (pending)" : Row.SheetNumber;
         public string Action => Row.ActionText;
         public RowStatus Status => Row.Status;
         public string Reason => Row.Reason;
@@ -200,8 +218,16 @@ namespace CausaFix.ProjectSetup.ViewModels
 
         public string ViewName { get => Row.ViewName; set { if (value != Row.ViewName) Edit(o => o.ViewName = value); } }
         public string TitleOnSheet { get => Row.TitleOnSheet; set { if (value != Row.TitleOnSheet) Edit(o => o.TitleOnSheet = value); } }
-        public string SheetNumber { get => Row.SheetNumber; set { if (value != Row.SheetNumber) Edit(o => o.SheetNumber = value); } }
-        public string SheetName { get => Row.SheetName; set { if (value != Row.SheetName) Edit(o => o.SheetName = value); } }
+        /// <summary>Sheet number and name are edited on the sheet's primary row (members show the sheet's values).</summary>
+        public bool CanEditSheet => Row.IsSheetPrimary;
+        public string SheetNumber { get => Row.SheetNumber; set { if (value != Row.SheetNumber && CanEditSheet) Edit(o => o.SheetNumber = value); } }
+        public string SheetName { get => Row.SheetName; set { if (value != Row.SheetName && CanEditSheet) Edit(o => o.SheetName = value); } }
+        /// <summary>Numbering profile of this sheet only ("" = composition / View Set).</summary>
+        public string NumberingOverride
+        {
+            get => _cfg.Override(Row.RowKey)?.NumberingProfileKey ?? "";
+            set { var v = value ?? ""; if (!Row.IsSheetPrimary || v == NumberingOverride) return; Edit(o => o.NumberingProfileKey = v.Length == 0 ? null : v); }
+        }
         public bool PlaceAsDependent { get => _cfg.Override(Row.RowKey)?.PlaceAsDependent ?? false; set { if (value != PlaceAsDependent) Edit(o => o.PlaceAsDependent = value); } }
 
         private void Edit(Action<RowOverride> a)
@@ -217,6 +243,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             var o = _cfg.Override(Row.RowKey);
             if (o == null) return;
             o.ViewName = o.TitleOnSheet = o.SheetNumber = o.SheetName = null;
+            o.Title = null;
             _rebuild();
         }
     }
@@ -231,6 +258,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         public string SheetUniqueId { get => Placement.SheetUniqueId; set { if (value == null || Placement.SheetUniqueId == value) return; Placement.SheetUniqueId = value; OnPropertyChanged(); _changed(); } }
         public string GroupKey { get => Placement.GroupKey; set { if (value == null || Placement.GroupKey == value) return; Placement.GroupKey = value; OnPropertyChanged(); _changed(); } }
         public string SlotName { get => Placement.SlotName; set { var v = value ?? "A"; if (Placement.SlotName == v) return; Placement.SlotName = v; OnPropertyChanged(); _changed(); } }
+        public string OverlayGroupId { get => Placement.OverlayGroupId; set { var v = (value ?? "").Trim(); if (Placement.OverlayGroupId == v) return; Placement.OverlayGroupId = v; OnPropertyChanged(); _changed(); } }
     }
 
     /// <summary>Data for the 2D sheet preview (drawn by the view).</summary>
@@ -244,6 +272,14 @@ namespace CausaFix.ProjectSetup.ViewModels
         public List<(string name, double x, double y, string frame)> Anchors { get; } = new List<(string, double, double, string)>();
         /// <summary>Viewport boxes measured in Revit after a run (verified), mm.</summary>
         public List<(string name, double[] box)> MeasuredBoxes { get; } = new List<(string, double[])>();
+        /// <summary>Title outlines measured in Revit after a run (mm).</summary>
+        public List<(string name, double[] box)> MeasuredLabels { get; } = new List<(string, double[])>();
+        /// <summary>Existing viewports/titles read from the document before the run (mm) – real positions, not yet changed.</summary>
+        public List<(string name, double[] box, double[] label)> ExistingViewports { get; } = new List<(string, double[], double[])>();
+        /// <summary>Estimated title positions (dashed): fixed targets, or relative to an existing viewport box.</summary>
+        public List<(string name, double[] box)> EstimatedLabels { get; } = new List<(string, double[])>();
+        /// <summary>Overlay groups: anchor point shared by several members.</summary>
+        public List<(string name, double x, double y, int members)> Overlays { get; } = new List<(string, double, double, int)>();
         public List<string> Notes { get; } = new List<string>();
     }
 }

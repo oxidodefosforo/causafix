@@ -26,6 +26,9 @@ namespace CausaFix.ProjectSetup.Naming
         public string LevelName { get; set; }
         public string LevelCode { get; set; }
         public string Zone { get; set; }
+        public string Condition { get; set; }
+        public string Purpose { get; set; }
+        public string Series { get; set; }
         public int? Sequence { get; set; }
     }
 
@@ -45,7 +48,7 @@ namespace CausaFix.ProjectSetup.Naming
     {
         public static readonly string[] Tokens =
         {
-            "ProjectNumber", "DisciplineCode", "ViewSetCode", "ViewSetName", "LevelName", "LevelCode", "Zone", "Sequence"
+            "ProjectNumber", "DisciplineCode", "ViewSetCode", "ViewSetName", "LevelName", "LevelCode", "Zone", "Sequence", "Condition", "Purpose", "Series"
         };
 
         /// <summary>Tokens allowed in each context. All row tokens are available everywhere in this version.</summary>
@@ -106,6 +109,9 @@ namespace CausaFix.ProjectSetup.Naming
                 case "LevelName": raw = v.LevelName; break;
                 case "LevelCode": raw = v.LevelCode; break;
                 case "Zone": raw = v.Zone; break;
+                case "Condition": raw = v.Condition; break;
+                case "Purpose": raw = v.Purpose; break;
+                case "Series": raw = v.Series; break;
                 case "Sequence":
                     if (!v.Sequence.HasValue) { r.Errors.Add(ctx + ": {Sequence} has no value for this row."); return null; }
                     if (!string.IsNullOrEmpty(format) && format.All(ch => ch == '0'))
@@ -128,6 +134,85 @@ namespace CausaFix.ProjectSetup.Naming
                     r.Errors.Add(ctx + ": unknown format '" + format + "' in {" + token + ":" + format + "} (use upper, lower or 000).");
                     return null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Converts a token pattern of earlier versions into an equivalent visual rule. Literal text at the start or end
+    /// becomes a fixed text component; literal text between tokens becomes the separator of the next token (every
+    /// converted token stays Required, so a separator can never be left dangling – same result as the pattern).
+    /// A pattern that cannot be converted faithfully is kept as an Advanced rule with an explanation.
+    /// </summary>
+    public static class LegacyPatternConverter
+    {
+        private static NameField? FieldOf(string token)
+        {
+            switch (token)
+            {
+                case "ProjectNumber": return NameField.ProjectNumber;
+                case "DisciplineCode": return NameField.Discipline;
+                case "ViewSetCode": return NameField.ViewSetCode;
+                case "ViewSetName": return NameField.ViewSetName;
+                case "LevelName": return NameField.LevelName;
+                case "LevelCode": return NameField.LevelCode;
+                case "Zone": return NameField.Zone;
+                case "Sequence": return NameField.Sequence;
+                case "Condition": return NameField.Condition;
+                case "Purpose": return NameField.Purpose;
+                case "Series": return NameField.Series;
+                default: return null;
+            }
+        }
+
+        public static NameRule Convert(string pattern, TextCase textCase)
+        {
+            var rule = new NameRule { Case = textCase };
+            if (string.IsNullOrWhiteSpace(pattern)) return rule; // empty rule: target not produced
+            string why = null;
+            var comps = new List<NameComponent>();
+            var lit = new StringBuilder();
+            int i = 0;
+            while (i < pattern.Length && why == null)
+            {
+                char c = pattern[i];
+                if (c == '{' && i + 1 < pattern.Length && pattern[i + 1] == '{') { lit.Append('{'); i += 2; continue; }
+                if (c == '}' && i + 1 < pattern.Length && pattern[i + 1] == '}') { lit.Append('}'); i += 2; continue; }
+                if (c == '}') { why = "unmatched '}'"; break; }
+                if (c != '{') { lit.Append(c); i++; continue; }
+                int end = pattern.IndexOf('}', i + 1);
+                if (end < 0) { why = "unclosed '{'"; break; }
+                string body = pattern.Substring(i + 1, end - i - 1);
+                i = end + 1;
+                string name = body, format = null;
+                int colon = body.IndexOf(':');
+                if (colon >= 0) { name = body.Substring(0, colon); format = body.Substring(colon + 1).Trim(); }
+                string token = NamePattern.Tokens.FirstOrDefault(t => string.Equals(t, name.Trim(), StringComparison.OrdinalIgnoreCase));
+                var field = token == null ? null : FieldOf(token);
+                if (field == null) { why = "unknown token {" + body + "}"; break; }
+                var comp = NameComponent.OfField(field.Value);
+                if (!string.IsNullOrEmpty(format))
+                {
+                    string f = format.ToLowerInvariant();
+                    if (f == "upper") comp.Case = TextCase.Upper;
+                    else if (f == "lower") comp.Case = TextCase.Lower;
+                    else if (field == NameField.Sequence && format.All(ch => ch == '0')) comp.PadDigits = format.Length;
+                    else { why = "format '" + format + "' of {" + token + "}"; break; }
+                }
+                if (lit.Length > 0)
+                {
+                    if (comps.Count == 0) comps.Add(NameComponent.OfText(lit.ToString()));
+                    else comp.Separator = lit.ToString();
+                    lit.Clear();
+                }
+                comps.Add(comp);
+            }
+            if (why != null)
+            {
+                return new NameRule { Mode = NameRuleMode.Advanced, Pattern = pattern, Case = textCase, LegacyNote = "Kept as an Advanced pattern: " + why + " cannot be converted to the builder without changing its meaning." };
+            }
+            if (lit.Length > 0) comps.Add(NameComponent.OfText(lit.ToString()));
+            rule.Components = comps;
+            return rule;
         }
     }
 

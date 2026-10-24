@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Autodesk.Revit.UI.Selection;
 using CausaFix.ProjectSetup.Execution;
 using CausaFix.ProjectSetup.Geometry;
 using CausaFix.ProjectSetup.Model;
+using CausaFix.ProjectSetup.Naming;
 using CausaFix.ProjectSetup.Planning;
 
 namespace CausaFix.Revit.ProjectSetup
@@ -42,7 +44,48 @@ namespace CausaFix.Revit.ProjectSetup
             return doc.Title;
         });
 
-        public Task<SetupCatalog> ReadCatalog() => Run((app, doc) => SetupCatalogReader.Read(doc));
+        public Task<SetupCatalog> ReadCatalog(IReadOnlyCollection<ParamRef> wantedValues) => Run((app, doc) => SetupCatalogReader.Read(doc, wantedValues));
+
+        public Task<ParamValueSet> ReadParameterValues(IReadOnlyCollection<ParamRef> wanted) => Run((app, doc) => SetupCatalogReader.ReadValues(doc, wanted));
+
+        public Task<TitlePick> PickReferenceTitle(TitleAnchor anchor) => Run((app, doc) =>
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (!(uidoc.ActiveView is ViewSheet sheet)) return new TitlePick { Message = "Open the reference sheet first (the active view must be a sheet)." };
+            Viewport vp;
+            try
+            {
+                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFix: pick the viewport whose title is correctly placed");
+                vp = doc.GetElement(r.ElementId) as Viewport;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new TitlePick { Message = "Pick cancelled." }; }
+            if (vp == null) return new TitlePick { Message = "That is not a viewport." };
+            var probe = new RevitTitleProbe(doc, vp);
+            var label = probe.LabelBox();
+            if (label == null) return new TitlePick { Message = "That viewport shows no title (its viewport type hides it). Pick one with a visible title." };
+            var box = probe.ViewportBox();
+            int q = vp.Rotation == ViewportRotation.Clockwise ? -1 : vp.Rotation == ViewportRotation.Counterclockwise ? 1 : 0;
+            var c = box.Center;
+            var rel = TitleGeometry.CaptureRelative(TitleGeometry.ToLocal(box, c, q), TitleGeometry.ToLocal(label.Value, c, q), anchor);
+            var corner = TitleGeometry.Corner(label.Value, anchor);
+            var view = doc.GetElement(vp.ViewId) as View;
+            var pick = new TitlePick
+            {
+                Ok = true,
+                RelativeXmm = rel.X, RelativeYmm = rel.Y,
+                SheetXmm = corner.X, SheetYmm = corner.Y,
+                LineLengthMm = probe.LineLength,
+                Description = "title of '" + view?.Name + "' on sheet " + sheet.SheetNumber
+            };
+            var tbs = SetupCatalogReader.TitleBlocksOn(doc, sheet);
+            if (tbs.Count == 1)
+            {
+                var local = SheetGeometry.ToAffine(tbs[0].GetTransform()).Inverse().Apply(new P2(AlignmentMath.MmToFeet(corner.X), AlignmentMath.MmToFeet(corner.Y)));
+                pick.TitleBlockXmm = AlignmentMath.FeetToMm(local.X);
+                pick.TitleBlockYmm = AlignmentMath.FeetToMm(local.Y);
+            }
+            return pick;
+        });
 
         private sealed class GridFilter : ISelectionFilter
         {

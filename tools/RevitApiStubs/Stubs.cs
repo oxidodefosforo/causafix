@@ -78,6 +78,7 @@ namespace Autodesk.Revit.DB
         public static XYZ Zero => throw X_.N();
         public static XYZ operator -(XYZ a, XYZ b) => throw X_.N();
         public static XYZ operator +(XYZ a, XYZ b) => throw X_.N();
+        public double GetLength() => throw X_.N();
     }
     internal static class X_ { public static Exception N() => new NotImplementedException(); }
 
@@ -324,6 +325,9 @@ namespace Autodesk.Revit.DB
         public Outline GetBoxOutline() => throw X.N();
         public Transform GetProjectionToSheetTransform() => throw X.N();
         public ViewportRotation Rotation { get => throw X.N(); set => throw X.N(); }
+        public XYZ LabelOffset { get => throw X.N(); set => throw X.N(); }
+        public double LabelLineLength { get => throw X.N(); set => throw X.N(); }
+        public Outline GetLabelOutline() => throw X.N();
     }
 
     public class TableSectionData : APIObject

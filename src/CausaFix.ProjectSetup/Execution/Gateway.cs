@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CausaFix.ProjectSetup.Geometry;
 using CausaFix.ProjectSetup.Model;
+using CausaFix.ProjectSetup.Naming;
 using CausaFix.ProjectSetup.Planning;
 
 namespace CausaFix.ProjectSetup.Execution
@@ -21,7 +22,11 @@ namespace CausaFix.ProjectSetup.Execution
         Skipped,
         Failed,
         /// <summary>Was done inside the transaction but the whole operation was rolled back.</summary>
-        RolledBack
+        RolledBack,
+        /// <summary>View title placed and verified (the drawing did not move).</summary>
+        TitlePlaced,
+        /// <summary>The title could not be placed within tolerance; it was left as it was.</summary>
+        TitleNotPlaced
     }
 
     public sealed class RowResult
@@ -44,6 +49,9 @@ namespace CausaFix.ProjectSetup.Execution
         public bool Moved { get; set; }
         /// <summary>Measured viewport box on the sheet (mm): minX, minY, maxX, maxY.</summary>
         public double[] BoxMm { get; set; }
+        /// <summary>Measured title (label) outline on the sheet after the run (mm).</summary>
+        public double[] LabelMm { get; set; }
+        public double? TitleErrorMm { get; set; }
         public string OutcomeText => string.Join(", ", Outcomes);
         public bool Failed => Outcomes.Contains(RowOutcome.Failed) || Outcomes.Contains(RowOutcome.RolledBack);
     }
@@ -75,6 +83,7 @@ namespace CausaFix.ProjectSetup.Execution
 
         public string Counts => "Created " + Count(RowOutcome.Created) + " · Reused " + Count(RowOutcome.Reused) + " · Updated " + Count(RowOutcome.Updated) +
                                 " · Aligned " + Count(RowOutcome.Aligned) + " · Anchor only " + Count(RowOutcome.AnchorAlignedDifferentScale) +
+                                " · Titles " + Count(RowOutcome.TitlePlaced) + (Count(RowOutcome.TitleNotPlaced) > 0 ? " (" + Count(RowOutcome.TitleNotPlaced) + " not placed)" : "") +
                                 " · Unchanged " + Count(RowOutcome.Unchanged) + " · Skipped " + Count(RowOutcome.Skipped) +
                                 " · Failed " + Count(RowOutcome.Failed) + " · Rolled back " + Count(RowOutcome.RolledBack);
     }
@@ -101,13 +110,35 @@ namespace CausaFix.ProjectSetup.Execution
         public string Description { get; set; } = string.Empty;
     }
 
+    /// <summary>Result of reading a correctly placed reference title (Match reference title).</summary>
+    public sealed class TitlePick
+    {
+        public bool Ok { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        /// <summary>Offset of the title's anchor corner from the same corner of the viewport box (mm, viewport frame).</summary>
+        public double RelativeXmm { get; set; }
+        public double RelativeYmm { get; set; }
+        /// <summary>Position of the title's anchor corner on the sheet (mm) and in the frame of the sheet's single title block.</summary>
+        public double SheetXmm { get; set; }
+        public double SheetYmm { get; set; }
+        public double? TitleBlockXmm { get; set; }
+        public double? TitleBlockYmm { get; set; }
+        public double LineLengthMm { get; set; }
+    }
+
     /// <summary>Everything Project Setup needs from Revit (DTOs only). Implemented by CausaFix.Revit through ExternalEvent.</summary>
     public interface IProjectSetupGateway
     {
         Task<string> BindActiveDocument();
         /// <summary>Stable key of the active document (creation GUID / project information), used to validate anchors.</summary>
         string DocumentKey { get; }
-        Task<SetupCatalog> ReadCatalog();
+        /// <summary>Reads the catalog; <paramref name="wantedValues"/> are View/Sheet/Title block parameters whose values the name rules use.</summary>
+        Task<SetupCatalog> ReadCatalog(IReadOnlyCollection<ParamRef> wantedValues);
+        /// <summary>Reads only the values of the given View/Sheet/Title block instance parameters (read-only).</summary>
+        Task<ParamValueSet> ReadParameterValues(IReadOnlyCollection<ParamRef> wanted);
+        /// <summary>Asks the user to pick a viewport whose title is correctly placed and measures it.</summary>
+        Task<TitlePick> PickReferenceTitle(TitleAnchor anchor);
         /// <summary>Asks the user to pick two straight grids in the active view; returns their intersection.</summary>
         Task<AnchorPick> PickGridIntersection(bool second);
         /// <summary>Asks the user to pick a point in the active plan view (needs a work plane).</summary>

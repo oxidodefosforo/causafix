@@ -21,7 +21,19 @@ namespace CausaFix.Core.Tests
         public string DocumentKey => SetupData.Doc;
 
         public Task<string> BindActiveDocument() => Task.FromResult(Catalog.DocumentTitle);
-        public Task<SetupCatalog> ReadCatalog() => Task.FromResult(SetupJsonCopy(Catalog));
+        public int ValueReads;
+        public TitlePick NextTitlePick = new TitlePick { Ok = true, RelativeXmm = 0, RelativeYmm = -12, SheetXmm = 120, SheetYmm = 40, LineLengthMm = 80, Description = "title of E-GF-LIGHTING on E-101" };
+        public Task<SetupCatalog> ReadCatalog(IReadOnlyCollection<CausaFix.ProjectSetup.Naming.ParamRef> wanted) => Task.FromResult(SetupJsonCopy(Catalog));
+        public Task<ParamValueSet> ReadParameterValues(IReadOnlyCollection<CausaFix.ProjectSetup.Naming.ParamRef> wanted)
+        {
+            ValueReads++;
+            var set = new ParamValueSet();
+            set.Keys.AddRange(wanted.Select(w => w.Key));
+            foreach (var v in Catalog.Views) set.Views[v.UniqueId] = new Dictionary<string, string>(v.Values);
+            foreach (var s in Catalog.Sheets) set.Sheets[s.UniqueId] = new Dictionary<string, string>(s.Values);
+            return Task.FromResult(set);
+        }
+        public Task<TitlePick> PickReferenceTitle(TitleAnchor anchor) => Task.FromResult(NextTitlePick);
 
         public Task<AnchorPick> PickGridIntersection(bool second) => Task.FromResult(new AnchorPick
         {
@@ -74,9 +86,11 @@ namespace CausaFix.Core.Tests
         {
             var copy = new SetupCatalog { DocumentTitle = c.DocumentTitle, ProjectNumber = c.ProjectNumber };
             copy.Levels.AddRange(c.Levels); copy.ViewFamilyTypes.AddRange(c.ViewFamilyTypes); copy.Templates.AddRange(c.Templates);
+            copy.Parameters.AddRange(c.Parameters); copy.Viewports.AddRange(c.Viewports);
+            foreach (var kv in c.ProjectInfoValues) copy.ProjectInfoValues[kv.Key] = kv.Value;
             copy.TitleBlocks.AddRange(c.TitleBlocks); copy.ScopeBoxes.AddRange(c.ScopeBoxes); copy.ViewportTypes.AddRange(c.ViewportTypes);
-            foreach (var v in c.Views) copy.Views.Add(new ExistingViewInfo { UniqueId = v.UniqueId, Name = v.Name, TitleOnSheet = v.TitleOnSheet, ViewType = v.ViewType, Family = v.Family, LevelUniqueId = v.LevelUniqueId, TemplateUniqueId = v.TemplateUniqueId, SetupRowKey = v.SetupRowKey, PlacedOnSheet = v.PlacedOnSheet });
-            foreach (var s in c.Sheets) copy.Sheets.Add(new ExistingSheetInfo { UniqueId = s.UniqueId, Number = s.Number, Name = s.Name, SetupRowKey = s.SetupRowKey, PlacedViewUniqueIds = new List<string>(s.PlacedViewUniqueIds) });
+            foreach (var v in c.Views) copy.Views.Add(new ExistingViewInfo { UniqueId = v.UniqueId, Name = v.Name, TitleOnSheet = v.TitleOnSheet, ViewType = v.ViewType, Family = v.Family, LevelUniqueId = v.LevelUniqueId, TemplateUniqueId = v.TemplateUniqueId, SetupRowKey = v.SetupRowKey, PlacedOnSheet = v.PlacedOnSheet, Scale = v.Scale });
+            foreach (var s in c.Sheets) copy.Sheets.Add(new ExistingSheetInfo { UniqueId = s.UniqueId, Number = s.Number, Name = s.Name, SetupRowKey = s.SetupRowKey, PlacedViewUniqueIds = new List<string>(s.PlacedViewUniqueIds), TitleBlockCount = s.TitleBlockCount });
             return copy;
         }
     }
@@ -214,6 +228,95 @@ namespace CausaFix.Core.Tests
                 Assert.True(vm.ViewTypesForSelected.All(t => t.Family == PlanFamily.CeilingPlan));
                 vm.Step = ProjectSetupViewModel.ReviewStep;
                 Assert.True(writes < 100, "bounded number of combo writes: " + writes);
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
+    
+        /// <summary>Build Name, numbering, Views on Sheet, title capture and renumbering through the view model (mocked Revit).</summary>
+        [Test]
+        public static void ViewModel_BuilderCompositionTitleAndRenumber()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cf-psvm-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var gw = new FakeSetupGateway();
+                gw.Catalog = V2Data.Catalog(2);
+                gw.Catalog.Parameters.Add(new ParamInfo { Ref = new CausaFix.ProjectSetup.Naming.ParamRef { Scope = CausaFix.ProjectSetup.Naming.ParamScope.Sheet, Kind = CausaFix.ProjectSetup.Naming.ParamKind.Shared, Guid = "44444444-4444-4444-4444-444444444444", Name = "Package" }, Name = "Package" });
+                var vm = new ProjectSetupViewModel(gw, new FakeSetupDialogs(), Path.Combine(dir, "p"), Path.Combine(dir, "l"));
+                vm.InitializeAsync().GetAwaiter().GetResult();
+                foreach (var l in vm.Levels) l.Selected = true;
+                vm.SelectedSet = vm.ViewSets[0];
+                Assert.True(vm.ViewNameBuilder != null && vm.ViewNameBuilder.Components.Count == 3, "builder shows the View Name components");
+                Assert.True(vm.ViewNameBuilder.Preview.Count == 2, "preview with the real rows");
+                Assert.Equal("E-GF-Lighting", vm.ViewNameBuilder.Preview[0].Result);
+
+                // Picker: search, homonyms are disambiguated, parameter added without typing tokens.
+                vm.ViewNameBuilder.Filter = "level code";
+                Assert.True(vm.ViewNameBuilder.PickerOptions.Count(o => o.Source == CausaFix.ProjectSetup.Naming.ComponentSource.Parameter) == 2);
+                Assert.True(vm.ViewNameBuilder.PickerOptions.Where(o => o.Source == CausaFix.ProjectSetup.Naming.ComponentSource.Parameter).Select(o => o.Label).Distinct().Count() == 2, "homonyms get distinct labels");
+                vm.ViewNameBuilder.SelectedOption = vm.ViewNameBuilder.PickerOptions.First(o => o.Param?.Guid == V2Data.LevelCodeShared.Guid);
+                vm.ViewNameBuilder.AddCommand.Execute(null);
+                var added = vm.ViewNameBuilder.Components.Last();
+                vm.ViewNameBuilder.MoveUpCommand.Execute(added);
+                Assert.Equal("E-GF-00-Lighting", vm.ViewNameBuilder.Preview[0].Result);
+                vm.ViewNameBuilder.RemoveCommand.Execute(added);
+                Assert.Equal("E-GF-Lighting", vm.ViewNameBuilder.Preview[0].Result);
+
+                // A sheet parameter needs its values: they are read (read-only) when it is added.
+                vm.SheetNameBuilder.Filter = "package";
+                vm.SheetNameBuilder.SelectedOption = vm.SheetNameBuilder.PickerOptions.First();
+                vm.SheetNameBuilder.AddCommand.Execute(null);
+                Assert.Equal(1, gw.ValueReads);
+                vm.SheetNameBuilder.Components.Last().Required = false;
+
+                // Numbering: the seeded standard profile, a prefix and a zone.
+                Assert.True(vm.NumberingProfiles.Count >= 1);
+                vm.SelectedSet.Purpose = "FCC";
+                vm.Levels[0].Zone = "A";
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                Assert.True(vm.Rows.Any(r => r.Row.SheetNumber == "FCC-E-A-101"), string.Join(", ", vm.Rows.Select(r => r.Row.SheetNumber)));
+                Assert.True(vm.Rows.Any(r => r.Row.SheetNumber == "FCC-E-102"), "zone omitted with its separator");
+
+                // Views on Sheet: overlay Lighting + Power.
+                vm.Step = 2;
+                vm.AddCompositionCommand.Execute(null);
+                vm.AddViewSetMemberCommand.Execute(null);
+                Assert.Equal(2, vm.SelectedComposition.Members.Count);
+                vm.SelectedComposition.HiddenTitleViewportTypeUniqueId = "vpt-none";
+                vm.SelectedGroup = vm.Groups[0];
+                vm.PickGridsCommand.ExecuteAsync().GetAwaiter().GetResult();
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                Assert.True(vm.Plan.CanRun, string.Join(" | ", vm.Rows.Select(r => r.Reason)));
+                Assert.Equal(2, vm.Plan.SheetsToCreate, "one overlay sheet per level");
+                Assert.True(vm.Rows.Any(r => r.SheetGroup.Contains("Overlay")));
+
+                // View title: capture from a reference title (relative offset) for the profile default.
+                vm.SelectedTitleScope = vm.TitleScopes[0];
+                vm.SelectedTitleScope.Mode = TitleMode.RelativeToViewport;
+                vm.PickReferenceTitleCommand.ExecuteAsync().GetAwaiter().GetResult();
+                Assert.Equal(TitleMode.MatchReference, vm.Config.Title.Mode);
+                Assert.Near(-12, vm.Config.Title.OffsetYmm, 1e-9);
+                vm.Rebuild();
+                Assert.Equal(2, vm.Plan.TitlesToPlace, "only the primary of each overlay");
+
+                vm.RunAsync().GetAwaiter().GetResult();
+                Assert.True(vm.Result.Committed);
+                Assert.Equal(0, vm.Plan.SheetsToCreate + vm.Plan.ViewsToCreate, "re-run creates nothing");
+
+                // Prefix change: pending renumber shown, approved explicitly.
+                vm.SelectedSet = vm.ViewSets[0];
+                vm.SelectedSet.Purpose = "QA";
+                vm.Step = ProjectSetupViewModel.NumberingStep;
+                Assert.Equal(2, vm.PendingRenumbers.Count);
+                Assert.True(vm.PendingRenumbers.All(p => p.Proposed.StartsWith("QA-")));
+                vm.PendingRenumbers[1].Include = false;
+                vm.ApprovePendingCommand.Execute(null);
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                Assert.Equal(1, vm.Plan.Rows.Count(r => r.Updates.Contains("sheet:number")));
+                Assert.Equal(0, vm.Plan.SheetsToCreate);
+
+                vm.SaveProfileCommand.Execute(null);
+                Assert.True(vm.Profiles.Contains("Electrical setup"));
             }
             finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         }
