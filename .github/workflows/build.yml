@@ -49,6 +49,7 @@ jobs:
           dotnet run --project tests/CausaFix.Ui.Tests -c Release -p:RevitVersion=2026 -p:UseRevitNuGet=true *> dist/ui-check-report.txt
           $code = $LASTEXITCODE
           Get-Content dist/ui-check-report.txt
+          Get-Content dist/ui-check-report.txt | Select-String -Pattern 'Old template|cause confirmed|did not reproduce|FAIL|passed,' | Select-Object -First 9 | ForEach-Object { Write-Host "::notice title=WPF check::$($_.Line.Trim())" }
           if ($code -eq 2) { Write-Host "::warning::WPF interaction checks could not run on this runner (no interactive input)"; exit 0 }
           exit $code
 
