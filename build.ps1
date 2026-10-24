@@ -69,6 +69,13 @@ Copy-Item (Join-Path $root 'install\*') $dist -Force
 Copy-Item (Join-Path $root 'docs\GUIA.md') $dist -Force
 Copy-Item (Join-Path $root 'docs\PROJECT_SETUP.md') $dist -Force
 Copy-Item (Join-Path $root 'LICENSE.txt') $dist -Force -ErrorAction SilentlyContinue
+$commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { (& git -C $root rev-parse HEAD 2>$null) }
+Set-Content -Path (Join-Path $dist 'BUILD.txt') -Encoding UTF8 -Value @(
+    "CausaFix $version",
+    "Commit: $commit",
+    "Built (UTC): $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm'))",
+    "Revit: $($built -join ', ')",
+    "In Revit: CausaFix > About shows the same version and commit; the log line 'Project Setup: command start' too.")
 
 $zip = Join-Path $root "dist\CausaFix-$version.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }

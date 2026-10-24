@@ -45,9 +45,18 @@ jobs:
       - name: WPF interaction checks (Project Setup rule list)
         shell: pwsh
         run: |
-          dotnet run --project tests/CausaFix.Ui.Tests -c Release -p:RevitVersion=2026 -p:UseRevitNuGet=true
-          if ($LASTEXITCODE -eq 2) { Write-Host "::warning::WPF interaction checks could not run on this runner (no interactive input)"; exit 0 }
-          exit $LASTEXITCODE
+          New-Item -ItemType Directory -Force dist | Out-Null
+          dotnet run --project tests/CausaFix.Ui.Tests -c Release -p:RevitVersion=2026 -p:UseRevitNuGet=true *> dist/ui-check-report.txt
+          $code = $LASTEXITCODE
+          Get-Content dist/ui-check-report.txt
+          if ($code -eq 2) { Write-Host "::warning::WPF interaction checks could not run on this runner (no interactive input)"; exit 0 }
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-check-report
+          path: dist/ui-check-report.txt
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')

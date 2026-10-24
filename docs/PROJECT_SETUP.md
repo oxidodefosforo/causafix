@@ -13,13 +13,19 @@ Todo es un **borrador** hasta pulsar **Run Setup…**. Elegir opciones o editar 
 | Paso | Qué haces |
 |---|---|
 | **1 Levels** | Marcas los niveles del host y les das un código corto (GF, L01, RF…) y, si hace falta, una zona. El código es solo de CausaFix y **no renombra el Level**. |
-| **2 View Sets** | Cada conjunto (Lighting, Power, RCP…) define familia, tipo de vista, template, escala y recorte. Además lleva códigos de disciplina, View Set, zona, **condición**, **prefijo/propósito** y **serie**. Los nombres **View Name** y **Title on Sheet** se componen con **Build Name** (§2). |
+| **2 View Sets** | Cada conjunto (Lighting, Power, RCP…) define familia, tipo de vista, template, escala y recorte. Además lleva códigos de disciplina, View Set, zona, **condición**, **prefijo/propósito** y **serie**. Los nombres **View Name** y **Title on Sheet** se componen con **Build Name** (§2). En la lista, un clic en el nombre, la familia o el espacio libre **selecciona** la regla; solo la casilla activa o desactiva (§1.1). La pestaña *Title on Sheet* incluye **Take title position from a placed view…** (§5.3). |
 | **3 Sheets** | Tres pestañas. **Sheet rules**: por conjunto, el modo de sheet, el title block, el **perfil de numeración**, el tipo y la rotación del viewport, el grupo y el slot. **Sheet Name**: Build Name del nombre del sheet. **Views on Sheet**: composiciones con varias vistas por sheet (§4). |
 | **4 Numbering** | Perfiles de numeración reutilizables, con segmentos opcionales, aprobación de renumeraciones y una vista previa de la renumeración (§3). |
 | **5 Placement** | Grupos de alineación (ancla del modelo y slots del papel), tolerancia y área útil. Aquí está también **View Title Placement** (§5) y la lista de vistas existentes que usan *Place / Re-align Existing* y *Update Titles Only*. |
 | **6 Review** | Plan **agrupado por sheet**: cada sheet muestra sus vistas, el papel de cada una (primaria o secundaria), el perfil y la secuencia, el título y la acción. Se pueden excluir filas, editar nombres o números, elegir la numeración de un sheet y el título de un viewport. Incluye el detalle de los componentes de cada nombre y número (origen y valor) y la previsualización del sheet. |
 
 Modos (arriba a la derecha): **Full Setup**, **Views Only**, **Sheets Only**, **Place / Re-align Existing** y **Update Titles Only**.
+
+### 1.1. Lista View Sets (rules)
+
+- **Seleccionar:** clic en el nombre, la familia o el espacio libre de la fila. El panel derecho muestra esa regla y su estado Enabled no cambia. También con ↑ ↓.
+- **Activar/desactivar:** solo con la casilla. Cada clic cambia el estado una vez y además selecciona esa fila. Una regla desactivada (texto atenuado) se selecciona y edita igual.
+- Al cambiar de fila se confirma lo que estabas escribiendo en la regla anterior. Tras *Refresh* la selección se recupera por la identidad de la regla, no por su posición. La lista de composiciones (Views on Sheet) funciona igual.
 
 ## 2. Build Name: nombres sin escribir tokens
 
@@ -90,7 +96,23 @@ Controla la posición del **título del viewport**, no del title block, de forma
   5. Se comprueba que el dibujo **no se ha movido**; si se moviera, se revierte todo.
   6. Si el título no queda dentro de tolerancia, se restaura como estaba y se informa *TitleNotPlaced*.
 - **Update Titles Only** (modo): actualiza solo los títulos aprobados y el tipo de viewport de los títulos ocultos en viewports **existentes**. No crea sheets, no renombra vistas y no realinea dibujos. Respeta worksharing y viewports fijados, y cada viewport puede quedarse con *KeepExisting*.
+- **MatchReference sin elección previa = FixedPosition.** Si no has elegido *Capture as*, una captura nueva usa la posición en el papel, que es lo que alinea los títulos entre planos. Se conserva la elección explícita, el tipo de una captura anterior (también la de perfiles antiguos) y el modo *RelativeToViewport* si era el que tenías. La captura guarda los dos resultados en campos distintos y solo aplica el elegido.
 - **Preview:** gris = viewports y títulos existentes leídos del modelo; discontinuo naranja = posición **estimada** del título (tamaño nominal); continuo = **medido** en Revit tras ejecutar. Un título que saldría del área útil se avisa.
+
+### 5.3. Tomar la posición del título desde una vista colocada
+
+Accesible desde **View Sets → Title on Sheet → Take title position from a placed view…** y desde *Match reference title…* en View Title Placement. Ambos usan **la misma configuración** (§5.2).
+
+1. **Apply to:** elige el nivel que vas a editar: *Profile default*, el *Group* del View Set o la *Composition* a la que pertenece. Por defecto aparece el que esas vistas usan ahora. El texto inferior indica **qué View Sets lo usan**, qué grupos o composiciones conservan su propia posición y cuántos overrides de viewport (Review) siguen mandando. Para una posición común, usa *Profile default*.
+2. En Revit, **abre el plano** con el título bien colocado (por ejemplo, el de Lighting del Basement) y pulsa el botón. Selecciona su **viewport** (Esc cancela).
+3. CausaFix mide el título con `GetLabelOutline` y guarda la esquina elegida (*Title corner*), la longitud y dirección de la línea, y la vista y el plano usados. **No copia el texto**: cada vista conserva su *Title on Sheet* (nivel incluido). Tampoco duplica la vista ni cambia su template o su nivel.
+4. **Errores:** si el plano activo no es un sheet, si lo elegido no es un viewport o si su título está oculto, aparece el motivo y la opción de **reintentar**. Lo mismo con el marco *TitleBlock* cuando el plano de referencia no tiene exactamente un title block, porque CausaFix no adivina el marco. Cancelar conserva los valores anteriores. Un grupo o composición que heredaba recibe su propia posición **solo tras una captura válida**.
+5. **Aplicar:** elegir la referencia solo cambia el borrador.
+   - Vistas nuevas: **Run Setup**. El título se coloca después de alinear el dibujo, se verifica con la tolerancia y el dibujo no se mueve.
+   - Vistas ya colocadas: modo **Update Titles Only**. Reutiliza los viewports existentes y no crea vistas, planos ni viewports.
+   - En Planta + RCP se mantienen *OnlyPrimary/All/PerMember* y el título oculto sigue oculto.
+
+*FixedPosition* deja la misma esquina en el mismo punto del papel, o del title block si eliges ese marco. Un título más largo crece desde esa esquina. *RelativeOffset* reproduce la relación entre título y viewport, así que, con crops de distinto tamaño, los títulos no coinciden en el papel.
 
 ## 6. Ejecución
 
@@ -130,6 +152,8 @@ Usa una copia de un modelo con *Ground Floor* y *Level 01*, una retícula de eje
 2. **Numeración (B):** en Numbering, perfil *Standard*. Prueba con y sin zona, con *Condition = Proposed* y con prefijo FCC: `E-101`, `E-A-101`, `E-A-P-101`, `FCC-E-A-P-101`, sin separadores sobrantes. Las fases de las vistas no cambian.
 3. **Planta + RCP (C):** en Views on Sheet, composición *Overlay* con Lighting (primaria) y RCP, *OnlyPrimary* y el tipo sin título. Run Setup: un sheet por nivel y un solo número. El ancla A/1 de ambas vistas coincide (error ≤ 0,1 mm en Results) aunque los recortes difieran, y solo se ve el título de la planta. Añade después otro miembro: no se crea otro sheet ni cambia el número.
 4. **Títulos (D):** *RelativeToViewport*, BottomLeft, Y = −8 mm. Run Setup y comprueba que el título queda 8 mm bajo el dibujo y que la columna *Title (mm)* es pequeña. Repite con un viewport rotado, con un title block desplazado (FixedSheetPosition en marco TitleBlock) y con *MatchReference*. Después usa **Update Titles Only** sobre un sheet existente: solo se mueven títulos.
+   - **Referencia de título:** en View Sets → Title on Sheet, con *Apply to = Profile default*, pulsa *Take title position from a placed view…* y elige el viewport de Lighting del Basement. Genera tres niveles con crops distintos. En Results, *Title (mm)* debe salir ≤ tolerancia y la esquina del título coincidir en todos los planos (mídelo en Revit). Cada título debe mostrar su nivel y el dibujo no debe moverse. Cancela una selección: nada cambia. Prueba también con un plano activo que no sea sheet y con un viewport de título oculto (RCP).
+   - **Lista View Sets:** clic en POWER, LIGHTING, CONTAINMENT y RCP sobre el texto. Cada clic cambia el editor sin tocar las casillas. Un clic en una casilla cambia solo esa regla.
 5. **Persistencia (E):** guarda y vuelve a cargar el perfil (todas las reglas siguen). Run Setup otra vez debe dar cero elementos nuevos. Cambia el prefijo: aparece *Renumber pending* en el mismo sheet. Dos conjuntos con el mismo número dan un conflicto, no se fusionan. Carga un perfil de la versión anterior y comprueba que no aparecen duplicados.
 6. Excel Link sigue funcionando igual (GUIA §12).
 

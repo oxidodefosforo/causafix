@@ -40,11 +40,18 @@ Sobre el commit de referencia 65584df.
   - **View Title Placement**;
   - Review agrupada por sheet.
 
+## Project Setup: selección de View Sets y referencia de título (commit 041f2ed y siguiente)
+
+- **Causa de la selección (confirmada con WPF real en CI):** la plantilla de fila era un `CheckBox` cuyo contenido era el texto, estirado a todo el ancho. `ButtonBase` maneja `MouseLeftButtonDown`, así que un clic en el nombre, la familia o el espacio libre activaba o desactivaba la regla y `ListBoxItem` nunca la seleccionaba. Corrección: casilla separada del texto (View Sets y composiciones). El foco en la casilla selecciona su fila, de forma diferida para que la edición pendiente se confirme en la regla anterior.
+- **Referencia de título:** *Title on Sheet → Take title position from a placed view…* con alcance (perfil/grupo/composición). Usa la misma `TitlePlacement` y el mismo `TitleRunner`. Por defecto la captura es **FixedPosition** si no hay elección previa (`CaptureKindExplicit`, captura anterior o modo Relative). Mensajes concretos con reintento; si se cancela, no cambia nada.
+- `tests/CausaFix.Ui.Tests`: abre la ventana real y hace clic con `SendInput`. Primero reproduce el fallo con la plantilla antigua y después comprueba la nueva (texto, familia, espacio libre, casilla una vez, regla desactivada, edición pendiente, flechas, Refresh). Informe: artefacto `ui-check-report`.
+
 ## Verificado aquí
 
 | Verificación | Resultado |
 |---|---|
-| Pruebas automáticas (reglas + flujos con mocks) en .NET 8 y .NET Framework 4.8 | 105/105 (23 nuevas para la ampliación de Project Setup: casos A–E) |
+| Pruebas automáticas (reglas + flujos con mocks) en .NET 8 y .NET Framework 4.8 | 112/112 (7 nuevas: selección de reglas y referencia de título) |
+| Interacción WPF real (ventana Project Setup, ratón/teclado reales, Windows CI) | Verde: lista View Sets |
 | GitHub Actions (Windows): pruebas + compilación 2024/2025/2026 de todo, incluida la WPF, contra las referencias reales de la API | Verde |
 | Libro .xlsx abierto y re-guardado por LibreOffice → reimportación con 0 cambios | OK |
 | Plan de Project Setup 10 niveles × 4 conjuntos (2000 vistas y 500 sheets existentes) | ~10 ms (núcleo, sin Revit) |
@@ -56,6 +63,7 @@ Sobre el commit de referencia 65584df.
 3. Project Setup (ampliación, `PROJECT_SETUP.md §9`): valores reales de parámetros compartidos/proyecto; superposición planta + RCP medida; títulos con `LabelOffset` (incluidos viewports rotados y title block desplazado) y Update Titles Only; migración de un perfil antiguo sobre un modelo con sheets compartidos.
 4. Tiempos reales en Revit (10 000 × 20 en Excel Link; 10 × 4 en Project Setup).
 5. Instaladores en Windows (Install / Install-AllUsers).
+6. Referencia de título en Revit: captura de un viewport real, varios niveles con crops distintos alineados en papel (≤ tolerancia), Planta + RCP con título oculto, Update Titles Only (`PROJECT_SETUP.md §9`, punto 4).
 
 ## Decisiones
 

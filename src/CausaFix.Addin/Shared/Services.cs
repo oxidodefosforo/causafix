@@ -22,6 +22,17 @@ namespace CausaFix.Addin.Shared
         public static readonly FileLog Log = new FileLog(Paths.LogsFolder);
 
         public static string Version => typeof(Services).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        /// <summary>Version and commit of this build ("0.1.0 · commit 041f2ed"), from the assembly's InformationalVersion.</summary>
+        public static string Build
+        {
+            get
+            {
+                var info = (System.Reflection.AssemblyInformationalVersionAttribute)Attribute.GetCustomAttribute(typeof(Services).Assembly, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+                string v = info?.InformationalVersion ?? Version;
+                int plus = v.IndexOf('+');
+                return plus < 0 ? v + " · local build" : v.Substring(0, plus) + " · commit " + v.Substring(plus + 1, Math.Min(7, v.Length - plus - 1));
+            }
+        }
 
         public static string InstallFolder => Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
@@ -113,7 +124,7 @@ namespace CausaFix.Addin.Shared
         {
             var td = new TaskDialog("About CausaFix")
             {
-                MainInstruction = "CausaFix " + Services.Version,
+                MainInstruction = "CausaFix " + Services.Build,
                 MainContent = "Tools for Revit. Excel Link: exchange element, type, schedule and spatial data with local .xlsx files, with a review step before anything is written.\n\n" +
                               "Install folder: " + Services.InstallFolder + "\nProfiles: " + Services.Paths.ProfilesFolder + "\nReports: " + Services.Paths.ReportsFolder +
                               "\nLogs: " + Services.Paths.LogsFolder,
