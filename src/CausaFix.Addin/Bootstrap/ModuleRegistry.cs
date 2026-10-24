@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CausaFix.Addin.Modules.ExcelLink;
+using CausaFix.Addin.Modules.ProjectSetup;
 using CausaFix.Addin.Shared;
 
 namespace CausaFix.Addin.Bootstrap
@@ -46,6 +47,7 @@ namespace CausaFix.Addin.Bootstrap
         public static readonly IReadOnlyList<ICausaFixModule> Modules = new ICausaFixModule[]
         {
             new ExcelLinkModule(),
+            new ProjectSetupModule(),
             new SuiteModule()
         };
     }

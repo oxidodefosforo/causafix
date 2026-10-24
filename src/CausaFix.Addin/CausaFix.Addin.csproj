@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
     <ProjectReference Include="..\CausaFix.ExcelLink\CausaFix.ExcelLink.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
+    <ProjectReference Include="..\CausaFix.ProjectSetup\CausaFix.ProjectSetup.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
     <ProjectReference Include="..\CausaFix.Revit\CausaFix.Revit.csproj" />
   </ItemGroup>
 

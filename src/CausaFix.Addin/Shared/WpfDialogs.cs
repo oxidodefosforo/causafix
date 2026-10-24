@@ -9,7 +9,7 @@ using CausaFix.ExcelLink;
 namespace CausaFix.Addin.Shared
 {
     /// <summary>WPF implementation of the dialogs the view models request.</summary>
-    public sealed class WpfDialogs : IDialogService
+    public sealed class WpfDialogs : IDialogService, CausaFix.ProjectSetup.Execution.ISetupDialogs
     {
         private readonly Window _owner;
 
