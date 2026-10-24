@@ -161,6 +161,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             _choiceSignature = null;
             _titleSignature = null;
             RebuildChoiceLists();
+            ViewNameBuilder = TitleBuilder = SheetNameBuilder = null;   // new pickers for a refreshed catalog
             RebuildSetBuilders();
             DuplicateNumberingCommand?.Refresh(); RemoveNumberingCommand?.Refresh(); ExportNumberingCommand?.Refresh();
             DuplicateCompositionCommand?.Refresh(); RemoveCompositionCommand?.Refresh(); AddViewSetMemberCommand?.Refresh(); AddExistingMemberCommand?.Refresh();
@@ -197,7 +198,8 @@ namespace CausaFix.ProjectSetup.ViewModels
                 foreach (var p in _cat.Parameters)
                 {
                     bool dup = homonyms.Contains(p.Ref.Scope + "|" + p.Name.ToUpperInvariant());
-                    string id = p.Ref.Kind == ParamKind.Shared ? "GUID " + p.Ref.Guid.Substring(0, Math.Min(8, p.Ref.Guid.Length)) : p.Ref.Kind == ParamKind.BuiltIn ? "built-in " + p.Ref.BuiltInId : "project parameter";
+                    string g = p.Ref.Guid ?? "";
+                    string id = p.Ref.Kind == ParamKind.Shared ? "GUID " + g.Substring(0, Math.Min(8, g.Length)) : p.Ref.Kind == ParamKind.BuiltIn ? "built-in " + p.Ref.BuiltInId : "project parameter";
                     string scopeNote = p.Ref.Scope == ParamScope.View ? " · value from existing/reused views only"
                                      : p.Ref.Scope == ParamScope.Sheet ? " · value from existing sheets only"
                                      : p.Ref.Scope == ParamScope.TitleBlockInstance ? " · existing sheets with one title block" : "";
@@ -258,6 +260,12 @@ namespace CausaFix.ProjectSetup.ViewModels
                 OnPropertyChanged(nameof(SelectedTitleScope));
                 PickReferenceTitleCommand?.Refresh();
             }
+        }
+
+        /// <summary>The planner may migrate a format-1 configuration (compositions, profiles): reload the editors when it did.</summary>
+        private void SyncEditorsAfterPlan()
+        {
+            if (_cfg.Compositions.Count != Compositions.Count || _cfg.NumberingProfiles.Count != NumberingProfiles.Count) LoadEditors();
         }
 
         private void RebuildRowTitle()

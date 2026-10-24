@@ -264,12 +264,12 @@
 
                             <TabControl Grid.Row="1" Grid.ColumnSpan="3" Margin="0,6,0,0">
                                 <TabItem Header="View Name">
-                                    <local:NameBuilderControl DataContext="{Binding ViewNameBuilder}" Visibility="{Binding ViewNameBuilder, Converter={StaticResource NullToVis}}" />
+                                    <local:NameBuilderControl DataContext="{Binding ViewNameBuilder}" Visibility="{Binding Converter={StaticResource NullToVis}}" />
                                 </TabItem>
                                 <TabItem Header="Title on Sheet">
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,4" Text="Text of the view's title when it is placed (a separate field from View Name). An empty rule keeps the view's current title." />
-                                        <local:NameBuilderControl DataContext="{Binding TitleBuilder}" Visibility="{Binding TitleBuilder, Converter={StaticResource NullToVis}}" />
+                                        <local:NameBuilderControl DataContext="{Binding TitleBuilder}" Visibility="{Binding Converter={StaticResource NullToVis}}" />
                                     </StackPanel>
                                 </TabItem>
                             </TabControl>
@@ -336,7 +336,7 @@
                                     <ComboBox Width="220" ItemsSource="{Binding ViewSets}" SelectedItem="{Binding SelectedSet}" DisplayMemberPath="Name" />
                                     <TextBlock Style="{StaticResource Hint}" Margin="12,0" VerticalAlignment="Center" Text="Sheet Name may repeat in Revit. A composed sheet uses its primary View Set's rule unless the composition has its own." />
                                 </StackPanel>
-                                <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding SheetNameBuilder, Converter={StaticResource NullToVis}}" />
+                                <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding Converter={StaticResource NullToVis}}" />
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
@@ -470,7 +470,7 @@
                                             <CheckBox Grid.Row="4" Grid.ColumnSpan="2" Margin="0,6,0,0" Content="Own Sheet Name rule (otherwise the primary View Set's)" IsChecked="{Binding OwnSheetName}" />
                                         </Grid>
                                     </Border>
-                                    <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding SheetNameBuilder, Converter={StaticResource NullToVis}}" />
+                                    <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding Converter={StaticResource NullToVis}}" />
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>

@@ -252,7 +252,6 @@ namespace CausaFix.Core.Tests
             public NameRule RuleFor(NameContext t) => Rule;
             public string FixedValue(NameContext t) => null;
             public TokenValues Tokens() => _v;
-            public string Pattern;
         }
 
         // ------------------------------------------------------------------ B. numbering
@@ -633,7 +632,7 @@ namespace CausaFix.Core.Tests
         // ------------------------------------------------------------------ E. persistence, migration, regressions
 
         /// <summary>A profile written by the previous version (format 1: token patterns, shared sheets by number).</summary>
-        private const string Format1Profile = @"{""Format"":1,""Name"":""Old electrical"",""Mode"":0,
+        internal const string Format1Profile = @"{""Format"":1,""Name"":""Old electrical"",""Mode"":0,
 ""Levels"":[{""LevelUniqueId"":""lvl-0"",""LevelName"":""Ground Floor"",""Code"":""GF"",""Selected"":true,""Order"":0,""Zone"":""""},{""LevelUniqueId"":""lvl-1"",""LevelName"":""Level 01"",""Code"":""L01"",""Selected"":true,""Order"":1,""Zone"":""""}],
 ""ViewSets"":[
 {""Key"":""ltg"",""Name"":""LIGHTING"",""Code"":""LTG"",""DisciplineCode"":""E"",""Enabled"":true,""LevelUniqueIds"":[],""Family"":0,""ViewFamilyTypeUniqueId"":""vft-fp"",""TemplateUniqueId"":""tpl-ltg"",""ViewNamePattern"":""{DisciplineCode}-{LevelCode}-{ViewSetName}"",""TitleOnSheetPattern"":""{LevelName} - {ViewSetName}"",""Scale"":100,""Crop"":0,""ScopeBoxUniqueId"":"""",""SheetMode"":1,""SheetNumberPattern"":""E-{LevelCode}"",""SheetNamePattern"":""{LevelName:upper}"",""ViewNameCase"":0,""SheetNameCase"":0,""Sequence"":{""Start"":1,""Increment"":1,""Scope"":1},""TitleBlockUniqueId"":""tb-a1"",""AlignmentGroupKey"":""Main"",""SlotName"":""A"",""ViewportTypeUniqueId"":"""",""Rotation"":0,""Zone"":""""},

@@ -85,8 +85,8 @@ Verificación disponible en esta entrega:
 | Área | Función | Estado | Verificación | R |
 |---|---|---|---|---|
 | Arranque | Botón Documentation → Project Setup, registrado como módulo (sin tocar Excel Link) | Implementado | C | ☐ |
-| Ventana | WPF no modal: Levels, View Sets, Sheets, Placement, Review; ExternalEvent; cierre de documento | Implementado | C | ☐ |
-| Modos | Full Setup, Views Only, Sheets Only, Place / Re-align Existing | Implementado | T, C | ☐ |
+| Ventana | WPF no modal: Levels, View Sets, Sheets, Numbering, Placement, Review; ExternalEvent; cierre de documento | Implementado | C | ☐ |
+| Modos | Full Setup, Views Only, Sheets Only, Place / Re-align Existing, Update Titles Only | Implementado | T, C | ☐ |
 | Niveles | Niveles del host con código propio, orden, vistas existentes por nivel; niveles faltantes informados | Implementado | T, F | ☐ |
 | Niveles | Crear/copiar niveles o usar niveles de vínculos | Pendiente (fuera de alcance) | — | — |
 | Vistas | Matriz niveles × reglas, subconjuntos, exclusión de filas, overrides por fila | Implementado | T | ☐ |
@@ -95,13 +95,31 @@ Verificación disponible en esta entrega:
 | Vistas | Scope box / sin recorte / mantener recorte | Implementado | C | ☐ |
 | Vistas | Copiar recorte simple de una vista de referencia | Pendiente | — | — |
 | Vistas | Áreas, secciones, alzados, 3D | Pendiente (fuera de alcance) | — | — |
-| Nombres | Tokens, formatos 000/upper/lower, mayúsculas por patrón, validación de tokens y caracteres | Implementado | T | ☐ |
-| Nombres | Secuencias con inicio/paso/ámbito, estables al añadir niveles; regeneración explícita | Implementado | T | ☐ |
+| Nombres | Build Name por destino (View Name, Title on Sheet, Sheet Name, Sheet Number); componentes con orden, Enabled, Required, separador, mayúsculas, relleno, mapeos, fallback; previsualización con filas reales | Implementado | T, F, C | ☐ |
+| Nombres | Fuentes: campos CausaFix, valores del plan y parámetros reales (Project Information, Level, View, Sheet, Title Block tipo/instancia) por GUID / built-in / ParameterElement; homónimos distinguidos; solo lectura válido como fuente | Implementado | T, C | ☐ |
+| Nombres | Separadores omitidos con componentes opcionales vacíos; ceros iniciales de códigos conservados; dependencias entre nombres y ciclos detectados | Implementado | T | ☐ |
+| Nombres | Valores de vistas/sheets que aún no existen: desconocidos (fallback u opcional), sin usar valores del template | Implementado | T | ☐ |
+| Nombres | Advanced pattern (tokens) y migración fiel de patrones antiguos; los no convertibles quedan Legacy/Advanced con nota | Implementado | T | ☐ |
+| Nombres | Valores de parámetros de View/Sheet leídos bajo demanda (solo lectura) | Implementado | F (mock), C | ☐ |
+| Numeración | Perfiles reutilizables con segmentos opcionales en cualquier orden; Standard: E-101 · E-A-101 · E-A-P-101 · FCC-E-A-P-101 | Implementado | T, F | ☐ |
+| Numeración | Secuencia por sheet (no por vista), inicio/incremento/orden, reinicio por campos, contador compartido; números reservados al deseleccionar | Implementado | T | ☐ |
+| Numeración | Cambio de regla/prefijo → renumeración pendiente (actual → propuesto) hasta aprobar; renumeración explícita con previsualización | Implementado | T, F | ☐ |
+| Numeración | Identidad estable de sheet separada del número; mismo número en sheets distintos = conflicto (sin fusión) | Implementado | T | ☐ |
+| Numeración | Condición documental separada de Phase / Phase Filter | Implementado | T | ☐ |
+| Numeración | Perfiles: añadir, duplicar, renombrar, eliminar, importar, exportar | Implementado | T, F | ☐ |
 | Nombres | Colisiones con existentes y entre filas; unicidad según Revit; intercambios con nombres temporales | Implementado | T, C | ☐ |
-| Sheets | Un sheet por vista, sheet compartido con slots, sheet existente; title block por regla/fila; placeholders comprobados | Implementado | T, C | ☐ |
+| Sheets | Un sheet por vista, sheet existente, ninguno; title block por regla/composición/fila; placeholders comprobados | Implementado | T, C | ☐ |
+| Sheets | Views on Sheet: composiciones con miembros (View Set o vista existente), principal, Separate u Overlay | Implementado | T, F, C | ☐ |
+| Sheets | Overlay: misma referencia del edificio en el mismo punto (Model Anchor), escala/rotación iguales, segunda referencia; solape intencional permitido y accidental detectado | Implementado | T (lógica y matemática), C | ☐ |
+| Sheets | Títulos de overlay: Only primary / All / Per member mediante un tipo de viewport elegido; offsets por miembro | Implementado | T, C | ☐ |
+| Sheets | Crear automáticamente un tipo de viewport derivado sin título | Pendiente (valores de Show Title no verificables en la API documentada) | — | — |
+| Sheets | Orden delante/detrás de viewports superpuestos | Fuera de alcance (no expuesto por la API para viewports) | — | — |
 | Sheets | Parámetros adicionales de sheet/title block mapeados por el usuario | Pendiente | — | — |
 | Viewports | CanAddViewToSheet, reutilizar viewport existente, tipo, rotación; vista en otro sheet → dependiente explícita | Implementado | T, C | ☐ |
-| Viewports | Alineación del título (LabelOffset) | Pendiente | — | — |
+| Títulos | View Title Placement: KeepExisting, MatchReference (relativo o fijo), RelativeToViewport (esquina + mm, viewport o envolvente del overlay), FixedSheetPosition (sheet o title block); línea con longitud/dirección | Implementado | T (geometría con sonda simulada), C | ☐ |
+| Títulos | Aplicación tras alinear con LabelLineLength → GetLabelOutline → LabelOffset → regenerar → verificar; viewports rotados; dibujo verificado sin moverse; restaurar si no hay tolerancia | Implementado | T, C | ☐ |
+| Títulos | Niveles: perfil → grupo → composición → viewport (override en Review) | Implementado | T, F | ☐ |
+| Títulos | Update Titles Only sobre viewports existentes (sin crear, renombrar ni realinear) | Implementado | T, C | ☐ |
 | Alineación | Ancla por intersección de ejes / punto; segunda referencia; validación de documento | Implementado | T (lógica), C | ☐ |
 | Alineación | Match Reference Viewport y X/Y manual; marco Sheet o TitleBlock con transformaciones reales | Implementado | T (matemática), C | ☐ |
 | Alineación | GetModelToProjectionTransforms × GetProjectionToSheetTransform, SetBoxCenter, regenerar, error medido ≤ tolerancia | Implementado | T (bucle con sonda simulada), C | ☐ |
@@ -113,7 +131,9 @@ Verificación disponible en esta entrega:
 | Ejecución | Reejecución sin cambios = 0 vistas/sheets/viewports y sin mover (Extensible Storage) | Implementado | T, F, C | ☐ |
 | Ejecución | Viewports fijados (omitir o realinear restaurando el pin), worksharing | Implementado | C | ☐ |
 | Ejecución | Cancelación durante la transacción | Restringido: solo antes de ejecutar o durante los picks | — | — |
-| Review | Tabla editable, filtro de errores, motivo completo, abrir vista/sheet, previsualización 2D (estimado vs medido) | Implementado | F, C | ☐ |
+| Review | Agrupada por sheet con miembros y papel; componentes de nombres/números con origen; numeración y título por sheet/viewport; previsualización (existente gris, estimado discontinuo, medido continuo; overlays y títulos) | Implementado | F, C | ☐ |
 | Perfiles | Guardar, duplicar, renombrar, eliminar, importar, exportar; portabilidad sin emparejar por nombre; anclas no se copian | Implementado | T, F | ☐ |
+| Perfiles | Formato 2 con migración del 1 (patrones, secuencias, sheets compartidos → composición con clave antigua, sin duplicados ni renumeración) | Implementado | T | ☐ |
+| Perfiles | Portabilidad: parámetros de proyecto, tipos de viewport y vistas miembro de otro documento se informan para remapear | Implementado | T | ☐ |
 | Rendimiento | Plan de 10 niveles × 4 conjuntos con 2000 vistas/500 sheets: ~10 ms (núcleo) | Medido sin Revit | T | ☐ |
 | Rendimiento | Run Setup de 10 × 4 en Revit | Pendiente de medir en Revit | — | — |

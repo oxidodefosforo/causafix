@@ -226,7 +226,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         public string NumberingOverride
         {
             get => _cfg.Override(Row.RowKey)?.NumberingProfileKey ?? "";
-            set { var v = value ?? ""; if (!Row.IsSheetPrimary || v == NumberingOverride) return; Edit(o => o.NumberingProfileKey = v.Length == 0 ? null : v); }
+            set { if (value == null || !Row.IsSheetPrimary || value == NumberingOverride) return; Edit(o => o.NumberingProfileKey = value.Length == 0 ? null : value); }
         }
         public bool PlaceAsDependent { get => _cfg.Override(Row.RowKey)?.PlaceAsDependent ?? false; set { if (value != PlaceAsDependent) Edit(o => o.PlaceAsDependent = value); } }
 

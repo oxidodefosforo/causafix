@@ -320,5 +320,65 @@ namespace CausaFix.Core.Tests
             }
             finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         }
+    
+        /// <summary>A format-1 profile loaded through the window: migrated, editors in sync, no duplicates proposed.</summary>
+        [Test]
+        public static void ViewModel_LoadsFormat1Profile()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cf-psvm-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var gw = new FakeSetupGateway { Catalog = V2Data.Catalog(2) };
+                var dlg = new FakeSetupDialogs();
+                var vm = new ProjectSetupViewModel(gw, dlg, Path.Combine(dir, "p"), Path.Combine(dir, "l"));
+                vm.InitializeAsync().GetAwaiter().GetResult();
+                string json = ProjectSetupV2Tests.Format1Profile;
+                File.WriteAllText(Path.Combine(dir, "p", "setup-" + CausaFix.Core.Profiles.ProfileStore.FileNameFor("Old electrical")), json);
+                vm.ReloadProfilesForTest();
+                vm.SelectedProfile = "Old electrical";
+                vm.LoadProfileCommand.Execute(null);
+                Assert.Equal(1, vm.Compositions.Count, "migrated composition shown in Views on Sheet");
+                Assert.Equal(vm.Config.NumberingProfiles.Count, vm.NumberingProfiles.Count);
+                Assert.True(dlg.Messages.Any(m => m.Contains("Migrated")), string.Join(" | ", dlg.Messages));
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                Assert.True(vm.Rows.Count == 6, "3 View Sets × 2 levels");
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
+    
+        /// <summary>Same regression as above for the new combo sources (numbering, View Sets, viewport types, title scopes).</summary>
+        [Test]
+        public static void ViewModel_NewComboSources_DoNotLoop()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cf-psvm-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var gw = new FakeSetupGateway { Catalog = V2Data.Catalog(2) };
+                var vm = new ProjectSetupViewModel(gw, new FakeSetupDialogs(), Path.Combine(dir, "p"), Path.Combine(dir, "l"));
+                int writes = 0;
+                var watched = new[] { nameof(ProjectSetupViewModel.NumberingChoices), nameof(ProjectSetupViewModel.ViewSetChoices), nameof(ProjectSetupViewModel.ViewportTypeChoices), nameof(ProjectSetupViewModel.NumberingChoicesInherit), nameof(ProjectSetupViewModel.SelectedTitleScope) };
+                vm.PropertyChanged += (o, e) =>
+                {
+                    if (Array.IndexOf(watched, e.PropertyName) < 0) return;
+                    if (++writes > 5000) throw new InvalidOperationException("endless loop");
+                    foreach (var vs in vm.ViewSets) { vs.NumberingProfileKey = vs.NumberingProfileKey; vs.NumberingProfileKey = null; }
+                    foreach (var c in vm.Compositions) { c.NumberingProfileKey = null; c.HiddenTitleViewportTypeUniqueId = null; foreach (var m in c.Members) { m.ViewSetKey = null; m.ViewportTypeUniqueId = null; } }
+                    if (vm.SelectedTitleScope != null) vm.SelectedTitleScope.Mode = vm.SelectedTitleScope.Mode;
+                };
+                vm.InitializeAsync().GetAwaiter().GetResult();
+                foreach (var l in vm.Levels) l.Selected = true;
+                string key = vm.ViewSets[0].NumberingProfileKey;
+                vm.AddNumberingCommand.Execute(null);
+                vm.SelectedNumbering.Name = "Renamed";
+                vm.AddCompositionCommand.Execute(null);
+                vm.AddViewSetMemberCommand.Execute(null);
+                vm.SelectedComposition.Name = "Overlay A";
+                vm.ViewSets[0].Name = "LIGHTING 2";
+                Assert.Equal(key, vm.ViewSets[0].NumberingProfileKey, "a null from a combo never erases the numbering choice");
+                Assert.True(vm.SelectedComposition.Members.All(m => !string.IsNullOrEmpty(m.ViewSetKey)));
+                Assert.True(writes < 200, "bounded: " + writes);
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
     }
 }

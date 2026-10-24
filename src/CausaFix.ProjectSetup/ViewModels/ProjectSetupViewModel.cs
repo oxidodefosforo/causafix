@@ -602,6 +602,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         public void Rebuild()
         {
             _plan = PlanBuilder.Build(_cfg, _cat, _gw.DocumentKey);
+            SyncEditorsAfterPlan();
             FillRows();
             PlanMessages.Clear();
             foreach (var e in _plan.GlobalErrors) PlanMessages.Add("Error: " + e);
@@ -721,6 +722,9 @@ namespace CausaFix.ProjectSetup.ViewModels
         }
 
         // ------------------------------------------------------------------ profiles
+
+        /// <summary>Re-reads the profile folder (tests and external changes).</summary>
+        public void ReloadProfilesForTest() => ReloadProfiles();
 
         private void ReloadProfiles()
         {
