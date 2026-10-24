@@ -125,6 +125,12 @@ namespace CausaFix.ProjectSetup.Execution
         public double? TitleBlockXmm { get; set; }
         public double? TitleBlockYmm { get; set; }
         public double LineLengthMm { get; set; }
+        /// <summary>The user cancelled the pick in Revit (nothing changes).</summary>
+        public bool Cancelled { get; set; }
+        /// <summary>Title block instances on the reference sheet (a title-block frame needs exactly one).</summary>
+        public int TitleBlockCount { get; set; }
+        public string SheetNumber { get; set; } = string.Empty;
+        public string ViewName { get; set; } = string.Empty;
     }
 
     /// <summary>Everything Project Setup needs from Revit (DTOs only). Implemented by CausaFix.Revit through ExternalEvent.</summary>

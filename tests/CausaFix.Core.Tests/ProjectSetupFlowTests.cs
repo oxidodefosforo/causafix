@@ -33,7 +33,10 @@ namespace CausaFix.Core.Tests
             foreach (var s in Catalog.Sheets) set.Sheets[s.UniqueId] = new Dictionary<string, string>(s.Values);
             return Task.FromResult(set);
         }
-        public Task<TitlePick> PickReferenceTitle(TitleAnchor anchor) => Task.FromResult(NextTitlePick);
+        /// <summary>Picks returned in order before falling back to <see cref="NextTitlePick"/> (retry tests).</summary>
+        public Queue<TitlePick> TitlePicks = new Queue<TitlePick>();
+        public int TitlePickCount;
+        public Task<TitlePick> PickReferenceTitle(TitleAnchor anchor) { TitlePickCount++; return Task.FromResult(TitlePicks.Count > 0 ? TitlePicks.Dequeue() : NextTitlePick); }
 
         public Task<AnchorPick> PickGridIntersection(bool second) => Task.FromResult(new AnchorPick
         {

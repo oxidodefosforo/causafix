@@ -30,6 +30,12 @@
                     <PropertyGroupDescription PropertyName="SheetGroup" />
                 </CollectionViewSource.GroupDescriptions>
             </CollectionViewSource>
+            <!-- Rows of rule lists (View Sets, compositions). Focus that lands on a control inside the row (the Enabled box)
+                 also selects that row, so the editor always shows the rule being manipulated. -->
+            <Style x:Key="RuleItem" TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                <Setter Property="Padding" Value="4,2" />
+                <EventSetter Event="GotKeyboardFocus" Handler="OnRuleItemFocus" />
+            </Style>
             <!-- View Title Placement editor (DataContext: TitlePlacementItem) -->
             <DataTemplate x:Key="TitleEditor">
                 <StackPanel>
@@ -180,12 +186,24 @@
                                 <Button Content="Duplicate" Command="{Binding DuplicateSetCommand}" />
                                 <Button Content="Remove" Command="{Binding RemoveSetCommand}" />
                             </StackPanel>
-                            <ListBox ItemsSource="{Binding ViewSets}" SelectedItem="{Binding SelectedSet}" BorderThickness="0" HorizontalContentAlignment="Stretch">
+                            <!-- The Enabled box is its own control beside the text: a click on the name, the family or the free
+                                 space is a normal ListBoxItem selection; only the box toggles Enabled. -->
+                            <ListBox x:Name="ViewSetList" ItemsSource="{Binding ViewSets}" SelectedItem="{Binding SelectedSet}" BorderThickness="0"
+                                     HorizontalContentAlignment="Stretch" ItemContainerStyle="{StaticResource RuleItem}"
+                                     AutomationProperties.Name="View Sets (rules)">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox IsChecked="{Binding Enabled}">
-                                            <TextBlock><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Family, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
-                                        </CheckBox>
+                                        <DockPanel Background="Transparent" Margin="0,1">
+                                            <CheckBox x:Name="EnabledBox" DockPanel.Dock="Left" IsChecked="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"
+                                                      Margin="0,0,6,0" ToolTip="Enabled: generate this View Set" AutomationProperties.Name="Enabled" />
+                                            <TextBlock x:Name="RuleText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Family, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
+                                        </DockPanel>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Enabled}" Value="False">
+                                                <Setter TargetName="RuleText" Property="Opacity" Value="0.55" />
+                                                <Setter TargetName="RuleText" Property="ToolTip" Value="Disabled (still editable)" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -214,7 +232,7 @@
                                     <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource Label}" />
-                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
+                                <TextBox x:Name="SetNameBox" Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="View Set name" />
                                 <TextBlock Grid.Row="1" Text="Set code / Discipline" Style="{StaticResource Label}" />
                                 <WrapPanel Grid.Row="1" Grid.Column="1">
                                     <TextBox Width="80" Text="{Binding Code, UpdateSourceTrigger=LostFocus}" ToolTip="View Set code (CausaFix field)" />
@@ -270,6 +288,23 @@
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,4" Text="Text of the view's title when it is placed (a separate field from View Name). An empty rule keeps the view's current title." />
                                         <local:NameBuilderControl DataContext="{Binding TitleBuilder}" Visibility="{Binding Converter={StaticResource NullToVis}}" />
+                                        <!-- Position of the title on the paper: the same View Title Placement configuration as step Placement. -->
+                                        <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,6" Margin="0,8,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Title position on the sheet" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding SetTitleCurrent}" TextWrapping="Wrap" Foreground="#23394D" Margin="0,2,0,4" />
+                                                <WrapPanel>
+                                                    <TextBlock Text="Apply to" Style="{StaticResource Label}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <ComboBox Width="220" ItemsSource="{Binding SetTitleScopes}" SelectedItem="{Binding SetTitleScope}"
+                                                              ToolTip="Profile default → group → composition. Viewport overrides (Review) are more specific and keep their own setting." />
+                                                    <Button Content="Take title position from a placed view…" Command="{Binding PickSetTitleReferenceCommand}" Margin="8,2,0,2"
+                                                            ToolTip="Open the sheet with a correctly placed title in Revit and pick its viewport. Only the title geometry is taken; the text keeps coming from the Title on Sheet rule." />
+                                                    <Button Content="Open View Title Placement" Command="{Binding OpenTitlePlacementCommand}" Margin="6,2,0,2"
+                                                            ToolTip="Edit the same settings in step Placement (anchor, frame, capture kind, line)" />
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding SetTitleScopeInfo}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </TabItem>
                             </TabControl>
@@ -358,12 +393,18 @@
                                         <Button Content="Duplicate" Command="{Binding DuplicateCompositionCommand}" />
                                         <Button Content="Remove" Command="{Binding RemoveCompositionCommand}" />
                                     </StackPanel>
-                                    <ListBox ItemsSource="{Binding Compositions}" SelectedItem="{Binding SelectedComposition}" BorderThickness="0" HorizontalContentAlignment="Stretch">
+                                    <ListBox ItemsSource="{Binding Compositions}" SelectedItem="{Binding SelectedComposition}" BorderThickness="0" HorizontalContentAlignment="Stretch"
+                                             ItemContainerStyle="{StaticResource RuleItem}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <CheckBox IsChecked="{Binding Enabled}">
-                                                    <TextBlock><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Mode, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
-                                                </CheckBox>
+                                                <DockPanel Background="Transparent" Margin="0,1">
+                                                    <CheckBox DockPanel.Dock="Left" IsChecked="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                              ToolTip="Enabled: generate this composition" AutomationProperties.Name="Enabled" />
+                                                    <TextBlock x:Name="CompText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Mode, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
+                                                </DockPanel>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding Enabled}" Value="False"><Setter TargetName="CompText" Property="Opacity" Value="0.55" /></DataTrigger>
+                                                </DataTemplate.Triggers>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>

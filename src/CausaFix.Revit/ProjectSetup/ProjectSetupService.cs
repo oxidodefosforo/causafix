@@ -51,33 +51,40 @@ namespace CausaFix.Revit.ProjectSetup
         public Task<TitlePick> PickReferenceTitle(TitleAnchor anchor) => Run((app, doc) =>
         {
             var uidoc = app.ActiveUIDocument;
-            if (!(uidoc.ActiveView is ViewSheet sheet)) return new TitlePick { Message = "Open the reference sheet first (the active view must be a sheet)." };
+            if (!(uidoc.ActiveView is ViewSheet sheet))
+                return new TitlePick { Message = "The active view in Revit is not a sheet. Open the sheet that holds the reference viewport (its title correctly placed) and try again." };
             Viewport vp;
             try
             {
-                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFix: pick the viewport whose title is correctly placed");
+                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFix: pick the viewport whose title is correctly placed (Esc cancels)");
                 vp = doc.GetElement(r.ElementId) as Viewport;
             }
-            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new TitlePick { Message = "Pick cancelled." }; }
-            if (vp == null) return new TitlePick { Message = "That is not a viewport." };
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new TitlePick { Cancelled = true, Message = "Pick cancelled: nothing changed." }; }
+            if (vp == null) return new TitlePick { Message = "The picked element is not a viewport placed on this sheet. Pick the viewport (the drawing on the sheet)." };
+            var view = doc.GetElement(vp.ViewId) as View;
             var probe = new RevitTitleProbe(doc, vp);
             var label = probe.LabelBox();
-            if (label == null) return new TitlePick { Message = "That viewport shows no title (its viewport type hides it). Pick one with a visible title." };
+            if (label == null)
+                return new TitlePick { Message = "The viewport of '" + view?.Name + "' shows no title (its viewport type hides it). Pick a viewport whose title is visible." };
             var box = probe.ViewportBox();
             int q = vp.Rotation == ViewportRotation.Clockwise ? -1 : vp.Rotation == ViewportRotation.Counterclockwise ? 1 : 0;
             var c = box.Center;
+            // Relative: anchor corner of the title from the same corner of the viewport box, in the unrotated viewport frame.
             var rel = TitleGeometry.CaptureRelative(TitleGeometry.ToLocal(box, c, q), TitleGeometry.ToLocal(label.Value, c, q), anchor);
+            // Fixed: anchor corner of the measured title outline on the sheet (mm of paper; sheet space has no view scale).
             var corner = TitleGeometry.Corner(label.Value, anchor);
-            var view = doc.GetElement(vp.ViewId) as View;
             var pick = new TitlePick
             {
                 Ok = true,
                 RelativeXmm = rel.X, RelativeYmm = rel.Y,
                 SheetXmm = corner.X, SheetYmm = corner.Y,
                 LineLengthMm = probe.LineLength,
-                Description = "title of '" + view?.Name + "' on sheet " + sheet.SheetNumber
+                SheetNumber = sheet.SheetNumber,
+                ViewName = view?.Name ?? "",
+                Description = "title of '" + view?.Name + "' on sheet " + sheet.SheetNumber + (string.IsNullOrEmpty(sheet.Name) ? "" : " - " + sheet.Name)
             };
             var tbs = SetupCatalogReader.TitleBlocksOn(doc, sheet);
+            pick.TitleBlockCount = tbs.Count;
             if (tbs.Count == 1)
             {
                 var local = SheetGeometry.ToAffine(tbs[0].GetTransform()).Inverse().Apply(new P2(AlignmentMath.MmToFeet(corner.X), AlignmentMath.MmToFeet(corner.Y)));

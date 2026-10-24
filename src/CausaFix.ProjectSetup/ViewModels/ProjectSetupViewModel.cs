@@ -196,6 +196,7 @@ namespace CausaFix.ProjectSetup.ViewModels
                 if (!Set(ref _step, value)) return;
                 if (value == ReviewStep) Rebuild();
                 RefreshExamples();
+                RefreshSetTitleInfo();
                 if (value == NumberingStep) RefreshPendingRenumbers();
             }
         }
@@ -209,6 +210,7 @@ namespace CausaFix.ProjectSetup.ViewModels
                 RebuildSelectedLists();
                 RebuildSetBuilders();
                 DuplicateSetCommand.Refresh(); RemoveSetCommand.Refresh();
+                RebuildSetTitleScopes();
             }
         }
 
@@ -220,7 +222,7 @@ namespace CausaFix.ProjectSetup.ViewModels
 
         public PlanRowItem SelectedRow { get => _selectedRow; set { if (Set(ref _selectedRow, value)) { RaisePreview(); RebuildRowTitle(); } } }
         public bool ErrorsOnly { get => _errorsOnly; set { if (Set(ref _errorsOnly, value)) FillRows(); } }
-        public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) { RunCommand.Refresh(); RefreshCommand.Refresh(); CancelCommand.Refresh(); PickGridsCommand.Refresh(); PickPointCommand.Refresh(); PickReferenceCommand.Refresh(); PickReferenceTitleCommand?.Refresh(); } } }
+        public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) { RunCommand.Refresh(); RefreshCommand.Refresh(); CancelCommand.Refresh(); PickGridsCommand.Refresh(); PickPointCommand.Refresh(); PickReferenceCommand.Refresh(); PickReferenceTitleCommand?.Refresh(); PickSetTitleReferenceCommand?.Refresh(); } } }
         public string BusyText { get => _busyText; private set => Set(ref _busyText, value); }
         public string Status { get => _status; set => Set(ref _status, value ?? ""); }
         public string DocumentTitle => _cat.DocumentTitle;
@@ -378,6 +380,7 @@ namespace CausaFix.ProjectSetup.ViewModels
                 RebuildGroupKeys();
                 RebuildChoiceLists();     // only when keys/names changed
                 RefreshExamples();
+                RebuildSetTitleScopes();
                 if (Step == ReviewStep) Rebuild();
             }
             finally { _inChanged = false; }

@@ -225,6 +225,23 @@ namespace CausaFix.ProjectSetup.Model
         [DataMember(Order = 11)] public TitleLineMode LineMode { get; set; } = TitleLineMode.Keep;
         /// <summary>Line length in mm of paper; negative extends to the left (Revit's sign convention).</summary>
         [DataMember(Order = 12)] public double LineLengthMm { get; set; } = 60;
+        /// <summary>True once the user chose "Capture as" himself; a new capture then keeps that kind (otherwise FixedPosition).</summary>
+        [DataMember(Order = 13)] public bool CaptureKindExplicit { get; set; }
+
+        /// <summary>
+        /// Kind a new reference capture uses: the explicit "Capture as" choice, the kind of an earlier capture, or the
+        /// explicit mode the user had (Relative / Fixed). With no previous choice, FixedPosition: titles line up on paper.
+        /// </summary>
+        public TitleCaptureKind CaptureKindForNewCapture
+        {
+            get
+            {
+                if (CaptureKindExplicit) return CaptureKind;
+                if (Mode == TitleMode.MatchReference && !string.IsNullOrEmpty(ReferenceDescription)) return CaptureKind;
+                if (Mode == TitleMode.RelativeToViewport) return TitleCaptureKind.RelativeOffset;
+                return TitleCaptureKind.FixedPosition;
+            }
+        }
 
         /// <summary>Effective geometric mode (MatchReference resolves to its captured kind).</summary>
         public bool IsFixed => Mode == TitleMode.FixedSheetPosition || (Mode == TitleMode.MatchReference && CaptureKind == TitleCaptureKind.FixedPosition);

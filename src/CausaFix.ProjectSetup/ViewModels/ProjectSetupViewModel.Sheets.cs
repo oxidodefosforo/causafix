@@ -63,6 +63,22 @@ namespace CausaFix.ProjectSetup.ViewModels
             set { if (Set(ref _selectedComposition, value)) { DuplicateCompositionCommand.Refresh(); RemoveCompositionCommand.Refresh(); AddViewSetMemberCommand.Refresh(); AddExistingMemberCommand.Refresh(); RefreshExamples(); } }
         }
         public TitlePlacementItem SelectedTitleScope { get => _selectedTitleScope; set { if (Set(ref _selectedTitleScope, value)) PickReferenceTitleCommand.Refresh(); } }
+        // Title position from the View Set (Title on Sheet tab): the same TitlePlacementItem objects as View Title Placement.
+        private TitlePlacementItem _setTitleScope;
+        private string _setTitleKeyFor;
+        /// <summary>Scopes the views of the selected View Set can take their title position from (profile → group → composition).</summary>
+        public IList<TitlePlacementItem> SetTitleScopes { get; private set; } = new List<TitlePlacementItem>();
+        public TitlePlacementItem SetTitleScope
+        {
+            get => _setTitleScope;
+            set { if (value == null || ReferenceEquals(value, _setTitleScope)) return; _setTitleScope = value; OnPropertyChanged(); RefreshSetTitleInfo(); PickSetTitleReferenceCommand?.Refresh(); }
+        }
+        /// <summary>Where the selected View Set's titles go now (effective scope and its placement).</summary>
+        public string SetTitleCurrent { get => _setTitleCurrent; private set => Set(ref _setTitleCurrent, value ?? ""); }
+        /// <summary>What a capture into <see cref="SetTitleScope"/> changes and what keeps its own setting.</summary>
+        public string SetTitleScopeInfo { get => _setTitleScopeInfo; private set => Set(ref _setTitleScopeInfo, value ?? ""); }
+        private string _setTitleCurrent = "", _setTitleScopeInfo = "";
+
         /// <summary>Title override of the viewport selected in Review.</summary>
         public TitlePlacementItem RowTitle { get => _rowTitle; private set => Set(ref _rowTitle, value); }
         public bool RenumberSelectedOnly { get => _renumberSelectedOnly; set => Set(ref _renumberSelectedOnly, value); }
@@ -82,6 +98,8 @@ namespace CausaFix.ProjectSetup.ViewModels
         public RelayCommand ApplyRenumberCommand { get; private set; }
         public RelayCommand ApprovePendingCommand { get; private set; }
         public AsyncCommand PickReferenceTitleCommand { get; private set; }
+        public AsyncCommand PickSetTitleReferenceCommand { get; private set; }
+        public RelayCommand OpenTitlePlacementCommand { get; private set; }
 
         private void InitSheetFeatures(Action<Exception> err)
         {
@@ -100,6 +118,13 @@ namespace CausaFix.ProjectSetup.ViewModels
             ApplyRenumberCommand = new RelayCommand(() => Guard(ApplyRenumber));
             ApprovePendingCommand = new RelayCommand(() => Guard(ApprovePending));
             PickReferenceTitleCommand = new AsyncCommand(PickReferenceTitle, () => !IsBusy && SelectedTitleScope != null, err);
+            PickSetTitleReferenceCommand = new AsyncCommand(() => CaptureTitleInto(SetTitleScope, createOverride: true), () => !IsBusy && SetTitleScope != null, err);
+            OpenTitlePlacementCommand = new RelayCommand(() => Guard(() =>
+            {
+                var target = SetTitleScope;
+                Step = PlacementStep;
+                if (target != null) SelectedTitleScope = target;
+            }));
         }
 
         // ------------------------------------------------------------------ defaults
@@ -259,6 +284,7 @@ namespace CausaFix.ProjectSetup.ViewModels
                 _selectedTitleScope = TitleScopes.FirstOrDefault(t => t.Scope == keep) ?? TitleScopes.FirstOrDefault();
                 OnPropertyChanged(nameof(SelectedTitleScope));
                 PickReferenceTitleCommand?.Refresh();
+                RebuildSetTitleScopes(force: true);
             }
         }
 
@@ -537,19 +563,101 @@ namespace CausaFix.ProjectSetup.ViewModels
 
         // ------------------------------------------------------------------ titles
 
-        private async Task PickReferenceTitle()
+        private Task PickReferenceTitle() => CaptureTitleInto(SelectedTitleScope, createOverride: false);
+
+        /// <summary>
+        /// Takes the title position from a viewport placed on a sheet in Revit and stores it in <paramref name="scope"/>
+        /// (the same View Title Placement configuration used everywhere). Only the configuration draft changes: Revit is
+        /// written by Run Setup or Update Titles Only. Cancelling, or a pick that cannot be used, keeps the previous values.
+        /// <paramref name="createOverride"/>: a group/composition that inherits gets its own placement – only after a valid pick.
+        /// </summary>
+        private async Task CaptureTitleInto(TitlePlacementItem scope, bool createOverride)
         {
-            var scope = SelectedTitleScope;
+            const string caption = "Title position from a placed view";
             if (scope == null) return;
-            if (!scope.IsEditable) { _dialogs.Info("Match reference title", "Tick 'Override' for " + scope.Scope + " first (it inherits its placement now)."); return; }
-            TitlePick pick = null;
-            Status = "In Revit: open the reference sheet and pick the viewport whose title is correctly placed.";
-            await RunBusy("Waiting for the viewport pick in Revit", async ct => { pick = await _gw.PickReferenceTitle(scope.Anchor); });
-            if (pick == null) return;
-            if (!pick.Ok) { Status = pick.Message; _dialogs.Info("Match reference title", pick.Message); return; }
+            if (!scope.IsEditable && !createOverride) { _dialogs.Info(caption, "Tick 'Override' for " + scope.Scope + " first (it inherits its placement now)."); return; }
+            TitlePick pick;
+            while (true)
+            {
+                pick = null;
+                Status = "In Revit: open the sheet with the reference viewport and pick it (Esc cancels).";
+                await RunBusy("Waiting for the viewport pick in Revit", async ct => { pick = await _gw.PickReferenceTitle(scope.Anchor); });
+                if (pick == null) { Status = "No reference was taken; the title settings did not change."; return; }
+                if (pick.Cancelled) { Status = "Reference pick cancelled; the title settings did not change."; return; }
+                string problem = scope.CaptureProblem(pick);
+                if (problem == null) break;
+                Status = problem;
+                if (!_dialogs.Confirm(caption, problem + "\n\nTry again?")) { Status = problem + " The title settings did not change."; return; }
+            }
+            if (!scope.IsEditable) scope.Override = true;
             scope.ApplyCapture(pick);
-            Status = "Title placement of " + scope.Scope + " taken from " + pick.Description + " (" + scope.CaptureKind + ").";
+            Status = "Title position of " + scope.Scope + " taken from the " + pick.Description + " as " + scope.CaptureKind +
+                     ". Applied to the views by Run Setup, or by Update Titles Only for existing viewports.";
             Changed();
+            RefreshSetTitleInfo();
+        }
+
+        /// <summary>Scopes for the selected View Set: profile default, its alignment group, the composition it belongs to.</summary>
+        private void RebuildSetTitleScopes(bool force = false)
+        {
+            var rule = SelectedSet?.Rule;
+            string key = rule == null ? "" : rule.Key + "|" + rule.AlignmentGroupKey + "|" + (_cfg.CompositionOf(rule.Key)?.Key ?? "") + "|" + TitleScopes.Count;
+            if (!force && key == _setTitleKeyFor) { RefreshSetTitleInfo(); return; }
+            _setTitleKeyFor = key;
+            var list = new List<TitlePlacementItem>();
+            if (rule != null && TitleScopes.Count > 0)
+            {
+                list.Add(TitleScopes[0]);
+                var g = TitleScopes.FirstOrDefault(x => x.Scope == "Group: " + rule.AlignmentGroupKey);
+                if (g != null) list.Add(g);
+                var comp = _cfg.CompositionOf(rule.Key);
+                var c = comp == null ? null : TitleScopes.FirstOrDefault(x => x.Scope == "Composition: " + comp.Name);
+                if (c != null) list.Add(c);
+            }
+            var keep = _setTitleScope != null && list.Contains(_setTitleScope) ? _setTitleScope : null;
+            SetTitleScopes = list;
+            OnPropertyChanged(nameof(SetTitleScopes));
+            // Default: the most specific scope that already has its own placement (what these views use now).
+            _setTitleScope = keep ?? list.LastOrDefault(x => x.Override) ?? list.FirstOrDefault();
+            OnPropertyChanged(nameof(SetTitleScope));
+            PickSetTitleReferenceCommand?.Refresh();
+            RefreshSetTitleInfo();
+        }
+
+        /// <summary>
+        /// Scope whose placement a View Set (outside or inside a composition) uses, without viewport overrides
+        /// (PlanBuilder.ResolveTitle order). <paramref name="assumeOwn"/> counts as having its own placement.
+        /// </summary>
+        private string EffectiveTitleScope(ViewSetRule rule, string assumeOwn = null)
+        {
+            var comp = _cfg.CompositionOf(rule.Key);
+            if (comp != null && (comp.Title != null || assumeOwn == "Composition: " + comp.Name)) return "Composition: " + comp.Name;
+            string g = comp != null ? (_cfg.Rule(comp.Primary?.ViewSetKey)?.AlignmentGroupKey ?? rule.AlignmentGroupKey) : rule.AlignmentGroupKey;
+            if (_cfg.Group(g ?? "") != null && (_cfg.Group(g).Title != null || assumeOwn == "Group: " + g)) return "Group: " + g;
+            return "Profile default";
+        }
+
+        private void RefreshSetTitleInfo()
+        {
+            var rule = SelectedSet?.Rule;
+            var scope = _setTitleScope;
+            if (rule == null || scope == null || TitleScopes.Count == 0) { SetTitleCurrent = ""; SetTitleScopeInfo = ""; return; }
+            string eff = EffectiveTitleScope(rule);
+            var effItem = TitleScopes.FirstOrDefault(x => x.Scope == eff);
+            SetTitleCurrent = "Views of '" + rule.Name + "' use " + eff + ": " + (effItem == null ? "Keep existing" : effItem.Description.Replace("Inherited: ", ""));
+
+            // Who follows the edited scope (once it has its own placement): View Sets whose effective scope it is.
+            var followers = _cfg.ViewSets.Where(v => EffectiveTitleScope(v, scope.Scope) == scope.Scope)
+                .Select(v => _cfg.CompositionOf(v.Key) == null ? v.Name : v.Name + " (in " + _cfg.CompositionOf(v.Key).Name + ")").ToList();
+            bool own = scope.Override;
+            int rowOverrides = _cfg.Overrides.Count(o => o.Title != null);
+            var others = TitleScopes.Where(x => x != scope && x != TitleScopes[0] && x.Override).Select(x => x.Scope).ToList();
+            string info = "Editing: " + scope.Scope + (own || !scope.CanInherit ? "" : " (inherits now – taking a reference gives it its own placement)") + ". ";
+            info += followers.Count == 0 ? "No View Set uses this scope at the moment. " : "Used by: " + string.Join(", ", followers) + ". ";
+            if (scope == TitleScopes[0] && others.Count > 0) info += "Keep their own placement: " + string.Join(", ", others) + ". ";
+            if (rowOverrides > 0) info += rowOverrides + " viewport override(s) in Review keep their own placement. ";
+            info += "Next capture: " + scope.NextCaptureKind + (scope.NextCaptureKind == TitleCaptureKind.FixedPosition ? " (same point on the paper for every sheet)" : " (same offset from each viewport; crops of different size give different paper positions)") + ".";
+            SetTitleScopeInfo = info;
         }
 
         private void AddTitlePreview(SheetPreviewData d, List<PlanRow> sameSheet)

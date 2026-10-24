@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Interaction checks of the real Project Setup WPF window (Windows only, needs an interactive desktop):
+    the real mouse is moved and clicked with SendInput, so WPF hit testing and routed events are exercised.
+      dotnet run -c Release -p:RevitVersion=2026 -p:UseRevitNuGet=true
+    Exit code: 0 passed · 1 failed · 2 not executable here (no interactive input).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CausaFix.Addin\CausaFix.Addin.csproj" />
+    <ProjectReference Include="..\CausaFix.Core.Tests\CausaFix.Core.Tests.csproj" SetTargetFramework="TargetFramework=net8.0" />
+  </ItemGroup>
+</Project>

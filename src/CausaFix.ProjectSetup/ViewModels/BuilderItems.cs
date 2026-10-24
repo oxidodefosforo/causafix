@@ -475,7 +475,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         {
             if (!Own) { if (_canInherit) return; _set(new TitlePlacement()); }
             a(_get());
-            OnPropertyChanged(n); OnPropertyChanged(nameof(Description)); OnPropertyChanged(nameof(IsFixed)); OnPropertyChanged(nameof(IsRelative));
+            OnPropertyChanged(n); OnPropertyChanged(nameof(Description)); OnPropertyChanged(nameof(IsFixed)); OnPropertyChanged(nameof(IsRelative)); OnPropertyChanged(nameof(NextCaptureKind));
             _changed();
         }
 
@@ -487,7 +487,11 @@ namespace CausaFix.ProjectSetup.ViewModels
         public double FixedXmm { get => T.FixedXmm; set { if (T.FixedXmm == value) return; E(t => t.FixedXmm = value, nameof(FixedXmm)); } }
         public double FixedYmm { get => T.FixedYmm; set { if (T.FixedYmm == value) return; E(t => t.FixedYmm = value, nameof(FixedYmm)); } }
         public SheetFrame Frame { get => T.Frame; set { if (T.Frame == value) return; E(t => t.Frame = value, nameof(Frame)); } }
-        public TitleCaptureKind CaptureKind { get => T.CaptureKind; set { if (T.CaptureKind == value) return; E(t => t.CaptureKind = value, nameof(CaptureKind)); } }
+        /// <summary>
+        /// "Capture as": shows the kind the placement uses (after a capture or an explicit choice) or, before any choice,
+        /// the kind the next capture will use (FixedPosition). Choosing a value marks it as explicit.
+        /// </summary>
+        public TitleCaptureKind CaptureKind { get => T.CaptureKindForNewCapture; set { if (CaptureKind == value) return; E(t => { t.CaptureKind = value; t.CaptureKindExplicit = true; }, nameof(CaptureKind)); } }
         public TitleLineMode LineMode { get => T.LineMode; set { if (T.LineMode == value) return; E(t => t.LineMode = value, nameof(LineMode)); } }
         public double LineLengthMm { get => T.LineLengthMm; set { if (T.LineLengthMm == value) return; E(t => t.LineLengthMm = value, nameof(LineLengthMm)); } }
         public string ReferenceDescription => T.ReferenceDescription;
@@ -496,16 +500,38 @@ namespace CausaFix.ProjectSetup.ViewModels
         public bool IsRelative => T.Applies && !T.IsFixed;
         public string Description => (Override ? "" : "Inherited: ") + T.Describe();
 
-        /// <summary>Applies a captured reference title (Match reference title).</summary>
+        /// <summary>Kind the next capture will use (explicit choice, earlier capture or mode; otherwise FixedPosition).</summary>
+        public TitleCaptureKind NextCaptureKind => T.CaptureKindForNewCapture;
+
+        /// <summary>Why <paramref name="pick"/> cannot be applied to this placement, or null when it can.</summary>
+        public string CaptureProblem(Execution.TitlePick pick)
+        {
+            if (pick == null || !pick.Ok) return pick?.Message ?? "Nothing was picked.";
+            if (T.CaptureKindForNewCapture == TitleCaptureKind.FixedPosition && T.Frame == SheetFrame.TitleBlock && !pick.TitleBlockXmm.HasValue)
+                return "The position is measured in the title block frame, but sheet " + pick.SheetNumber + " has " + pick.TitleBlockCount +
+                       " title blocks (exactly one is needed to know the frame). Pick a viewport on a sheet with one title block, or set the frame to 'Sheet'.";
+            return null;
+        }
+
+        /// <summary>
+        /// Applies a captured reference title (Match reference title). Only the title geometry is taken: anchor corner,
+        /// line length and direction. The title text keeps coming from the Title on Sheet rule. Both results are stored
+        /// in their own fields (offset from the viewport / point on the paper) and only the chosen kind is applied.
+        /// </summary>
         public void ApplyCapture(Execution.TitlePick pick)
         {
+            var kind = T.CaptureKindForNewCapture;
             E(t =>
             {
                 t.Mode = TitleMode.MatchReference;
+                t.CaptureKind = kind;
                 t.ReferenceDescription = pick.Description;
-                if (t.CaptureKind == TitleCaptureKind.RelativeOffset) { t.OffsetXmm = Math.Round(pick.RelativeXmm, 3); t.OffsetYmm = Math.Round(pick.RelativeYmm, 3); }
-                else if (t.Frame == SheetFrame.TitleBlock && pick.TitleBlockXmm.HasValue) { t.FixedXmm = Math.Round(pick.TitleBlockXmm.Value, 3); t.FixedYmm = Math.Round(pick.TitleBlockYmm.Value, 3); }
-                else { t.Frame = SheetFrame.Sheet; t.FixedXmm = Math.Round(pick.SheetXmm, 3); t.FixedYmm = Math.Round(pick.SheetYmm, 3); }
+                t.OffsetXmm = Math.Round(pick.RelativeXmm, 3); t.OffsetYmm = Math.Round(pick.RelativeYmm, 3);
+                if (t.Frame == SheetFrame.TitleBlock)
+                {
+                    if (pick.TitleBlockXmm.HasValue) { t.FixedXmm = Math.Round(pick.TitleBlockXmm.Value, 3); t.FixedYmm = Math.Round(pick.TitleBlockYmm.Value, 3); }
+                }
+                else { t.FixedXmm = Math.Round(pick.SheetXmm, 3); t.FixedYmm = Math.Round(pick.SheetYmm, 3); }
                 t.LineMode = TitleLineMode.Set;
                 t.LineLengthMm = Math.Round(pick.LineLengthMm, 3);
             }, nameof(Mode));
@@ -515,7 +541,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         public void RaiseAll()
         {
             foreach (var n in new[] { nameof(Override), nameof(IsEditable), nameof(Mode), nameof(Anchor), nameof(OffsetXmm), nameof(OffsetYmm), nameof(RelativeTo), nameof(FixedXmm), nameof(FixedYmm),
-                                      nameof(Frame), nameof(CaptureKind), nameof(LineMode), nameof(LineLengthMm), nameof(ReferenceDescription), nameof(IsMatch), nameof(IsFixed), nameof(IsRelative), nameof(Description) })
+                                      nameof(Frame), nameof(CaptureKind), nameof(LineMode), nameof(LineLengthMm), nameof(ReferenceDescription), nameof(IsMatch), nameof(IsFixed), nameof(IsRelative), nameof(Description), nameof(NextCaptureKind) })
                 OnPropertyChanged(n);
         }
     }

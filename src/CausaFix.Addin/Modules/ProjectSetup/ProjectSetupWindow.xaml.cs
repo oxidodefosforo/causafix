@@ -51,6 +51,17 @@ namespace CausaFix.Addin.Modules.ProjectSetup
             }
         }
 
+        /// <summary>
+        /// Keyboard focus moved to a control inside a rule row (normally the Enabled box): select that row. Deferred to
+        /// input priority so the previous editor's LostFocus bindings commit to the rule that was being edited before the
+        /// selection (and the editor's DataContext) changes. Clicks on the text are plain ListBoxItem selection.
+        /// </summary>
+        private void OnRuleItemFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+        {
+            if (!(sender is ListBoxItem item) || item.IsSelected || ReferenceEquals(e.NewFocus, item)) return;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() => { if (!item.IsSelected) item.IsSelected = true; }));
+        }
+
         private void OnMenu(object sender, RoutedEventArgs e)
         {
             if (sender is Button b && b.ContextMenu != null)
