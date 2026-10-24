@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Project Setup module logic: configuration model, naming/numbering engine, plan builder, alignment
+    math, profiles and view models. No WPF and no Revit API (tested on any machine). Revit access goes
+    through IProjectSetupGateway (implemented in CausaFix.Revit); views live in CausaFix.Addin.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>CausaFix.ProjectSetup</RootNamespace>
+    <AssemblyName>CausaFix.ProjectSetup</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>

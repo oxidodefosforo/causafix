@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CausaFix.Core.Mvvm;
 using CausaFix.Core.Compare;
 using CausaFix.Core.Model;
 using CausaFix.Core.Values;

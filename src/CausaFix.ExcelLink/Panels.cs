@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using CausaFix.Core.Mvvm;
 using CausaFix.Core.Model;
 
 namespace CausaFix.ExcelLink

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CausaFix.Core.Mvvm;
 using CausaFix.Core.Model;
 using CausaFix.Core.Profiles;
 

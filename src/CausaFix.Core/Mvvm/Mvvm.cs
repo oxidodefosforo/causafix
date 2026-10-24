@@ -5,7 +5,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
-namespace CausaFix.ExcelLink
+// Shared MVVM helpers for every CausaFix module (no WPF dependency: ICommand lives in System).
+namespace CausaFix.Core.Mvvm
 {
     public abstract class ObservableObject : INotifyPropertyChanged
     {
