@@ -21,11 +21,20 @@ namespace CausaFix.Core.Model
         public string ReadOnlyReason { get; set; } = string.Empty;
         /// <summary>Data type caption shown in the UI (Text, Length, Electrical Potential...).</summary>
         public string DataTypeLabel { get; set; } = string.Empty;
+        /// <summary>Reference columns: class name of the elements that may be assigned (e.g. "Level", "Material").</summary>
+        public string RefClass { get; set; } = string.Empty;
+        /// <summary>Reference columns: allowed values as "Name [Id]" (drop-down list in Excel).</summary>
+        public System.Collections.Generic.List<string> RefCandidates { get; set; } = new System.Collections.Generic.List<string>();
 
         public ParamScope Scope => Key.Scope;
         public bool IsContext => Kind == ValueKind.Context || Key.Source == ParamSource.Pseudo;
 
-        public ColumnDef Clone() => (ColumnDef)MemberwiseClone();
+        public ColumnDef Clone()
+        {
+            var c = (ColumnDef)MemberwiseClone();
+            c.RefCandidates = new System.Collections.Generic.List<string>(RefCandidates ?? new System.Collections.Generic.List<string>());
+            return c;
+        }
     }
 
     /// <summary>One cell as read from Revit.</summary>

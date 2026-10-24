@@ -82,6 +82,10 @@ namespace CausaFix.Core.Xlsx
         /// <summary>Range, e.g. "D3:D200".</summary>
         public string Range { get; set; }
         public List<string> Items { get; } = new List<string>();
+        /// <summary>Range formula for the list (e.g. CF_Lists!$A$1:$A$20). Overrides Items when set.</summary>
+        public string Formula { get; set; }
+        /// <summary>True: reject other values (stop). False: warn but allow (information).</summary>
+        public bool Strict { get; set; } = true;
         public string Prompt { get; set; }
     }
 

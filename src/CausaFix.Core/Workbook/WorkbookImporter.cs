@@ -64,7 +64,7 @@ namespace CausaFix.Core.Workbook
                 var values = kv.Value.ToDictionary(x => x.Key, x => x.Value.AsText());
                 string a = values.TryGetValue(1, out string av) ? av : "";
                 if (a == "sheet") sheetRows.Add(Row(values, 8));
-                else if (a == "column") colRows.Add(Row(values, 11));
+                else if (a == "column") colRows.Add(Row(values, 12));
                 else if (a.Length > 0) result.Meta[a] = values.TryGetValue(2, out string bv) ? bv : "";
             }
 
@@ -75,7 +75,7 @@ namespace CausaFix.Core.Workbook
                 return result;
             }
             result.SchemaVersion = schema;
-            if (schema > S.Version)
+            if (schema < 1 || schema > S.Version)
             {
                 result.Fatal = true;
                 result.Issues.Add(new ImportIssue(IssueSeverity.Error, "", "The workbook uses schema " + schema + ", newer than this add-in supports (" + S.Version + "). Update CausaFix."));
@@ -136,7 +136,8 @@ namespace CausaFix.Core.Workbook
                         UnitLabel = cr[7],
                         ColumnReadOnly = cr[8] == "1",
                         ReadOnlyReason = cr[9],
-                        DataTypeLabel = cr[10]
+                        DataTypeLabel = cr[10],
+                        RefClass = cr[11]
                     });
                 }
                 result.Sheets.Add(info);
@@ -235,8 +236,16 @@ namespace CausaFix.Core.Workbook
             }
 
             var activeCols = new List<(ColumnDef def, int dataCol, int shadowCol)>();
-            foreach (var def in info.Columns)
+            int migratedCells = 0;
+            foreach (var colDef in info.Columns)
             {
+                var def = colDef;
+                if (!info.ReadOnly && !def.IsContext && def.ColumnReadOnly)
+                {
+                    // Parameter columns are never read-only as a whole: writability is checked live per cell.
+                    def = def.Clone();
+                    def.ColumnReadOnly = false;
+                }
                 if (!shadowCols.TryGetValue(def.Key, out int sc)) continue;
                 if (!dataCols.TryGetValue(def.Key, out int dc))
                 {
@@ -313,8 +322,6 @@ namespace CausaFix.Core.Workbook
                     if (def.IsContext) continue;
                     var cell = data.Get(r, dc);
                     string encoded = shadow.GetText(sr.Row, sc);
-                    bool readOnlyCol = info.ReadOnly || def.ColumnReadOnly || def.Kind == ValueKind.ElementRef;
-
                     var pc = new ProposedCell
                     {
                         Origin = ProposalOrigin.Excel,
@@ -326,19 +333,21 @@ namespace CausaFix.Core.Workbook
                         RowLabel = label,
                         ElementId = elementId,
                         IsLinked = sr.Linked,
+                        DocKey = string.IsNullOrEmpty(sr.DocKey) ? DocKeys.Host : sr.DocKey,
+                        CellKind = KindOf(cell),
                         Column = def,
                         TargetIsType = def.Scope == ParamScope.Type,
                         TargetUniqueId = def.Scope == ParamScope.Type && info.RowMode == RowMode.Instance ? sr.TypeUid : sr.UniqueId
                     };
 
-                    if (readOnlyCol)
+                    if (info.ReadOnly)
                     {
-                        // Detect edits by comparing with the text written at export.
-                        if (encoded == "na") { if (!IsBlankOrNa(cell)) pc.Proposal = Proposal.Invalid("Read-only column: " + Reason(def, info), cell?.AsText()); }
+                        // Informative sheet (inventories): detect edits by comparing with the text written at export.
+                        if (encoded == "na") { if (!IsBlankOrNa(cell)) pc.Proposal = Proposal.Invalid("This sheet is informative only.", cell?.AsText(), BlockCode.ReadOnlyColumn); }
                         else
                         {
                             string written = encoded.StartsWith(S.WrittenPrefix, StringComparison.Ordinal) ? encoded.Substring(S.WrittenPrefix.Length) : encoded;
-                            if (!SameWritten(written, cell)) pc.Proposal = Proposal.Invalid("Read-only column: " + Reason(def, info), cell?.AsText() ?? "");
+                            if (!SameWritten(written, cell)) pc.Proposal = Proposal.Invalid("This sheet is informative only.", cell?.AsText() ?? "", BlockCode.ReadOnlyColumn);
                         }
                         if (pc.Proposal == null) continue;
                         pc.Original = RawValue.Empty;
@@ -346,7 +355,25 @@ namespace CausaFix.Core.Workbook
                         continue;
                     }
 
-                    if (!RawValue.TryDecode(encoded, out RawValue original))
+                    RawValue original;
+                    if (encoded.StartsWith(S.WrittenPrefix, StringComparison.Ordinal))
+                    {
+                        // Schema 1 stored only the displayed text for columns it had (wrongly) classified as read-only.
+                        // Recover the original value from that text so the user's edits are compared, not discarded.
+                        string written = encoded.Substring(S.WrittenPrefix.Length);
+                        if (SameWritten(written, cell)) continue; // not edited
+                        if (!TryMigrateOriginal(def, written, units, out original, out string why))
+                        {
+                            pc.Original = RawValue.Empty;
+                            pc.Proposal = Proposal.Invalid("The original value of this cell cannot be recovered from the workbook metadata (" + why +
+                                                           "). Re-export this column from CausaFix and repeat the edit.", cell?.AsText() ?? "", BlockCode.MetadataMismatch);
+                            result.Cells.Add(pc);
+                            continue;
+                        }
+                        pc.OriginalMigrated = true;
+                        migratedCells++;
+                    }
+                    else if (!RawValue.TryDecode(encoded, out original))
                     {
                         result.Issues.Add(new ImportIssue(IssueSeverity.Error, where + " row " + r, "Original value for '" + def.Header + "' is damaged; cell ignored."));
                         continue;
@@ -360,6 +387,9 @@ namespace CausaFix.Core.Workbook
                 }
             }
 
+            if (migratedCells > 0)
+                result.Issues.Add(new ImportIssue(IssueSeverity.Info, where,
+                    migratedCells + " edited cell(s) came from columns that an earlier CausaFix version marked read-only. Their original values were recovered from the workbook and they are compared normally."));
             int missing = shadowRows.Count - seen.Count - 0;
             if (missing > 0)
                 result.Issues.Add(new ImportIssue(IssueSeverity.Info, where,
@@ -367,6 +397,46 @@ namespace CausaFix.Core.Workbook
             if (keyless > 0)
                 result.Issues.Add(new ImportIssue(IssueSeverity.Warning, where,
                     keyless + " row(s) without a key were ignored. New rows do not create elements."));
+        }
+
+        private static string KindOf(XCell c)
+        {
+            if (c == null) return "Blank";
+            return (c.IsFormula ? "Formula result " : "") + c.Kind;
+        }
+
+        /// <summary>Recovers an internal value from the text an older export wrote into a cell.</summary>
+        private static bool TryMigrateOriginal(ColumnDef def, string written, IUnitConverter units, out RawValue value, out string why)
+        {
+            value = RawValue.Empty;
+            why = string.Empty;
+            if (written.Length == 0) return true;
+            switch (def.Kind)
+            {
+                case ValueKind.Text:
+                    value = RawValue.FromText(written);
+                    return true;
+                case ValueKind.Integer:
+                    if (long.TryParse(written, NumberStyles.Integer, CultureInfo.InvariantCulture, out long i)) { value = RawValue.FromInteger(i); return true; }
+                    why = "integer text '" + written + "'";
+                    return false;
+                case ValueKind.YesNo:
+                    if (written == "Yes") { value = RawValue.FromInteger(1); return true; }
+                    if (written == "No") { value = RawValue.FromInteger(0); return true; }
+                    why = "Yes/No text '" + written + "'";
+                    return false;
+                case ValueKind.Double:
+                    if (double.TryParse(written, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
+                    {
+                        value = RawValue.FromDouble(string.IsNullOrEmpty(def.UnitTypeId) ? d : (units ?? IdentityUnitConverter.Instance).ToInternal(d, def.UnitTypeId));
+                        return true;
+                    }
+                    why = "number text '" + written + "'";
+                    return false;
+                default:
+                    why = "reference columns exported by an older version contain names only, not element ids";
+                    return false;
+            }
         }
 
         private static string Reason(ColumnDef def, ImportedSheet info)

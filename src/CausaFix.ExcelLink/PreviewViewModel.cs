@@ -28,12 +28,17 @@ namespace CausaFix.ExcelLink
             Index = index;
             Def = def;
             Header = Core.Workbook.WorkbookExporter.HeaderText(def, sheetReadOnly);
-            bool ro = sheetReadOnly || def.ColumnReadOnly || def.IsContext || def.Kind == ValueKind.ElementRef;
+            bool ro = sheetReadOnly || def.ColumnReadOnly || def.IsContext;
             IsEditable = !ro;
             Role = def.IsContext ? CellRole.Context : ro ? (def.Scope == ParamScope.Type ? CellRole.TypeReadOnly : CellRole.InstanceReadOnly)
                                                          : (def.Scope == ParamScope.Type ? CellRole.TypeEditable : CellRole.InstanceEditable);
             IsNumeric = def.Kind == ValueKind.Double || def.Kind == ValueKind.Integer;
+            IsReference = def.Kind == ValueKind.ElementRef;
         }
+
+        public bool IsReference { get; }
+        /// <summary>Allowed "Name [Id]" values for reference columns (drop-down in the grid).</summary>
+        public List<string> Candidates => Def.RefCandidates ?? new List<string>();
 
         public int Index { get; }
         public ColumnDef Def { get; }
@@ -397,6 +402,8 @@ namespace CausaFix.ExcelLink
                             RowLabel = r.Data.Label,
                             ElementId = r.Data.ElementId,
                             IsLinked = r.Data.IsLinked,
+                            DocKey = string.IsNullOrEmpty(r.Data.DocKey) ? DocKeys.Host : r.Data.DocKey,
+                            CellKind = "Grid input",
                             Column = c.Column.Def,
                             TargetIsType = c.Column.Def.Scope == ParamScope.Type,
                             TargetUniqueId = c.Column.Def.Scope == ParamScope.Type && s.Sheet.RowMode == RowMode.Instance ? r.Data.TypeUniqueId : r.Data.UniqueId,

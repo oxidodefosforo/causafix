@@ -267,9 +267,10 @@ namespace CausaFix.Revit
                     continue;
                 }
                 var cell = ValueIO.Read(p, col, units, doc);
-                string lockReason = access.LockReason(holder, p, linked);
-                cell.Editable = lockReason == null && !col.ColumnReadOnly;
-                cell.LockReason = lockReason ?? (col.ColumnReadOnly ? col.ReadOnlyReason : string.Empty);
+                // Writability is decided per cell from the real parameter (never from the column or a sample).
+                var lockInfo = access.Lock(holder, p, linked);
+                cell.Editable = lockInfo == null;
+                cell.LockReason = lockInfo?.Reason ?? string.Empty;
                 row.Cells[col.Key] = cell;
             }
             return row;

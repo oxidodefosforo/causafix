@@ -22,6 +22,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,6">
@@ -46,7 +47,8 @@
             <Button Content="Exclude all" Command="{Binding ExcludeAllCommand}" />
         </WrapPanel>
 
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Visible}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Visible}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                  CanUserResizeColumns="True"
                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA"
                   EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" SelectionUnit="FullRow" RowHeight="24">
             <DataGrid.Columns>
@@ -74,7 +76,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Element / type" Binding="{Binding Element, Mode=OneWay}" Width="230" />
+                <DataGridTextColumn Header="Element / type" Binding="{Binding Element, Mode=OneWay}" Width="210" />
                 <DataGridTextColumn Header="Parameter" Binding="{Binding Parameter, Mode=OneWay}" Width="140" />
                 <DataGridTextColumn Header="Original" Binding="{Binding Original, Mode=OneWay}" Width="110" />
                 <DataGridTextColumn Header="Current (Revit)" Binding="{Binding Current, Mode=OneWay}" Width="110" />
@@ -91,12 +93,36 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Affects" Binding="{Binding Affects, Mode=OneWay}" Width="120" />
-                <DataGridTextColumn Header="Reason" Binding="{Binding Reason, Mode=OneWay}" Width="*" />
+                <DataGridTemplateColumn Header="Reason" Width="*" MinWidth="220">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Reason}" ToolTip="{Binding Reason}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Source" Binding="{Binding Sources, Mode=OneWay}" Width="160" />
             </DataGrid.Columns>
         </DataGrid>
 
-        <Expander Grid.Row="3" Margin="0,6,0,0">
+        <!-- Detail of the selected row: reason, action and full diagnostics -->
+        <Border Grid.Row="3" Margin="0,6,0,0" Padding="8" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                Visibility="{Binding Selected, Converter={StaticResource NullToVis}}">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" TextWrapping="Wrap">
+                    <Run Text="{Binding Selected.StatusLabel, Mode=OneWay}" /><Run Text=" – " /><Run Text="{Binding Selected.Element, Mode=OneWay}" /><Run Text=" / " /><Run Text="{Binding Selected.Parameter, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Text="{Binding Selected.Reason}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                <TextBlock TextWrapping="Wrap" Margin="0,2,0,0" Foreground="{StaticResource Teal}">
+                    <Run Text="Action: " FontWeight="SemiBold" /><Run Text="{Binding Selected.Action, Mode=OneWay}" />
+                </TextBlock>
+                <Expander Header="Technical details" Margin="0,4,0,0">
+                    <TextBox Text="{Binding Selected.Diagnostic, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                             MaxHeight="140" VerticalScrollBarVisibility="Auto" BorderThickness="0" />
+                </Expander>
+            </StackPanel>
+        </Border>
+
+        <Expander Grid.Row="4" Margin="0,6,0,0">
             <Expander.Header>
                 <TextBlock>
                     <Run Text="Messages (" /><Run Text="{Binding Issues.Count, Mode=OneWay}" /><Run Text=") – rows/columns ignored, formulas used, duplicates, structural problems" />
@@ -114,7 +140,7 @@
         </Expander>
 
         <!-- Result after applying -->
-        <Border Grid.Row="4" Margin="0,6,0,0" Padding="8" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1"
+        <Border Grid.Row="5" Margin="0,6,0,0" Padding="8" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1"
                 Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content="Open report" Command="{Binding OpenReportCommand}" VerticalAlignment="Top" />
@@ -135,7 +161,7 @@
             </DockPanel>
         </Border>
 
-        <DockPanel Grid.Row="5" Margin="0,8,0,0">
+        <DockPanel Grid.Row="6" Margin="0,8,0,0">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                 <RadioButton Content="All or nothing" IsChecked="{Binding AtomicMode}" GroupName="applyMode" Margin="0,0,12,0"
                              ToolTip="If any approved change fails, nothing is written (recommended)." />
@@ -143,6 +169,7 @@
                              ToolTip="Failed changes are skipped and reported; the rest is written." />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Open diagnostic" Command="{Binding OpenDiagnosticCommand}" ToolTip="CSV with the technical details of every row" />
                 <Button Content="Apply to Revit…" Command="{Binding ApplyCommand}" Style="{StaticResource Primary}" />
                 <Button Content="Close" IsCancel="True" Click="OnClose" />
             </StackPanel>

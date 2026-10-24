@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using CausaFix.Core.Compare;
 using CausaFix.Core.Model;
 using CausaFix.Core.Xlsx;
 
@@ -27,11 +28,13 @@ namespace CausaFix.Core.Values
         public string Info { get; private set; }
         /// <summary>What the user typed / what the cell showed, for review screens.</summary>
         public string SourceText { get; private set; }
+        /// <summary>For Invalid proposals: why (input error, read-only column, add-in limitation).</summary>
+        public BlockCode Code { get; private set; }
 
         public static Proposal None() => new Proposal { Kind = ProposalKind.None, SourceText = string.Empty };
         public static Proposal Clear(string src) => new Proposal { Kind = ProposalKind.Clear, SourceText = src };
         public static Proposal Of(RawValue v, string src, string info = null) => new Proposal { Kind = ProposalKind.Value, Value = v, SourceText = src, Info = info };
-        public static Proposal Invalid(string message, string src) => new Proposal { Kind = ProposalKind.Invalid, Message = message, SourceText = src };
+        public static Proposal Invalid(string message, string src, BlockCode code = BlockCode.InvalidValue) => new Proposal { Kind = ProposalKind.Invalid, Message = message, SourceText = src, Code = code };
 
         internal Proposal WithInfo(string info) { Info = string.IsNullOrEmpty(Info) ? info : Info + " " + info; return this; }
     }
@@ -88,8 +91,8 @@ namespace CausaFix.Core.Values
             if (!string.IsNullOrEmpty(options.ClearToken) && string.Equals(trimmed, options.ClearToken, StringComparison.OrdinalIgnoreCase))
                 return Proposal.Clear(trimmed);
 
-            if (col.IsContext || col.ColumnReadOnly || col.Kind == ValueKind.ElementRef)
-                return Proposal.Invalid("Read-only column" + (string.IsNullOrEmpty(col.ReadOnlyReason) ? "." : ": " + col.ReadOnlyReason), text);
+            if (col.IsContext || col.ColumnReadOnly)
+                return ReadOnlyColumn(col, text);
 
             switch (col.Kind)
             {
@@ -119,6 +122,14 @@ namespace CausaFix.Core.Values
                         return FromNumber(col, d, units, text);
                     }
 
+                case ValueKind.ElementRef:
+                    {
+                        if (trimmed.Length == 0) return Proposal.None();
+                        if (!References.TryParse(trimmed, out long id, out string name))
+                            return Proposal.Invalid("Reference: choose a value from the list (format 'Name [Id]'). Names alone are never converted to ids.", text);
+                        return Proposal.Of(RawValue.FromElementId(id), text);
+                    }
+
                 default:
                     return Proposal.Invalid("Unsupported data type.", text);
             }
@@ -128,8 +139,8 @@ namespace CausaFix.Core.Values
         {
             src = src ?? number.ToString("R", CultureInfo.InvariantCulture);
             if (!NumberText.IsFinite(number)) return Proposal.Invalid("Not a finite number.", src);
-            if (col.IsContext || col.ColumnReadOnly || col.Kind == ValueKind.ElementRef)
-                return Proposal.Invalid("Read-only column" + (string.IsNullOrEmpty(col.ReadOnlyReason) ? "." : ": " + col.ReadOnlyReason), src);
+            if (col.IsContext || col.ColumnReadOnly)
+                return ReadOnlyColumn(col, src);
             switch (col.Kind)
             {
                 case ValueKind.Text:
@@ -141,6 +152,8 @@ namespace CausaFix.Core.Values
                     if (number == 1) return Proposal.Of(RawValue.FromInteger(1), src);
                     if (number == 0) return Proposal.Of(RawValue.FromInteger(0), src);
                     return Proposal.Invalid("Yes/No parameter: use Yes or No.", src);
+                case ValueKind.ElementRef:
+                    return Proposal.Invalid("Reference: choose a value from the list (format 'Name [Id]').", src);
                 case ValueKind.Double:
                     {
                         double internalValue = string.IsNullOrEmpty(col.UnitTypeId) ? number : (units ?? IdentityUnitConverter.Instance).ToInternal(number, col.UnitTypeId);
@@ -155,8 +168,8 @@ namespace CausaFix.Core.Values
         private static Proposal FromBool(ColumnDef col, bool b)
         {
             string src = b ? "TRUE" : "FALSE";
-            if (col.IsContext || col.ColumnReadOnly || col.Kind == ValueKind.ElementRef)
-                return Proposal.Invalid("Read-only column" + (string.IsNullOrEmpty(col.ReadOnlyReason) ? "." : ": " + col.ReadOnlyReason), src);
+            if (col.IsContext || col.ColumnReadOnly)
+                return ReadOnlyColumn(col, src);
             switch (col.Kind)
             {
                 case ValueKind.YesNo: return Proposal.Of(RawValue.FromInteger(b ? 1 : 0), src);
@@ -164,6 +177,10 @@ namespace CausaFix.Core.Values
                 default: return Proposal.Invalid("Boolean value not valid for this parameter.", src);
             }
         }
+
+        private static Proposal ReadOnlyColumn(ColumnDef col, string src)
+            => Proposal.Invalid(col.IsContext ? "Context column (category, family, type, id): informative only." : "Read-only column" + (string.IsNullOrEmpty(col.ReadOnlyReason) ? "." : ": " + col.ReadOnlyReason),
+                                src, BlockCode.ReadOnlyColumn);
 
         private static Proposal IntegerFrom(double d, string src)
         {
@@ -190,7 +207,7 @@ namespace CausaFix.Core.Values
                 case RawKind.Integer:
                     if (col != null && col.Kind == ValueKind.YesNo) return v.Integer == 1 ? "Yes" : v.Integer == 0 ? "No" : v.Integer.ToString(culture);
                     return v.Integer.ToString(culture);
-                case RawKind.ElementId: return "Id " + v.Integer.ToString(CultureInfo.InvariantCulture);
+                case RawKind.ElementId: return "[" + v.Integer.ToString(CultureInfo.InvariantCulture) + "]";
                 case RawKind.Double:
                     {
                         double d = v.Double;
@@ -211,6 +228,29 @@ namespace CausaFix.Core.Values
         {
             if (col == null || string.IsNullOrEmpty(col.UnitTypeId)) return internalValue;
             return (units ?? IdentityUnitConverter.Instance).FromInternal(internalValue, col.UnitTypeId);
+        }
+    }
+}
+
+namespace CausaFix.Core.Values
+{
+    /// <summary>Reference cells are written as "Name [Id]": the id identifies the element, the name is only a hint.</summary>
+    public static class References
+    {
+        public static string Format(string name, long id) => (string.IsNullOrEmpty(name) ? "(unnamed)" : name) + " [" + id.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+
+        public static bool TryParse(string text, out long id, out string name)
+        {
+            id = 0; name = null;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            text = text.Trim();
+            if (!text.EndsWith("]", System.StringComparison.Ordinal)) return false;
+            int open = text.LastIndexOf('[');
+            if (open < 0) return false;
+            string inner = text.Substring(open + 1, text.Length - open - 2).Trim();
+            if (!long.TryParse(inner, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out id)) return false;
+            name = text.Substring(0, open).Trim();
+            return true;
         }
     }
 }

@@ -30,6 +30,7 @@
     <shared:BoolToVisibilityConverter x:Key="BoolToVis" />
     <shared:BoolToVisibilityConverter x:Key="InverseBoolToVis" Invert="True" />
     <shared:NullOrEmptyToVisibilityConverter x:Key="TextToVis" />
+    <shared:NullToVisibilityConverter x:Key="NullToVis" />
 
     <Style TargetType="{x:Type TextBlock}" x:Key="PanelTitle">
         <Setter Property="FontWeight" Value="SemiBold" />

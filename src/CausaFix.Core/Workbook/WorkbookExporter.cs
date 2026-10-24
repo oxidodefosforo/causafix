@@ -43,6 +43,8 @@ namespace CausaFix.Core.Workbook
             foreach (var kv in pkg.Document.ToPairs()) M(kv.Key, kv.Value);
 
             var shadows = new List<XSheet>();
+            var lists = new XSheet(S.ListsSheet) { State = XSheetState.VeryHidden };
+            int listColumn = 0;
             var sheetNames = new Dictionary<DataSheet, string>();
             int shadowIndex = 1;
             foreach (var ds in pkg.Sheets)
@@ -57,19 +59,20 @@ namespace CausaFix.Core.Workbook
                 }
                 string shadowName = SheetNames.MakeUnique(S.ShadowPrefix + shadowIndex.ToString(CultureInfo.InvariantCulture), used);
                 shadowIndex++;
-                wb.Sheets.Add(BuildDataSheet(ds, name));
+                wb.Sheets.Add(BuildDataSheet(ds, name, lists, ref listColumn));
                 shadows.Add(BuildShadow(ds, shadowName));
                 M("sheet", ds.SheetKey, name, shadowName, ds.Title, ds.Source.ToString(), ds.RowMode.ToString(), ds.ReadOnly ? "1" : "0");
                 foreach (var c in ds.Columns)
                 {
-                    bool ro = c.ColumnReadOnly || c.IsContext || ds.ReadOnly || c.Kind == ValueKind.ElementRef;
+                    bool ro = ColumnIsReadOnly(ds, c);
                     M("column", ds.SheetKey, c.Key.ToString(), c.Header, c.Kind.ToString(), c.SpecTypeId, c.UnitTypeId, c.UnitLabel,
-                      ro ? "1" : "0", c.ReadOnlyReason, c.DataTypeLabel);
+                      ro ? "1" : "0", c.ReadOnlyReason, c.DataTypeLabel, c.RefClass ?? "");
                 }
             }
 
             FillInstructions(instructions, pkg, sheetNames);
             wb.Sheets.AddRange(shadows);
+            if (listColumn > 0) wb.Sheets.Add(lists);
             wb.Sheets.Add(meta);
             return wb;
         }
@@ -80,13 +83,14 @@ namespace CausaFix.Core.Workbook
             string h = c.Header ?? c.Key.ToString();
             if (!string.IsNullOrEmpty(c.UnitLabel)) h += " [" + c.UnitLabel + "]";
             if (!c.IsContext && c.Scope == ParamScope.Type) h += S.TypeTag;
-            if (!c.IsContext && (c.ColumnReadOnly || sheetReadOnly || c.Kind == ValueKind.ElementRef)) h += S.ReadOnlyTag;
+            if (!c.IsContext && (c.ColumnReadOnly || sheetReadOnly)) h += S.ReadOnlyTag;
             return h;
         }
 
-        private static bool ColumnIsReadOnly(DataSheet ds, ColumnDef c) => ds.ReadOnly || c.ColumnReadOnly || c.IsContext || c.Kind == ValueKind.ElementRef;
+        /// <summary>Only context columns and informative sheets are read-only as a whole; parameter cells carry their own state.</summary>
+        private static bool ColumnIsReadOnly(DataSheet ds, ColumnDef c) => ds.ReadOnly || c.ColumnReadOnly || c.IsContext;
 
-        private static XSheet BuildDataSheet(DataSheet ds, string name)
+        private static XSheet BuildDataSheet(DataSheet ds, string name, XSheet lists, ref int listColumn)
         {
             var sh = new XSheet(name);
             int lastCol = ds.Columns.Count + 1;
@@ -138,6 +142,23 @@ namespace CausaFix.Core.Workbook
 
             if (ds.Rows.Count > 0 && !ds.ReadOnly)
             {
+                // Reference columns: drop-down of "Name [Id]" values kept in the hidden CF_Lists sheet.
+                for (int i = 0; i < ds.Columns.Count; i++)
+                {
+                    var c = ds.Columns[i];
+                    if (c.Kind != ValueKind.ElementRef || ColumnIsReadOnly(ds, c) || c.RefCandidates == null || c.RefCandidates.Count == 0) continue;
+                    listColumn++;
+                    for (int k = 0; k < c.RefCandidates.Count; k++) lists.Set(k + 1, listColumn, XCell.Str(c.RefCandidates[k]));
+                    string lc = CellRef.ColumnName(listColumn);
+                    string colName = CellRef.ColumnName(i + 2);
+                    sh.Validations.Add(new XDataValidationList
+                    {
+                        Range = colName + S.FirstDataRow + ":" + colName + lastRow,
+                        Formula = S.ListsSheet + "!$" + lc + "$1:$" + lc + "$" + c.RefCandidates.Count.ToString(CultureInfo.InvariantCulture),
+                        Prompt = "Choose a value (Name [Id]) or type " + Values.ImportOptions.DefaultClearToken,
+                        Strict = false
+                    });
+                }
                 for (int i = 0; i < ds.Columns.Count; i++)
                 {
                     var c = ds.Columns[i];
@@ -169,8 +190,16 @@ namespace CausaFix.Core.Workbook
             switch (c.Kind)
             {
                 case ValueKind.Context:
-                case ValueKind.ElementRef:
                     return string.IsNullOrEmpty(cell.DisplayText) ? XCell.Empty(text) : XCell.Str(Clip(cell.DisplayText), text);
+                case ValueKind.ElementRef:
+                    {
+                        if (cell.Raw.IsEmpty) return XCell.Empty(text);
+                        if (cell.Raw.Kind != RawKind.ElementId) return XCell.Str(Clip(cell.DisplayText ?? string.Empty), text);
+                        string shown = cell.DisplayText ?? string.Empty;
+                        if (!Values.References.TryParse(shown, out long id, out _) || id != cell.Raw.Integer)
+                            shown = Values.References.Format(shown, cell.Raw.Integer);
+                        return XCell.Str(Clip(shown), text);
+                    }
                 case ValueKind.Text:
                     if (cell.Raw.IsEmpty) return XCell.Empty(text);
                     return XCell.Str(Clip(cell.Raw.Kind == RawKind.Text ? cell.Raw.Text : cell.DisplayText), text);

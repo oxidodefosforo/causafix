@@ -255,14 +255,7 @@ namespace CausaFix.Revit
         }
 
         /// <summary>Parameter-level lock (independent of the element). Element-level locks are resolved per cell.</summary>
-        public static string ColumnLock(Parameter p)
-        {
-            if (p.StorageType == StorageType.None) return "No value storage.";
-            if (p.IsReadOnly) return "Read-only in Revit (calculated, driven by a formula or constrained).";
-            if (!p.UserModifiable) return "Not user-modifiable (controlled by Revit).";
-            if (p.StorageType == StorageType.ElementId) return "Reference parameters (material, level...) are read-only in this version.";
-            return null;
-        }
+        public static string ColumnLock(Parameter p) => ParamAccess.ParameterLock(p)?.Reason;
 
         // ------------------------------------------------------------------ labels
 

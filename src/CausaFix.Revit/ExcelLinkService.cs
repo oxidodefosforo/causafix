@@ -120,7 +120,24 @@ namespace CausaFix.Revit
                     done += Math.Min(ChunkSize, plan.Ids.Count - s);
                     progress?.Report(new ProgressInfo(done, total, "Reading " + plan.Sheet.Title));
                 }
+                await FillReferenceCandidates(plan, ct).ConfigureAwait(true);
                 pkg.Sheets.Add(plan.Sheet);
+            }
+        }
+
+        /// <summary>For reference columns: the class of the referenced elements and the list of assignable values.</summary>
+        private async Task FillReferenceCandidates(SheetPlan plan, CancellationToken ct)
+        {
+            if (plan.LinkInstanceUniqueId != null) return;
+            foreach (var col in plan.Sheet.Columns)
+            {
+                if (col.Kind != ValueKind.ElementRef) continue;
+                var ids = plan.Sheet.Rows.Select(r => r.Get(col.Key)).Where(c => c != null && c.Raw.Kind == RawKind.ElementId)
+                                          .Select(c => c.Raw.Integer).Distinct().ToList();
+                if (ids.Count == 0) continue;
+                var (cls, list) = await Run((app, doc) => ReferenceCatalog.Build(doc, ids), ct).ConfigureAwait(true);
+                col.RefClass = cls;
+                col.RefCandidates = list;
             }
         }
 

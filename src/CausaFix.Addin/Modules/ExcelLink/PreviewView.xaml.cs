@@ -112,6 +112,15 @@ namespace CausaFix.Addin.Modules.ExcelLink
         private static DataTemplate EditTemplate(GridColumn col)
         {
             string p = "Cells[" + col.Index + "]";
+            if (col.IsReference && col.Candidates.Count > 0)
+            {
+                // References: pick "Name [Id]" from the list (typing a bare name is rejected by the parser).
+                return (DataTemplate)XamlReader.Parse(
+                    "<DataTemplate " + Ns + ">" +
+                    "<ComboBox IsEditable='True' ItemsSource='{Binding " + p + ".Column.Candidates, Mode=OneWay}' " +
+                    "Text='{Binding " + p + ".Text, Mode=TwoWay, UpdateSourceTrigger=Explicit}' BorderThickness='0'/>" +
+                    "</DataTemplate>");
+            }
             string xaml =
                 "<DataTemplate " + Ns + ">" +
                 "<TextBox Text='{Binding " + p + ".Text, Mode=TwoWay, UpdateSourceTrigger=Explicit}' BorderThickness='0' Padding='2,0' " +
@@ -141,6 +150,8 @@ namespace CausaFix.Addin.Modules.ExcelLink
         private void OnCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit) return;
+            var combo = FindChild<ComboBox>(e.EditingElement);
+            if (combo != null) { combo.GetBindingExpression(ComboBox.TextProperty)?.UpdateSource(); return; }
             var box = FindChild<TextBox>(e.EditingElement);
             box?.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         }

@@ -64,7 +64,7 @@ namespace CausaFix.Core.Tests
             Assert.True(s.HiddenRows.Contains(1), "key row hidden");
             Assert.Contains("Width [mm]", s.GetText(2, TestData.Col(s, TestData.Width)));
             Assert.Contains("Type Mark (T)", s.GetText(2, TestData.Col(s, TestData.TypeMark)));
-            Assert.Contains("(RO)", s.GetText(2, TestData.Col(s, TestData.ApparentLoad)));
+            Assert.False(s.GetText(2, TestData.Col(s, TestData.ApparentLoad)).Contains("(RO)"), "parameter columns are never read-only as a whole");
             int r4 = TestData.Row(s, TestData.Uid(4));
             Assert.Equal("N/A", s.GetText(r4, TestData.Col(s, TestData.QaStatusB)), "N/A shown explicitly");
             int r3 = TestData.Row(s, TestData.Uid(3));
@@ -348,7 +348,9 @@ namespace CausaFix.Core.Tests
             s.Set(r2, TestData.Col(s, TestData.Emergency), XCell.Str("Yes"));
             model.Deleted.Add(TestData.Uid(1));
             var set = TestData.Import(TestData.RoundTrip(wb), model);
-            Assert.Contains("no longer exists", set.Entries.Single(e => e.TargetUniqueId == TestData.Uid(1)).Reason);
+            var missing = set.Entries.Single(e => e.TargetUniqueId == TestData.Uid(1));
+            Assert.Equal(BlockCode.MissingElement, missing.Code);
+            Assert.Contains("not found", missing.Reason);
             var yn = set.Entries.Single(e => e.TargetUniqueId == TestData.Uid(2));
             Assert.Equal(ChangeStatus.Change, yn.Status);
             Assert.Equal(1L, yn.Proposed.Integer);

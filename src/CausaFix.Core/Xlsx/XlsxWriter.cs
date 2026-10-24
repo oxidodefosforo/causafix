@@ -327,16 +327,16 @@ namespace CausaFix.Core.Xlsx
                 foreach (var v in s.Validations)
                 {
                     string list = string.Join(",", v.Items);
-                    if (list.Length > 255) throw new InvalidOperationException("Validation list too long.");
+                    if (v.Formula == null && list.Length > 255) throw new InvalidOperationException("Validation list too long.");
                     w.WriteStartElement("dataValidation", NsMain);
                     w.WriteAttributeString("type", "list");
                     w.WriteAttributeString("allowBlank", "1");
                     w.WriteAttributeString("showInputMessage", string.IsNullOrEmpty(v.Prompt) ? "0" : "1");
                     w.WriteAttributeString("showErrorMessage", "1");
-                    w.WriteAttributeString("errorStyle", "stop");
+                    w.WriteAttributeString("errorStyle", v.Strict ? "stop" : "information");
                     if (!string.IsNullOrEmpty(v.Prompt)) w.WriteAttributeString("prompt", Truncate(v.Prompt, 255));
                     w.WriteAttributeString("sqref", v.Range);
-                    w.WriteElementString("formula1", NsMain, "\"" + list + "\"");
+                    w.WriteElementString("formula1", NsMain, v.Formula ?? "\"" + list + "\"");
                     w.WriteEndElement();
                 }
                 w.WriteEndElement();

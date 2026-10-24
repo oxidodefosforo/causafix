@@ -39,8 +39,40 @@ namespace CausaFix.ExcelLink
         public string Element => Entry.TargetLabel;
         public string Parameter => (Entry.Column?.Header ?? Entry.Key.ToString()) + (Entry.TargetIsType ? " (T)" : "");
         public string Original => ValueFormatter.Format(Entry.Original, Entry.Column, _owner.Units);
-        public string Current => Entry.Status == ChangeStatus.Blocked && Entry.Current.IsNotApplicable ? "–" : ValueFormatter.Format(Entry.Current, Entry.Column, _owner.Units);
-        public string Proposed => Entry.IsClear ? "(clear)" : ValueFormatter.Format(Entry.Proposed, Entry.Column, _owner.Units);
+        public string Current => Entry.State == null ? "(not read)" : !Entry.State.ElementExists || !Entry.State.ParameterExists ? "(not found)"
+                               : !string.IsNullOrEmpty(Entry.State.Display) ? Entry.State.Display : ValueFormatter.Format(Entry.Current, Entry.Column, _owner.Units);
+        public string Proposed => Entry.ProposedText != null ? (Entry.ProposedText.Length == 0 ? "(empty cell)" : Entry.ProposedText)
+                                : Entry.IsClear ? "(clear)" : ValueFormatter.Format(Entry.Proposed, Entry.Column, _owner.Units);
+        /// <summary>Full technical diagnostics for the detail panel.</summary>
+        public string Diagnostic => Entry.Diagnostic;
+        public string Action
+        {
+            get
+            {
+                switch (Entry.Status)
+                {
+                    case ChangeStatus.Change: return "Will be written if checked.";
+                    case ChangeStatus.Conflict: return "Check 'Write' to overwrite the value changed in Revit, or leave it unchecked to keep Revit's value.";
+                    case ChangeStatus.ProposalConflict: return "Choose one value in the Proposed column, or correct the workbook and import again.";
+                    case ChangeStatus.AlreadyMatches: return "Nothing to do.";
+                }
+                switch (Entry.Code)
+                {
+                    case BlockCode.InvalidValue: return "Correct the value in the workbook (see the reason) and import again.";
+                    case BlockCode.GroupError: return "Correct the invalid edit of this destination and import again; nothing is written for it meanwhile.";
+                    case BlockCode.ReadOnlyParameter: return "Revit does not allow writing it (formula/calculated/constrained). Change it at its source in Revit.";
+                    case BlockCode.Locked: return "Release the element (worksharing) or edit it in its group, then import again.";
+                    case BlockCode.MissingElement: return "Make sure the workbook belongs to this model; re-export if elements were replaced.";
+                    case BlockCode.MissingParameter: return "The parameter is not on the element any more; re-export to refresh the columns.";
+                    case BlockCode.NotApplicable: return "Leave the cell as N/A.";
+                    case BlockCode.Linked: return "Edit it in the linked model.";
+                    case BlockCode.Unsupported: return "A CausaFix limitation (not a Revit restriction). Edit it in Revit.";
+                    case BlockCode.MetadataMismatch: return "Re-export the sheet with this CausaFix version and repeat the edit.";
+                    case BlockCode.ReadOnlyColumn: return "Context/informative cell; it is never imported.";
+                    default: return string.Empty;
+                }
+            }
+        }
         public string Unit => Entry.Column?.UnitLabel ?? string.Empty;
         public string Reason => Entry.Reason ?? string.Empty;
         public string Sources => Entry.SourceSummary;
@@ -52,10 +84,25 @@ namespace CausaFix.ExcelLink
             {
                 switch (Entry.Status)
                 {
-                    case ChangeStatus.Change: return "Change";
-                    case ChangeStatus.Conflict: return "Conflict (changed in Revit)";
-                    case ChangeStatus.ProposalConflict: return "Conflicting proposals";
+                    case ChangeStatus.Change: return "Ready to write";
+                    case ChangeStatus.Conflict: return "Concurrent conflict";
+                    case ChangeStatus.ProposalConflict: return Entry.TargetIsType ? "Type conflict" : "Conflicting edits";
                     case ChangeStatus.AlreadyMatches: return "Already in model";
+                }
+                switch (Entry.Code)
+                {
+                    case BlockCode.InvalidValue: return "Invalid value";
+                    case BlockCode.GroupError: return "Group error";
+                    case BlockCode.ReadOnlyParameter: return "Read-only parameter";
+                    case BlockCode.Locked: return "Locked element";
+                    case BlockCode.MissingElement: return "Missing element";
+                    case BlockCode.MissingParameter: return "Missing parameter";
+                    case BlockCode.Ambiguous: return "Ambiguous parameter";
+                    case BlockCode.NotApplicable: return "N/A on element";
+                    case BlockCode.Linked: return "Linked (read-only)";
+                    case BlockCode.Unsupported: return "Unsupported";
+                    case BlockCode.MetadataMismatch: return "Metadata mismatch";
+                    case BlockCode.ReadOnlyColumn: return "Informative cell";
                     default: return "Blocked";
                 }
             }
@@ -85,7 +132,7 @@ namespace CausaFix.ExcelLink
                 if (value < 0 || value >= Entry.Alternatives.Count || value == _alternative) return;
                 _alternative = value;
                 ChangeSetBuilder.ChooseAlternative(Entry, value);
-                foreach (var n in new[] { nameof(SelectedAlternative), nameof(Proposed), nameof(Status), nameof(StatusLabel), nameof(Reason), nameof(CanInclude), nameof(Include) })
+                foreach (var n in new[] { nameof(SelectedAlternative), nameof(Proposed), nameof(Status), nameof(StatusLabel), nameof(Reason), nameof(CanInclude), nameof(Include), nameof(Diagnostic), nameof(Action) })
                     OnPropertyChanged(n);
                 _owner.Recount();
             }
@@ -108,6 +155,7 @@ namespace CausaFix.ExcelLink
         private bool _atomic;
         private bool _busy;
         private ApplyResult _result;
+        private ReviewEntryViewModel _selected;
         private string _reportPath = string.Empty;
 
         public ReviewViewModel(IExcelLinkGateway gateway, IDialogService dialogs, ChangeSet set, IUnitConverter units, ReviewContext context, string sourceTitle)
@@ -125,12 +173,15 @@ namespace CausaFix.ExcelLink
             IncludeAllCommand = new RelayCommand(() => SetIncludes(e => e.Entry.Status == ChangeStatus.Change, true));
             ExcludeAllCommand = new RelayCommand(() => SetIncludes(e => true, false));
             OpenReportCommand = new RelayCommand(() => _dialogs.OpenWithShell(_reportPath), () => !string.IsNullOrEmpty(_reportPath));
+            OpenDiagnosticCommand = new RelayCommand(() => _dialogs.OpenWithShell(DiagnosticPath), () => !string.IsNullOrEmpty(DiagnosticPath));
             RefreshVisible();
         }
 
         public ChangeSet Changes { get; }
         public IUnitConverter Units { get; }
         public string SourceTitle { get; }
+        /// <summary>CSV with the full diagnostics of this comparison.</summary>
+        public string DiagnosticPath { get; set; } = string.Empty;
         public string IdentityNote => _context.IdentityNote;
         public string DocumentTitle => _context.DocumentTitle;
         public ObservableCollection<ReviewEntryViewModel> Visible { get; } = new ObservableCollection<ReviewEntryViewModel>();
@@ -140,10 +191,13 @@ namespace CausaFix.ExcelLink
         public RelayCommand IncludeAllCommand { get; }
         public RelayCommand ExcludeAllCommand { get; }
         public RelayCommand OpenReportCommand { get; }
+        public RelayCommand OpenDiagnosticCommand { get; }
 
         public event EventHandler Applied;
 
         public EntryFilter Filter { get => _filter; set { if (Set(ref _filter, value)) RefreshVisible(); } }
+        /// <summary>Row shown in the detail panel.</summary>
+        public ReviewEntryViewModel Selected { get => _selected; set => Set(ref _selected, value); }
         public bool AtomicMode { get => _atomic; set { if (Set(ref _atomic, value)) OnPropertyChanged(nameof(ValidOnlyMode)); } }
         public bool ValidOnlyMode { get => !_atomic; set => AtomicMode = !value; }
         public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) ApplyCommand.Refresh(); } }
@@ -156,7 +210,7 @@ namespace CausaFix.ExcelLink
         public int Count(ChangeStatus s) => _all.Count(e => e.Entry.Status == s);
 
         public string Summary =>
-            WriteCount + " change(s) will be written" +
+            WriteCount + " destination(s) ready to write" +
             (TypeInstancesAffected > 0 ? " (type changes affect " + TypeInstancesAffected + " instance(s) in the whole model)" : "") +
             " | conflicts " + (Count(ChangeStatus.Conflict) + Count(ChangeStatus.ProposalConflict)) +
             " | blocked " + Count(ChangeStatus.Blocked) +

@@ -68,7 +68,9 @@ namespace CausaFix.Core.Model
             SpecTypeId = SpecTypeId,
             UnitTypeId = UnitTypeId,
             UnitLabel = UnitLabel,
-            ColumnReadOnly = ReadOnly || Kind == ValueKind.ElementRef,
+            // Editability is decided per cell from the real parameter (export) and re-checked live (import/apply).
+            // A column is never marked read-only from a sample of elements.
+            ColumnReadOnly = false,
             ReadOnlyReason = ReadOnlyReason,
             DataTypeLabel = DataTypeLabel
         };

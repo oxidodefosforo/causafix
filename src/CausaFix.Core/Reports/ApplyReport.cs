@@ -114,7 +114,7 @@ namespace CausaFix.Core.Reports
                     Row(e.Status.ToString() + (e.CanInclude && !e.Include ? " (excluded)" : ""), e.TargetLabel, e.Column?.Header,
                         ValueFormatter.Format(e.Original, e.Column, units, CultureInfo.InvariantCulture),
                         ValueFormatter.Format(e.Current, e.Column, units, CultureInfo.InvariantCulture),
-                        e.IsClear ? "<<CLEAR>>" : ValueFormatter.Format(e.Proposed, e.Column, units, CultureInfo.InvariantCulture),
+                        e.ProposedText ?? (e.IsClear ? "<<CLEAR>>" : ValueFormatter.Format(e.Proposed, e.Column, units, CultureInfo.InvariantCulture)),
                         e.Reason, e.SourceSummary);
             }
             if (result.RevitMessages.Count > 0)
@@ -124,6 +124,40 @@ namespace CausaFix.Core.Reports
                 foreach (var m in result.RevitMessages) Row(m);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Local diagnostic of a comparison (one row per destination, with the technical details of every
+        /// source cell and of the real Revit parameter). Written for every import, before anything is applied.
+        /// </summary>
+        public static string WriteDiagnostics(string folder, string documentTitle, ChangeSet set, IUnitConverter units)
+        {
+            Directory.CreateDirectory(folder);
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            string safeTitle = new string((documentTitle ?? "model").Select(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) >= 0 ? '_' : c).ToArray());
+            string path = Path.Combine(folder, "CausaFix-ImportDiagnostic-" + safeTitle + "-" + stamp + ".csv");
+            var sb = new StringBuilder();
+            void Row(params string[] cols) => sb.AppendLine(string.Join(",", cols.Select(Csv)));
+            Row("CausaFix Excel Link – import diagnostic (nothing applied yet)");
+            Row("Model", documentTitle);
+            Row("Unchanged cells", set.UnchangedCells.ToString(CultureInfo.InvariantCulture), "Empty cells ignored", set.EmptyCellsIgnored.ToString(CultureInfo.InvariantCulture));
+            sb.AppendLine();
+            Row("Id", "Status", "Code", "Element / type", "Parameter", "Original", "Current", "Proposed", "Reason", "Sources", "Diagnostic");
+            foreach (var e in set.Entries)
+                Row(e.Id.ToString(CultureInfo.InvariantCulture), e.Status.ToString(), e.Status == ChangeStatus.Blocked ? e.Code.ToString() : "",
+                    e.TargetLabel, e.Column?.Header,
+                    ValueFormatter.Format(e.Original, e.Column, units, CultureInfo.InvariantCulture),
+                    e.State == null ? "(not read)" : ValueFormatter.Format(e.Current, e.Column, units, CultureInfo.InvariantCulture),
+                    e.ProposedText ?? (e.IsClear ? "<<CLEAR>>" : ValueFormatter.Format(e.Proposed, e.Column, units, CultureInfo.InvariantCulture)),
+                    e.Reason, e.SourceSummary, e.Diagnostic);
+            if (set.Issues.Count > 0)
+            {
+                sb.AppendLine();
+                Row("Messages");
+                foreach (var i in set.Issues) Row(i.Severity.ToString(), i.Location, i.Message);
+            }
+            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(true));
+            return path;
         }
 
         private static string Csv(string s)

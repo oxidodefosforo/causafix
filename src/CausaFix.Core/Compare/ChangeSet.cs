@@ -30,6 +30,12 @@ namespace CausaFix.Core.Compare
         public bool TargetIsType { get; set; }
         public bool IsLinked { get; set; }
         public ColumnDef Column { get; set; }
+        /// <summary>"host" or the link key (diagnostics; grouping is per document + owner + parameter).</summary>
+        public string DocKey { get; set; } = DocKeys.Host;
+        /// <summary>How the value was stored in the source (Text, Number, Bool, Formula…) – for diagnostics.</summary>
+        public string CellKind { get; set; } = string.Empty;
+        /// <summary>True when the original value was reconstructed from legacy metadata (schema 1).</summary>
+        public bool OriginalMigrated { get; set; }
         /// <summary>Value when exported (Excel) or loaded (grid).</summary>
         public RawValue Original { get; set; }
         public Proposal Proposal { get; set; }
@@ -49,8 +55,46 @@ namespace CausaFix.Core.Compare
         /// <summary>Type targets: number of instances in the whole document using this type.</summary>
         public int AffectedInstances { get; set; }
         public string TargetLabel { get; set; } = string.Empty;
+        /// <summary>Why the parameter cannot be written (when Editable is false).</summary>
+        public BlockCode LockCode { get; set; }
+        /// <summary>Diagnostics read from the real Parameter (empty when not resolved).</summary>
+        public string ParameterName { get; set; } = string.Empty;
+        public string StorageType { get; set; } = string.Empty;
+        public bool? HasValue { get; set; }
+        public bool? IsReadOnly { get; set; }
+        public bool? UserModifiable { get; set; }
+        /// <summary>Human readable current value (e.g. reference name).</summary>
+        public string Display { get; set; } = string.Empty;
 
-        public static CurrentState Missing() => new CurrentState { ElementExists = false, Value = RawValue.NotApplicable };
+        public static CurrentState Missing() => new CurrentState { ElementExists = false, Value = RawValue.NotApplicable, LockCode = BlockCode.MissingElement };
+    }
+
+    /// <summary>Precise reason a change cannot be written. Distinguishes Revit restrictions from add-in limits and input errors.</summary>
+    public enum BlockCode
+    {
+        None = 0,
+        /// <summary>The cell content cannot be converted for this parameter.</summary>
+        InvalidValue,
+        /// <summary>Revit reports the parameter as read-only (formula, calculated, constrained).</summary>
+        ReadOnlyParameter,
+        /// <summary>The parameter does not exist on the element (N/A at export).</summary>
+        NotApplicable,
+        /// <summary>Linked model data.</summary>
+        Linked,
+        MissingElement,
+        MissingParameter,
+        /// <summary>Several parameters match the key on this element.</summary>
+        Ambiguous,
+        /// <summary>Element locked by worksharing, group membership or similar.</summary>
+        Locked,
+        /// <summary>A limitation of CausaFix (not a Revit restriction).</summary>
+        Unsupported,
+        /// <summary>Context columns and informative sheets.</summary>
+        ReadOnlyColumn,
+        /// <summary>One of the edited proposals for this destination is invalid: no write for the group.</summary>
+        GroupError,
+        /// <summary>Workbook metadata cannot be matched safely.</summary>
+        MetadataMismatch
     }
 
     public interface ICurrentStateSource
@@ -86,7 +130,15 @@ namespace CausaFix.Core.Compare
         public RawValue Proposed { get; internal set; }
         public bool IsClear { get; internal set; }
         public ChangeStatus Status { get; internal set; }
+        /// <summary>Precise cause for Blocked entries.</summary>
+        public BlockCode Code { get; internal set; }
         public string Reason { get; internal set; }
+        /// <summary>Text to show in the Proposed column (raw input for invalid values, a notice for conflicts).</summary>
+        public string ProposedText { get; internal set; }
+        /// <summary>Technical diagnostics (one line per source cell) for the detail panel and the local log.</summary>
+        public string Diagnostic { get; internal set; } = string.Empty;
+        /// <summary>Diagnostics of the real Revit parameter at comparison time.</summary>
+        public CurrentState State { get; internal set; }
         public string Info { get; internal set; }
         /// <summary>Whether the change will be applied. Only meaningful for Change / Conflict.</summary>
         public bool Include { get; set; }
@@ -124,6 +176,8 @@ namespace CausaFix.Core.Compare
         public List<ChangeEntry> Entries { get; } = new List<ChangeEntry>();
         public List<ImportIssue> Issues { get; } = new List<ImportIssue>();
         public int UnchangedCells { get; internal set; }
+        /// <summary>Unique destinations (document + owner + parameter) that will be written.</summary>
+        public int WriteTargets => Entries.Count(e => e.WillWrite);
         public int EmptyCellsIgnored { get; internal set; }
 
         public int Count(ChangeStatus s) => Entries.Count(e => e.Status == s);

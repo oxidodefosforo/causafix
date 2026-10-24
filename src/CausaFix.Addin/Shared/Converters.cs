@@ -87,3 +87,14 @@ namespace CausaFix.Addin.Shared
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
     }
 }
+
+namespace CausaFix.Addin.Shared
+{
+    public sealed class NullToVisibilityConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value == null ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+
+        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture) => System.Windows.Data.Binding.DoNothing;
+    }
+}

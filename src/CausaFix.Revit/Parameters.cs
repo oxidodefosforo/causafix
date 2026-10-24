@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Autodesk.Revit.DB;
+using CausaFix.Core.Compare;
 using CausaFix.Core.Model;
 using CausaFix.Core.Values;
 
@@ -140,6 +141,13 @@ namespace CausaFix.Revit
         }
     }
 
+    public sealed class LockInfo
+    {
+        public LockInfo(BlockCode code, string reason) { Code = code; Reason = reason; }
+        public BlockCode Code { get; }
+        public string Reason { get; }
+    }
+
     /// <summary>Per element and per parameter editability, with a useful reason.</summary>
     public sealed class ParamAccess
     {
@@ -149,21 +157,40 @@ namespace CausaFix.Revit
         public ParamAccess(Document doc) { _doc = doc; }
 
         /// <summary>Returns null when the parameter can be written on this holder, otherwise the reason.</summary>
-        public string LockReason(Element holder, Parameter p, bool isLinkedDocument)
+        public string LockReason(Element holder, Parameter p, bool isLinkedDocument) => Lock(holder, p, isLinkedDocument)?.Reason;
+
+        /// <summary>
+        /// Real writability of one parameter on one element (null = writable through the API).
+        /// Parameter.UserModifiable is NOT used: it describes editing in the Revit UI, and the API can write
+        /// shared parameters whose UserModifiable flag is false. Parameter.IsReadOnly is what Revit enforces
+        /// (formulas, calculated values, constraints).
+        /// </summary>
+        public LockInfo Lock(Element holder, Parameter p, bool isLinkedDocument)
         {
-            if (isLinkedDocument) return "Linked model data is read-only.";
-            if (p.StorageType == StorageType.None) return "This parameter has no value storage.";
-            if (p.IsReadOnly) return "Read-only in Revit (calculated, driven by a formula or constrained).";
-            if (!p.UserModifiable) return "Not user-modifiable (controlled by Revit).";
-            if (p.StorageType == StorageType.ElementId) return "Reference parameters (material, level...) are read-only in this version.";
-            if (p.StorageType == StorageType.Integer && ParamIdentity.KindOf(p) == ValueKind.Integer && IsEnumerated(p))
-                return "Enumerated value: edit it in Revit.";
+            if (isLinkedDocument) return new LockInfo(BlockCode.Linked, "Linked model data is read-only. Edit it in the linked model.");
+            var parameterLock = ParameterLock(p);
+            if (parameterLock != null) return parameterLock;
             if (holder.GroupId != null && RevitCompat.IsValid(holder.GroupId) &&
                 p.Definition is InternalDefinition idf && !idf.VariesAcrossGroups)
-                return "Element is in a group and the parameter does not vary across groups: edit the group in Revit.";
-            string elementLock = ElementLock(holder);
-            return elementLock;
+                return new LockInfo(BlockCode.Locked, "The element is in a model group and this parameter does not vary across group instances. Edit the group in Revit.");
+            string ws = ElementLock(holder);
+            return ws == null ? null : new LockInfo(BlockCode.Locked, ws);
         }
+
+        /// <summary>Element-independent restrictions of a parameter (Revit read-only, or not supported by CausaFix).</summary>
+        public static LockInfo ParameterLock(Parameter p)
+        {
+            if (p.StorageType == StorageType.None) return new LockInfo(BlockCode.Unsupported, "Unsupported: this parameter has no value storage.");
+            if (p.IsReadOnly) return new LockInfo(BlockCode.ReadOnlyParameter, "Revit reports this parameter as read-only (calculated, driven by a formula or constrained).");
+            if (p.StorageType == StorageType.ElementId && p.Definition is InternalDefinition d && TypeChangingParameters.Contains(d.BuiltInParameter))
+                return new LockInfo(BlockCode.Unsupported, "Unsupported: changing an element's family or type is not done by Excel Link.");
+            return null;
+        }
+
+        private static readonly HashSet<BuiltInParameter> TypeChangingParameters = new HashSet<BuiltInParameter>
+        {
+            BuiltInParameter.ELEM_TYPE_PARAM, BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM, BuiltInParameter.ELEM_FAMILY_PARAM, BuiltInParameter.SYMBOL_ID_PARAM
+        };
 
         /// <summary>Worksharing locks are per element (cached).</summary>
         public string ElementLock(Element e)
@@ -194,15 +221,6 @@ namespace CausaFix.Revit
 
         public void Invalidate() => _elementLocks.Clear();
 
-        /// <summary>Integer parameters whose display text is not the number are enumerations (e.g. structural usage).</summary>
-        private static bool IsEnumerated(Parameter p)
-        {
-            ForgeTypeId spec = ParamIdentity.SpecOf(p);
-            if (spec != null && spec.TypeId.StartsWith("autodesk.spec:spec.int", StringComparison.Ordinal)) return false;
-            if (!p.HasValue) return false;
-            string shown = p.AsValueString();
-            return shown != null && shown != p.AsInteger().ToString(CultureInfo.CurrentCulture) && shown != p.AsInteger().ToString(CultureInfo.InvariantCulture);
-        }
     }
 
     /// <summary>Reads and writes parameter values as RawValue (internal units).</summary>
@@ -244,9 +262,9 @@ namespace CausaFix.Revit
                         ElementId id = p.AsElementId();
                         if (!RevitCompat.IsValid(id)) { cell.Raw = RawValue.Empty; cell.DisplayText = string.Empty; break; }
                         cell.Raw = RawValue.FromElementId(RevitCompat.Value(id));
-                        string name = p.AsValueString();
-                        if (string.IsNullOrEmpty(name)) name = doc.GetElement(id)?.Name ?? ("Id " + RevitCompat.Value(id).ToString(CultureInfo.InvariantCulture));
-                        cell.DisplayText = name;
+                        string name = doc.GetElement(id)?.Name;
+                        if (string.IsNullOrEmpty(name)) name = p.AsValueString();
+                        cell.DisplayText = References.Format(name, RevitCompat.Value(id));
                         break;
                     }
                 default:
@@ -288,6 +306,7 @@ namespace CausaFix.Revit
                 if (clear)
                 {
                     if (p.StorageType == StorageType.String) ok = p.Set(string.Empty);
+                    else if (p.StorageType == StorageType.ElementId) ok = p.Set(ElementId.InvalidElementId);
                     else ok = p.ClearValue();
                     if (!ok) return "Revit does not allow clearing this parameter.";
                     var after = ReadRaw(p);
@@ -308,17 +327,75 @@ namespace CausaFix.Revit
                         if (value.Kind != RawKind.Double) return "Number expected.";
                         ok = p.Set(value.Double);
                         break;
+                    case StorageType.ElementId:
+                        if (value.Kind != RawKind.ElementId) return "Reference expected.";
+                        ok = p.Set(RevitCompat.Id(value.Integer));
+                        break;
                     default:
                         return "This parameter type cannot be written by CausaFix.";
                 }
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException ex) { return "Revit refused the change: " + ex.Message; }
             catch (Autodesk.Revit.Exceptions.ArgumentException ex) { return "Revit refused the value: " + ex.Message; }
+            catch (Autodesk.Revit.Exceptions.ApplicationException ex) { return "Revit error: " + ex.GetType().Name + ": " + ex.Message; }
 
             if (!ok) return "Revit refused the change (Parameter.Set returned false).";
             var back = ReadRaw(p);
             if (!ValueComparer.AreEqual(back, value))
                 return "Revit stored a different value (" + back + ") – the value may be out of range or constrained.";
+            return null;
+        }
+    }
+}
+
+namespace CausaFix.Revit
+{
+    /// <summary>Allowed values for reference (ElementId) parameters: elements of the same class as the referenced ones.</summary>
+    public static class ReferenceCatalog
+    {
+        public const int MaxCandidates = 2000;
+
+        /// <summary>Class name used to validate assignments ("Level", "Material", ...). Element types are excluded.</summary>
+        public static string ClassOf(Element e) => e == null || e is ElementType ? string.Empty : e.GetType().Name;
+
+        /// <summary>Most common class among the referenced ids, and every element of that class as "Name [Id]".</summary>
+        public static (string cls, List<string> candidates) Build(Document doc, IEnumerable<long> referencedIds)
+        {
+            var counts = new Dictionary<Type, int>();
+            foreach (long id in referencedIds)
+            {
+                Element e = doc.GetElement(RevitCompat.Id(id));
+                if (e == null || e is ElementType) continue;
+                counts[e.GetType()] = counts.TryGetValue(e.GetType(), out int n) ? n + 1 : 1;
+            }
+            if (counts.Count == 0) return (string.Empty, new List<string>());
+            Type t = null; int best = -1;
+            foreach (var kv in counts) if (kv.Value > best) { best = kv.Value; t = kv.Key; }
+            var list = new List<string>();
+            foreach (Element e in new FilteredElementCollector(doc).OfClass(t))
+            {
+                if (e.GetType() != t) continue;
+                list.Add(References.Format(e.Name, RevitCompat.Value(e.Id)));
+                if (list.Count >= MaxCandidates) break;
+            }
+            list.Sort(StringComparer.CurrentCultureIgnoreCase);
+            return (t.Name, list);
+        }
+
+        /// <summary>Null when <paramref name="id"/> may be assigned to a column of class <paramref name="cls"/>.</summary>
+        public static string Validate(Document doc, long id, string cls, Parameter p)
+        {
+            Element target = doc.GetElement(RevitCompat.Id(id));
+            if (target == null) return "The referenced element [" + id + "] does not exist in this model.";
+            if (target is ElementType) return "Unsupported: assigning element types through a reference parameter.";
+            string expected = cls;
+            if (string.IsNullOrEmpty(expected))
+            {
+                Element now = doc.GetElement(p.AsElementId());
+                expected = ClassOf(now);
+            }
+            if (string.IsNullOrEmpty(expected)) return "Unsupported: the kind of element this parameter accepts is unknown (the parameter is empty and no list was exported).";
+            if (target.GetType().Name != expected) return "Element [" + id + "] is a " + target.GetType().Name + "; this parameter expects a " + expected + ".";
             return null;
         }
     }

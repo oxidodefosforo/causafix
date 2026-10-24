@@ -62,7 +62,7 @@ namespace Autodesk.Revit.DB
     public enum CategoryType { Invalid, Model, Annotation, Internal, AnalyticalModel }
     public enum GraphicsStyleType { Projection, Cut }
     public enum BuiltInCategory { INVALID = -1, OST_Rooms = -2000160, OST_MEPSpaces = -2003600, OST_Areas = -2003200, OST_Sheets = -2003100, OST_Views = -2000279, OST_Lines = -2000051, OST_ProjectInformation = -2003101 }
-    public enum BuiltInParameter { INVALID = -1, ALL_MODEL_MARK = -1001203 }
+    public enum BuiltInParameter { INVALID = -1, ALL_MODEL_MARK = -1001203, ELEM_TYPE_PARAM = -1002052, ELEM_FAMILY_AND_TYPE_PARAM = -1002051, ELEM_FAMILY_PARAM = -1002053, SYMBOL_ID_PARAM = -1002050 }
     public enum ViewType { Undefined, FloorPlan, CeilingPlan, Elevation, ThreeD, Schedule, DrawingSheet, ProjectBrowser, Report, DraftingView, Legend, SystemBrowser, EngineeringPlan, AreaPlan, Section, Detail, CostReport, LoadsReport, PresureLossReport, ColumnSchedule, PanelSchedule, Walkthrough, Rendering, SystemsAnalysisReport, Internal }
     public enum TemporaryViewMode { RevealHiddenElements, TemporaryHideIsolate, WorksharingDisplay, RevealConstraints, TemporaryViewProperties }
     public enum CheckoutStatus { OwnedByCurrentUser, OwnedByOtherUser, NotOwned }

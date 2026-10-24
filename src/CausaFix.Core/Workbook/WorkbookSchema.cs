@@ -16,11 +16,13 @@ namespace CausaFix.Core.Workbook
     /// </summary>
     public static class WorkbookSchema
     {
-        public const int Version = 1;
+        /// <summary>2: parameter columns are never exported as read-only (raw originals for every parameter cell). 1 is still read.</summary>
+        public const int Version = 2;
         public const string ToolName = "CausaFix Excel Link";
 
         public const string InstructionsSheet = "Instructions";
         public const string MetaSheet = "CF_Meta";
+        public const string ListsSheet = "CF_Lists";
         public const string ShadowPrefix = "CF_O";
 
         public const string SheetMarker = "CFSHEET|";

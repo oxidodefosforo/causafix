@@ -141,9 +141,10 @@ namespace CausaFix.Core.Tests
             s.Columns.Add(new ColumnDef { Key = QaStatusB, Header = "QA_Status", Kind = ValueKind.Text });
             s.Columns.Add(new ColumnDef { Key = Width, Header = "Width", Kind = ValueKind.Double, SpecTypeId = "autodesk.spec.aec:length-2.0.0", UnitTypeId = FakeUnits.Millimeters, UnitLabel = "mm" });
             s.Columns.Add(new ColumnDef { Key = Voltage, Header = "Voltage", Kind = ValueKind.Double, SpecTypeId = "autodesk.spec.aec.electrical:electricalPotential-2.0.0", UnitTypeId = FakeUnits.Volts, UnitLabel = "V" });
-            s.Columns.Add(new ColumnDef { Key = ApparentLoad, Header = "Apparent Load", Kind = ValueKind.Double, UnitTypeId = FakeUnits.VoltAmperes, UnitLabel = "VA", ColumnReadOnly = true, ReadOnlyReason = "Calculated by Revit." });
+            s.Columns.Add(new ColumnDef { Key = ApparentLoad, Header = "Apparent Load", Kind = ValueKind.Double, UnitTypeId = FakeUnits.VoltAmperes, UnitLabel = "VA", ReadOnlyReason = "Calculated by Revit." });
             s.Columns.Add(new ColumnDef { Key = Emergency, Header = "Emergency", Kind = ValueKind.YesNo });
-            s.Columns.Add(new ColumnDef { Key = Level, Header = "Level", Kind = ValueKind.ElementRef, ColumnReadOnly = true, ReadOnlyReason = "Reference parameters are read-only in this version." });
+            s.Columns.Add(new ColumnDef { Key = Level, Header = "Level", Kind = ValueKind.ElementRef, RefClass = "Level",
+                                          RefCandidates = new List<string> { "Level 1 [311]", "Level 2 [312]" } });
             s.Columns.Add(new ColumnDef { Key = Count, Header = "Circuit Count", Kind = ValueKind.Integer });
 
             s.Rows.Add(Fixture(units, 1, 352001, T1, "LF-A", "Downlight", "DL-600", 600.0 / 304.8, 230 * FakeUnits.VoltFactor, "Yes", "Note, with comma"));
@@ -183,7 +184,7 @@ namespace CausaFix.Core.Tests
             r.Cells[ApparentLoad] = load;
             r.Cells[Emergency] = emergency == null ? new CellValue { Raw = RawValue.Empty, Editable = true }
                                                    : new CellValue { Raw = RawValue.FromInteger(emergency == "Yes" ? 1 : 0), DisplayText = emergency, Editable = true };
-            r.Cells[Level] = new CellValue { Raw = RawValue.FromElementId(311), DisplayText = "Level 1", Editable = false, LockReason = "Reference" };
+            r.Cells[Level] = new CellValue { Raw = RawValue.FromElementId(311), DisplayText = "Level 1 [311]", Editable = true };
             r.Cells[Count] = new CellValue { Raw = RawValue.FromInteger(i * 10), ExportNumber = i * 10, Editable = true };
             return r;
         }

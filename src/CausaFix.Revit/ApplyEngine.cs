@@ -39,14 +39,33 @@ namespace CausaFix.Revit
             Element e = Find(targetUniqueId);
             if (e == null) return CurrentState.Missing();
             var state = new CurrentState { ElementExists = true, TargetLabel = ModelReader.Label(e, _doc) };
-            var res = ParamIdentity.Resolve(e, key, out Parameter p);
-            if (res == ParamIdentity.Resolution.Ambiguous) { state.Ambiguous = true; state.Value = RawValue.NotApplicable; return state; }
-            if (res == ParamIdentity.Resolution.NotFound) { state.ParameterExists = false; state.Value = RawValue.NotApplicable; return state; }
+            ParamIdentity.Resolution res;
+            Parameter p;
+            try { res = ParamIdentity.Resolve(e, key, out p); }
+            catch (Exception ex)
+            {
+                // Keep the original error: a resolution failure is not a read-only parameter.
+                state.ParameterExists = false;
+                state.Value = RawValue.NotApplicable;
+                state.LockCode = BlockCode.MissingParameter;
+                state.LockReason = "Parameter resolution failed: " + ex.GetType().Name + ": " + ex.Message;
+                return state;
+            }
+            if (res == ParamIdentity.Resolution.Ambiguous) { state.Ambiguous = true; state.Value = RawValue.NotApplicable; state.LockCode = BlockCode.Ambiguous; return state; }
+            if (res == ParamIdentity.Resolution.NotFound) { state.ParameterExists = false; state.Value = RawValue.NotApplicable; state.LockCode = BlockCode.MissingParameter; return state; }
             state.ParameterExists = true;
+            state.ParameterName = p.Definition?.Name ?? string.Empty;
+            state.StorageType = p.StorageType.ToString();
+            state.HasValue = p.HasValue;
+            state.IsReadOnly = p.IsReadOnly;
+            try { state.UserModifiable = p.UserModifiable; } catch (Exception) { state.UserModifiable = null; }
             state.Value = ValueIO.ReadRaw(p);
-            string lockReason = _access.LockReason(e, p, false);
-            state.Editable = lockReason == null;
-            state.LockReason = lockReason ?? string.Empty;
+            if (p.StorageType == StorageType.ElementId && state.Value.Kind == RawKind.ElementId)
+                state.Display = References.Format(_doc.GetElement(RevitCompat.Id(state.Value.Integer))?.Name, state.Value.Integer);
+            var lockInfo = _access.Lock(e, p, false);
+            state.Editable = lockInfo == null;
+            state.LockReason = lockInfo?.Reason ?? string.Empty;
+            state.LockCode = lockInfo?.Code ?? BlockCode.None;
             if (e is ElementType) state.AffectedInstances = InstancesOf(e.Id);
             return state;
         }
@@ -208,8 +227,13 @@ namespace CausaFix.Revit
             var res = ParamIdentity.Resolve(e, op.Key, out p);
             if (res == ParamIdentity.Resolution.Ambiguous) return "Ambiguous parameter on this element.";
             if (res != ParamIdentity.Resolution.Found) return "The parameter is no longer on the element.";
-            string lockReason = access.LockReason(e, p, false);
-            if (lockReason != null) return "Not editable now: " + lockReason;
+            var lockInfo = access.Lock(e, p, false);
+            if (lockInfo != null) return "Not editable now: " + lockInfo.Reason;
+            if (p.StorageType == StorageType.ElementId && !op.Clear)
+            {
+                string refError = ReferenceCatalog.Validate(doc, op.Value.Integer, op.Column?.RefClass, p);
+                if (refError != null) return refError;
+            }
             RawValue now = ValueIO.ReadRaw(p);
             if (!ValueComparer.AreEqual(now, op.ExpectedCurrent))
                 return "Changed in Revit after the review (now " + ValueFormatter.Format(now, op.Column, units) + "). Run the comparison again.";

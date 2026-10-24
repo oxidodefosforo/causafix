@@ -470,6 +470,20 @@ namespace CausaFix.ExcelLink
             Settings.LastFolder = Path.GetDirectoryName(path);
             SaveSettings();
 
+            // Local, readable diagnostic of every proposal (also when nothing can be written).
+            string diagnosticPath = string.Empty;
+            try
+            {
+                var snapshot = set;
+                diagnosticPath = await Task.Run(() => Core.Reports.ApplyReportWriter.WriteDiagnostics(_paths.ReportsFolder, DocumentTitle, snapshot, units));
+            }
+            catch (Exception ex) { _log.Warn("Import diagnostic not written: " + ex.Message); }
+            _log.Info("Import '" + Path.GetFileName(path) + "': " + set.Entries.Count(e => e.WillWrite) + " ready, " +
+                      set.Count(ChangeStatus.Blocked) + " blocked, " + (set.Count(ChangeStatus.Conflict) + set.Count(ChangeStatus.ProposalConflict)) + " conflicts, " +
+                      set.UnchangedCells + " unchanged. Diagnostic: " + diagnosticPath);
+            foreach (var e in set.Entries.Where(x => x.Status == ChangeStatus.Blocked))
+                _log.Info("  blocked " + e.Code + " " + e.TargetLabel + " / " + e.Column?.Header + ": " + e.Reason + " || " + e.Diagnostic.Replace(Environment.NewLine, " || "));
+
             if (set.Entries.Count == 0 && set.Issues.All(i => i.Severity == IssueSeverity.Info))
             {
                 _dialogs.Info("Import", "No differences: the workbook matches the model.\n" + set.UnchangedCells + " cell(s) unchanged" +
@@ -477,7 +491,7 @@ namespace CausaFix.ExcelLink
                 Status = "Import: no changes.";
                 return null;
             }
-            var review = new ReviewViewModel(_gateway, _dialogs, set, units, ReviewContextFor(identityNote), Path.GetFileName(path));
+            var review = new ReviewViewModel(_gateway, _dialogs, set, units, ReviewContextFor(identityNote), Path.GetFileName(path)) { DiagnosticPath = diagnosticPath };
             review.Applied += async (s, e) =>
             {
                 if (review.Result != null && review.Result.Committed && Preview.HasData && Preview.PendingCount == 0)
