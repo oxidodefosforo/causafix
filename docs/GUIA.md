@@ -2,7 +2,7 @@
 
 Versión 0.1.0 · Revit 2024, 2025 y 2026 · Windows x64
 
-Excel Link es la primera herramienta de la suite CausaFix. Permite elegir categorías, elementos, schedules o elementos espaciales; elegir parámetros; revisar o editar los datos en una tabla; exportarlos a un **.xlsx local**; editarlos en Excel; e importarlos con una **revisión obligatoria** antes de escribir en el modelo.
+Excel Link es la primera herramienta de la suite CausaFix (la segunda, Project Setup, está en `PROJECT_SETUP.md`). Permite elegir categorías, elementos, schedules o elementos espaciales; elegir parámetros; revisar o editar los datos en una tabla; exportarlos a un **.xlsx local**; editarlos en Excel; e importarlos con una **revisión obligatoria** antes de escribir en el modelo.
 
 Alcance de esta versión: archivos .xlsx locales y edición en tabla. Google Sheets/Morta, la creación de Rooms/Spaces y otras herramientas de la suite quedan para versiones posteriores. No es una réplica completa de SheetLink.
 
@@ -61,7 +61,7 @@ Reglas:
 Carpetas de usuario:
 | Qué | Dónde |
 |---|---|
-| Perfiles | `%AppData%\CausaFix\ExcelLink\Profiles` |
+| Perfiles | `%AppData%\CausaFix\ExcelLink\Profiles` y `%AppData%\CausaFix\ProjectSetup\Profiles` |
 | Configuración | `%AppData%\CausaFix\settings.json` |
 | Informes de cambios | `%LocalAppData%\CausaFix\Reports` |
 | Logs | `%LocalAppData%\CausaFix\Logs` |

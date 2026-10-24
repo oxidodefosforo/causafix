@@ -1,49 +1,53 @@
 # Checkpoint – estado para continuar
 
-Fecha: 2026-10-24 · Versión 0.1.0
+Fecha: 2026-10-24 · Versión 0.1.0 · Repositorio https://github.com/oxidodefosforo/causafix (rama `main`)
 
-## Qué hay
+## Módulos
 
-- Solución completa: `CausaFix.Core`, `CausaFix.ExcelLink`, `CausaFix.Revit`, `CausaFix.Addin`, pruebas, stubs de compilación, instalador, `build.ps1`, documentación.
-- Excel Link implementado de extremo a extremo en código: pestañas, alcance, parámetros, Preview/Edit, exportación, importación con revisión de tres estados, aplicación atómica, informes, perfiles, schedules (datos y presentación), spatial, vínculos de solo lectura, Project Information e inventarios.
+| Módulo | Botón | Proyectos |
+|---|---|---|
+| Excel Link | Data → Excel Link | `CausaFix.Core`, `CausaFix.ExcelLink`, `CausaFix.Revit`, `CausaFix.Addin/Modules/ExcelLink` |
+| Project Setup | Documentation → Project Setup | `CausaFix.ProjectSetup`, `CausaFix.Revit/ProjectSetup`, `CausaFix.Addin/Modules/ProjectSetup` |
 
-## Qué se verificó aquí (Linux, sin Windows ni Revit)
+Un solo paquete e instalación por año (2024/2025/2026). Los ayudantes MVVM están en `CausaFix.Core/Mvvm` y los comparten todos los módulos.
+
+## Excel Link: causa del bloqueo y corrección (commit 7766110)
+
+Síntoma: revisión con cero cambios y filas *Blocked* con Original/Proposed "(empty)" y Current "–".
+
+Causas confirmadas en el código (no ejecutado en Revit):
+1. `ParamAccess.LockReason` y `ModelReader.ColumnLock` bloqueaban cuando `Parameter.UserModifiable` era false. Esa bandera describe la edición en la interfaz de Revit, no la API; muchos parámetros compartidos la tienen en false y se pueden escribir. Ahora solo bloquean `IsReadOnly`, grupos, worksharing y vínculos; los casos que CausaFix no soporta se marcan **Unsupported**, no como read-only.
+2. La editabilidad de columna se decidía con una muestra de elementos; una columna entera quedaba marcada read-only en los metadatos del libro.
+3. `WorkbookImporter` trataba esas columnas como read-only: generaba `Proposal.Invalid` con `RawValue.Empty` como original **antes** de consultar Revit, de ahí "(empty)" y "–". Ahora el importador nunca bloquea por metadatos; el estado real se lee en Revit por celda.
+
+Además: esquema 2 con migración de libros de esquema 1, referencias ElementId editables con lista "Nombre [Id]", una escritura por destino de tipo, `TypeParameterConflict` y error de grupo sin escrituras parciales, "Multiple conflicting values" en Proposed, estados precisos con acción y diagnóstico por fila + CSV.
+
+## Verificado aquí
 
 | Verificación | Resultado |
 |---|---|
-| `CausaFix.Core` y `CausaFix.ExcelLink` compilan para net48 y net8.0 | OK |
-| 50 pruebas automáticas (reglas + flujos completos con un Revit en memoria), en .NET 8 y en .NET Framework 4.8 (Mono 6.8) | 50/50 |
-| Libro generado abierto por LibreOffice Calc; su copia re-guardada se reimporta con **0 cambios** | OK |
-| `CausaFix.Revit` compila para 2024 (net48) y 2026 (net8) contra stubs de la API escritos desde la documentación | OK (no es prueba en Revit) |
-| XAML bien formado | OK (no compilado: requiere Windows) |
+| Pruebas automáticas (reglas + flujos con mocks) en .NET 8 y .NET Framework 4.8 | 81/81 |
+| GitHub Actions (Windows): pruebas + compilación 2024/2025/2026 de todo, incluida la WPF, contra las referencias reales de la API | Verde |
+| Libro .xlsx abierto y re-guardado por LibreOffice → reimportación con 0 cambios | OK |
+| Plan de Project Setup 10 niveles × 4 conjuntos (2000 vistas y 500 sheets existentes) | ~10 ms (núcleo, sin Revit) |
 
-Rendimiento medido **solo en el núcleo** (sin Revit), 10 000 filas × 20 parámetros, en la máquina virtual de este entorno (Linux x64, .NET 8):
-- construir + escribir .xlsx: ~2,2 s · leer: ~0,9 s · validar + comparar: ~0,5 s · archivo ~2,7 MB.
-- En .NET Framework 4.8 (Mono) tiempos similares (~2,2 s / 1,0 s / 0,6 s).
-La lectura de parámetros dentro de Revit **no está medida**: ejecutar la prueba guiada con 10 000 elementos y anotar equipo y tiempos aquí.
+## No verificado (requiere Revit)
 
-## Qué NO se pudo verificar (y cómo hacerlo)
+1. Excel Link: un parámetro de instancia y uno de tipo cambiados desde Excel y leídos de nuevo en Revit (`GUIA.md §12`).
+2. Project Setup: niveles → vistas/templates/nombres → sheets → colocación con error medido ≤ 0,1 mm (`PROJECT_SETUP.md §7`), reejecución sin duplicados, rollback.
+3. Tiempos reales en Revit (10 000 × 20 en Excel Link; 10 × 4 en Project Setup).
+4. Instaladores en Windows (Install / Install-AllUsers).
 
-1. **Compilar `CausaFix.Addin` (WPF) y `CausaFix.Revit` contra las DLL reales** → en Windows: `.\build.ps1`. Si aparece algún error de compilación, corregirlo es local (XAML/firmas).
-2. **Recorrido real en Revit 2026** → `GUIA.md §12`. Marcar la columna R de `MATRIZ.md`.
-3. **Builds 2024 y 2025** → `.\build.ps1 -Years 2024,2025` con esas versiones instaladas o `-RevitApiRoot`.
-4. **Instalador** → ejecutar `Install.cmd` y comprobar el manifiesto en `%AppData%\Autodesk\Revit\Addins\<año>`.
-5. **`Document.CreationGUID` en 2024** → se lee por reflexión; si no existe en 2024, la importación pide confirmación de identidad (comportamiento seguro, documentado).
-6. **`-UseRevitNuGet`** (paquetes Nice3point de referencia) → opcional, no verificado aquí porque nuget.org no era accesible.
+## Decisiones
 
-## Decisiones tomadas
+- Project Setup ejecuta todo en **un callback** de ExternalEvent con un TransactionGroup: no hay transacciones entre callbacks; por eso no se puede cancelar a mitad (se cancela antes de empezar o durante los picks).
+- Alineación con un bucle común (`AlignmentRunner` + `IViewportProbe`) probado con sondas simuladas y ejecutado en Revit con `RevitViewportProbe`.
+- Split crops bloqueados; recortes no rectangulares admitidos (una transformación).
+- Asociaciones fila ↔ vista/sheet con Extensible Storage (esquema `CausaFixProjectSetup`, GUID fijo en `SetupStorage.cs`).
+- Las anclas y elecciones de elementos no viajan entre documentos en los perfiles.
 
-- Lector/escritor .xlsx propio en lugar de ClosedXML (ver `ARQUITECTURA.md`).
-- Parámetros de referencia (ElementId) de solo lectura en 0.1.0 (se muestran por nombre).
-- Parámetros de familia no compartidos identificados por spec + nombre + ámbito (única identidad que expone Revit entre familias); duplicados en un elemento → bloqueados.
-- Schedules: modo datos = una fila por elemento; campos calculados/relacionados excluidos; key/embebidos/filtrados por sheet solo en presentación; panel schedules fuera de alcance.
-- Vínculos: la vista activa del host no filtra los vínculos (informado).
-- Ventana de revisión no modal (los ExternalEvent necesitan el bucle de mensajes de Revit).
+## Próximo paso
 
-## Próximo paso sugerido
-
-1. `.\build.ps1 -Years 2026` en una máquina con Revit 2026 → corregir lo que el compilador de WPF/Revit señale.
-2. Prueba guiada (`GUIA.md §12`) en una copia de un modelo con Lighting Fixtures y Electrical Equipment.
-3. Medir 10 000 elementos × 20 parámetros y anotarlo arriba.
-4. Builds 2024/2025.
-5. Siguientes funciones: edición de referencias (material/nivel) con selector por Id; panel schedules; creación de Rooms/Spaces.
+1. Descargar el paquete de la última ejecución verde de Actions e instalar.
+2. Prueba guiada de Excel Link y de Project Setup en copias de modelos; anotar resultados en la columna R de `MATRIZ.md`.
+3. Pendientes: parámetros adicionales de sheet/title block, alineación del título, copiar recorte de una vista de referencia.

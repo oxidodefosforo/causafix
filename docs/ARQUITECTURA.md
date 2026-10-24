@@ -7,6 +7,7 @@ CausaFix.sln
 ├─ src/CausaFix.Core          net48 + net8.0   Reglas sin Revit: claves, valores, unidades, comparación,
 │                                               lector/escritor .xlsx, esquema del libro, perfiles, informes.
 ├─ src/CausaFix.ExcelLink     net48 + net8.0   View models y casos de uso del módulo (sin WPF ni Revit).
+├─ src/CausaFix.ProjectSetup  net48 + net8.0   Project Setup: configuración, nombres, plan, alineación, perfiles, view models.
 ├─ src/CausaFix.Revit         net48 | net8-win Adaptadores de Revit, ExternalEvent, sesión, aplicación.
 ├─ src/CausaFix.Addin         net48 | net8-win IExternalApplication, ribbon, ModuleRegistry, WPF.
 ├─ tests/CausaFix.Core.Tests  net8.0 + net48   Ejecutable de pruebas (sin dependencias).

@@ -67,6 +67,7 @@ foreach ($year in $Years) {
 
 Copy-Item (Join-Path $root 'install\*') $dist -Force
 Copy-Item (Join-Path $root 'docs\GUIA.md') $dist -Force
+Copy-Item (Join-Path $root 'docs\PROJECT_SETUP.md') $dist -Force
 Copy-Item (Join-Path $root 'LICENSE.txt') $dist -Force -ErrorAction SilentlyContinue
 
 $zip = Join-Path $root "dist\CausaFix-$version.zip"

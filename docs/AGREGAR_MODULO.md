@@ -9,9 +9,14 @@ CausaFix separa el arranque/ribbon, los servicios compartidos y cada herramienta
 | `CausaFix.Core` | Modelos y reglas independientes de Revit (claves, valores, comparación, .xlsx, perfiles, informes, configuración) | — |
 | `CausaFix.Revit` | Adaptadores de la API de Revit, `RevitDispatcher` (ExternalEvent), sesión de documento | Core, RevitAPI |
 | `CausaFix.ExcelLink` | Lógica del módulo Excel Link (view models y casos de uso), sin WPF ni Revit | Core |
+| `CausaFix.ProjectSetup` | Lógica de Project Setup: configuración, nombres, plan, alineación, perfiles, view models | Core |
 | `CausaFix.Addin` | `App` (IExternalApplication), `ModuleRegistry`, servicios WPF compartidos, vistas de cada módulo | todos |
 
 Servicios compartidos que un módulo puede usar (`CausaFix.Addin.Shared`): `Services.Paths`, `Services.Log`, `Services.LoadSettings()`, `Services.SetOwner(window, app)`, `WpfDialogs`, `Icons.Create(...)`, `Theme.xaml`, y `RevitDispatcher` + `RevitSession` (en `CausaFix.Revit`) para ventanas no modales.
+
+## Ejemplo real: Project Setup
+
+Project Setup se añadió así: proyecto de lógica `CausaFix.ProjectSetup` (sin WPF/Revit, con pruebas), adaptadores en `CausaFix.Revit/ProjectSetup`, vistas y `ProjectSetupModule` en `CausaFix.Addin/Modules/ProjectSetup`, y una línea en `ModuleRegistry.Modules`. Excel Link no se modificó.
 
 ## Pasos
 
@@ -82,6 +87,7 @@ Registro:
 public static readonly IReadOnlyList<ICausaFixModule> Modules = new ICausaFixModule[]
 {
     new ExcelLinkModule(),
+    new ProjectSetupModule(),
     new ViewAuditModule(),   // ← única línea añadida
     new SuiteModule()
 };

@@ -1,10 +1,14 @@
 # CausaFix
 
-Suite de herramientas para Autodesk Revit 2024–2026. Primera herramienta: **Excel Link** — intercambio de parámetros con archivos .xlsx locales y edición en tabla, con revisión de tres estados antes de escribir en el modelo.
+Suite de herramientas para Autodesk Revit 2024–2026:
+
+- **Excel Link** — intercambio de parámetros con archivos .xlsx locales y edición en tabla, con revisión de tres estados antes de escribir en el modelo.
+- **Project Setup** — crea plantas por nivel con templates y nombres, crea sheets y coloca las vistas para que una referencia del edificio caiga en el mismo punto de todos los planos.
 
 | Documento | Para qué |
 |---|---|
 | [docs/GUIA.md](docs/GUIA.md) | Compilar, instalar, usar y probar Excel Link (en español) |
+| [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) | Usar y probar Project Setup |
 | [docs/AGREGAR_MODULO.md](docs/AGREGAR_MODULO.md) | Añadir una herramienta a CausaFix |
 | [docs/MATRIZ.md](docs/MATRIZ.md) | Funciones implementadas, verificadas, restringidas y pendientes |
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Proyectos, hilos, identidad de parámetros y documentos, decisiones |

@@ -148,5 +148,27 @@ namespace CausaFix.Core.Tests
             }
             finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         }
+
+        [Test]
+        public static void ViewModel_FailedPlacement_ReportsRollbackNotSuccess()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cf-psvm-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var gw = new FakeSetupGateway { FailOnPlacement = true };
+                var vm = new ProjectSetupViewModel(gw, new FakeSetupDialogs(), Path.Combine(dir, "p"), Path.Combine(dir, "l"));
+                vm.InitializeAsync().GetAwaiter().GetResult();
+                foreach (var l in vm.Levels) l.Selected = true;
+                vm.SelectedGroup = vm.Groups[0];
+                vm.PickGridsCommand.ExecuteAsync().GetAwaiter().GetResult();
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                vm.RunAsync().GetAwaiter().GetResult();
+                Assert.False(vm.Result.Committed);
+                Assert.Contains("NOT applied", vm.ResultSummary);
+                Assert.True(vm.Result.Rows.All(r => r.Outcomes.Contains(RowOutcome.Failed) || r.Outcomes.Contains(RowOutcome.RolledBack)), "no row reported as created after a rollback");
+                Assert.Equal(4, vm.Plan.ViewsToCreate, "plan unchanged: nothing was kept");
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
     }
 }
