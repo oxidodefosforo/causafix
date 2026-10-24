@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Automated tests for the Revit-independent rules (no test framework dependency: plain console runner).
+      dotnet run -c Release -f net8.0
+    The net48 build can be run with the .NET Framework (Windows) or Mono.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CausaFix.Core\CausaFix.Core.csproj" />
+    <ProjectReference Include="..\..\src\CausaFix.ExcelLink\CausaFix.ExcelLink.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+</Project>

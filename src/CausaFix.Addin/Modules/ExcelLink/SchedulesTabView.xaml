@@ -1,0 +1,81 @@
+<UserControl x:Class="CausaFix.Addin.Modules.ExcelLink.SchedulesTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CausaFix.Addin;component/Shared/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0" Margin="2,2,2,8">
+            <RadioButton Content="Data exchange (re-importable)" IsChecked="{Binding IsDataExchange}" GroupName="schedMode" Margin="0,0,16,0"
+                         ToolTip="One row per element the schedule lists; columns bound to real parameters. Grouping and totals are not exported." />
+            <RadioButton Content="Presentation (read-only)" IsChecked="{Binding IsPresentation}" GroupName="schedMode" Margin="0,0,24,0"
+                         ToolTip="The table as Revit shows it: headers, groups, totals. Cannot be imported." />
+            <Button Content="Check schedules on active sheet / active schedule" Command="{Binding CheckOnActiveSheetCommand}" />
+        </WrapPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="240" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="1.3*" MinWidth="280" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                        <DockPanel>
+                            <CheckBox DockPanel.Dock="Left" IsChecked="{Binding Schedules.AllChecked, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <TextBlock Text="Select Schedules" Style="{StaticResource PanelTitle}" />
+                        </DockPanel>
+                    </Border>
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource Search}" Text="{Binding Schedules.Search, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox DockPanel.Dock="Bottom" Content="Hide un-checked schedules" IsChecked="{Binding Schedules.HideUnchecked}" Margin="6,4" />
+                    <ListBox ItemsSource="{Binding Schedules.Visible}" SelectedItem="{Binding Focused}" BorderThickness="0"
+                             HorizontalContentAlignment="Stretch">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" Text="data ✗"
+                                               Foreground="#B00020" ToolTip="{Binding Item.DataExchangeNote}"
+                                               Visibility="{Binding Item.DataExchangeSupported, Converter={StaticResource InverseBoolToVis}}" />
+                                    <TextBlock DockPanel.Dock="Right" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" Text="on sheet"
+                                               Foreground="{StaticResource Teal}" Visibility="{Binding Item.OnActiveSheet, Converter={StaticResource BoolToVis}}" />
+                                    <CheckBox IsChecked="{Binding IsChecked}">
+                                        <TextBlock>
+                                            <Run Text="{Binding Item.Name, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Item.Kind, Mode=OneWay}" Foreground="#6B7680" FontSize="10" />
+                                        </TextBlock>
+                                    </CheckBox>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <Border Grid.Column="2" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                        <TextBlock Text="Schedule fields and support" Style="{StaticResource PanelTitle}" />
+                    </Border>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding FocusedNote}" TextWrapping="Wrap" Margin="8,6" />
+                    <TextBlock DockPanel.Dock="Bottom" Margin="8,4" Style="{StaticResource Hint}"
+                               Text="Support matrix: regular, sheet list, view list and note block schedules → data exchange; key schedules, keynote legends, schedules with embedded schedules or filtered by sheet → presentation only; panel schedules (PanelScheduleView) are not part of this version. Calculated, combined, count/percentage and room/material/project-info fields are not exported in data mode." />
+                    <ListBox ItemsSource="{Binding Fields}" ItemTemplate="{StaticResource ParamItemTemplate}" BorderThickness="0"
+                             HorizontalContentAlignment="Stretch" />
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

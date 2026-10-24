@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    COMPILE-CHECK ONLY. Hand-written signatures of the subset of RevitAPI/RevitAPIUI used by CausaFix.Revit,
+    taken from the public API documentation, so the adapter code can be compiled on machines without Revit
+    (e.g. CI on Linux). Every member throws. NEVER referenced by release builds and never distributed.
+    A green build against these stubs proves the C# compiles against the documented signatures —
+    not that it runs in Revit.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <AssemblyName>RevitAPI</AssemblyName>
+    <RootNamespace>Autodesk.Revit</RootNamespace>
+    <NoWarn>$(NoWarn);CS0660;CS0661;CS0067;CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

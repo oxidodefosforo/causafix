@@ -1,0 +1,169 @@
+<UserControl x:Class="CausaFix.Addin.Modules.ExcelLink.CategoryTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CausaFix.Addin;component/Shared/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Scope and options -->
+        <WrapPanel Grid.Row="0" Margin="2,2,2,4" VerticalAlignment="Center">
+            <RadioButton Content="Whole Model" IsChecked="{Binding IsWholeModel}" Margin="0,0,14,0" GroupName="{Binding Title}" />
+            <RadioButton Content="Active View" IsChecked="{Binding IsActiveView}" Margin="0,0,14,0" GroupName="{Binding Title}" />
+            <RadioButton Content="Current Selection" IsChecked="{Binding IsCurrentSelection}" Margin="0,0,24,0" GroupName="{Binding Title}" />
+            <CheckBox Content="Include linked files (read-only)" IsChecked="{Binding IncludeLinks}" Margin="0,0,14,0"
+                      ToolTip="Adds one read-only sheet per loaded link and category. Linked rows are never written." />
+            <CheckBox Content="One row per type" IsChecked="{Binding OneRowPerType}"
+                      Visibility="{Binding SupportsTypeRows, Converter={StaticResource BoolToVis}}"
+                      ToolTip="Export element types instead of instances (type parameters only)." />
+        </WrapPanel>
+        <StackPanel Grid.Row="1" Margin="2,0,2,6">
+            <TextBlock Text="{Binding ScopeHelp}" Style="{StaticResource Hint}" />
+            <TextBlock Text="{Binding ScopeWarning}" Foreground="#B00020" TextWrapping="Wrap"
+                       Visibility="{Binding ScopeWarning, Converter={StaticResource TextToVis}}" />
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="1.2*" MinWidth="220" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="*" MinWidth="200" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Categories (and types for the Elements tab) -->
+            <Border Grid.Column="0" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                        <DockPanel>
+                            <CheckBox DockPanel.Dock="Left" IsThreeState="False" IsChecked="{Binding Categories.AllChecked, Mode=TwoWay}"
+                                      ToolTip="Check / uncheck all visible categories" VerticalAlignment="Center" />
+                            <TextBlock Text="Select Categories" Style="{StaticResource PanelTitle}" />
+                        </DockPanel>
+                    </Border>
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource Search}" Text="{Binding Categories.Search, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox DockPanel.Dock="Bottom" Content="Hide un-checked" IsChecked="{Binding Categories.HideUnchecked}" Margin="6,4" />
+
+                    <!-- Elements tab: types and text filter -->
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0"
+                            Visibility="{Binding ShowTypes, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <Border Background="{StaticResource PanelHeader}" Padding="6,4">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Left" IsChecked="{Binding Types.AllChecked, Mode=TwoWay}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Families and types (none checked = all)" Style="{StaticResource PanelTitle}" />
+                                </DockPanel>
+                            </Border>
+                            <TextBox Style="{StaticResource Search}" Text="{Binding Types.Search, UpdateSourceTrigger=PropertyChanged}" />
+                            <ListBox ItemsSource="{Binding Types.Visible}" Height="190" BorderThickness="0"
+                                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsChecked}">
+                                            <TextBlock>
+                                                <Run Text="{Binding Item.FamilyName, Mode=OneWay}" /><Run Text=" : " /><Run Text="{Binding Item.TypeName, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  (" Foreground="#6B7680" /><Run Text="{Binding Item.InstanceCount, Mode=OneWay}" Foreground="#6B7680" /><Run Text=")" Foreground="#6B7680" />
+                                            </TextBlock>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="Text filter (family, type, Mark, name):" Margin="6,4,6,0" Style="{StaticResource Hint}" />
+                            <TextBox Margin="6,2,6,6" Text="{Binding TextFilter, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ListBox ItemsSource="{Binding Categories.Visible}" BorderThickness="0"
+                             VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked}">
+                                    <TextBlock>
+                                        <Run Text="{Binding Item.Name, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Item.Count, Mode=OneWay}" Foreground="#6B7680" />
+                                    </TextBlock>
+                                </CheckBox>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <!-- Available parameters -->
+            <Border Grid.Column="2" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                        <TextBlock Style="{StaticResource PanelTitle}">
+                            <Run Text="Available Parameters (" /><Run Text="{Binding Parameters.AvailableCount, Mode=OneWay}" /><Run Text=")" />
+                        </TextBlock>
+                    </Border>
+                    <WrapPanel DockPanel.Dock="Top" Margin="6,4,6,0">
+                        <CheckBox Content="Instance" IsChecked="{Binding Parameters.ShowInstance}" Margin="0,0,10,0" />
+                        <CheckBox Content="Type" IsChecked="{Binding Parameters.ShowType}" Margin="0,0,10,0" />
+                        <CheckBox Content="Read-only" IsChecked="{Binding Parameters.ShowReadOnly}" Margin="0,0,10,0" />
+                        <CheckBox Content="Common only" IsChecked="{Binding Parameters.CommonOnly}"
+                                  ToolTip="Only parameters present on every element in scope (otherwise the union)" />
+                    </WrapPanel>
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource Search}" Text="{Binding Parameters.SearchAvailable, UpdateSourceTrigger=PropertyChanged}" />
+                    <!-- Legend: colour + text -->
+                    <UniformGrid DockPanel.Dock="Bottom" Columns="4" Margin="4">
+                        <Border Background="{StaticResource InstanceBrush}" Margin="1" Padding="4,2"><TextBlock Text="I  Instance" FontSize="11" /></Border>
+                        <Border Background="{StaticResource TypeBrush}" Margin="1" Padding="4,2"><TextBlock Text="T  Type" FontSize="11" /></Border>
+                        <Border Background="{StaticResource ReadOnlyBrush}" Margin="1" Padding="4,2"><TextBlock Text="RO  Read-only" FontSize="11" /></Border>
+                        <Border Background="{StaticResource NotApplicableBrush}" Margin="1" Padding="4,2"><TextBlock Text="N/A  Not on element" FontSize="11" /></Border>
+                    </UniformGrid>
+                    <ListBox x:Name="AvailableList" ItemsSource="{Binding Parameters.VisibleAvailable}" SelectionMode="Extended" BorderThickness="0"
+                             ItemTemplate="{StaticResource ParamItemTemplate}" ItemContainerStyle="{StaticResource SelectableItem}"
+                             VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Standard"
+                             SelectionChanged="OnListSelectionChanged" MouseDoubleClick="OnAvailableDoubleClick" />
+                </DockPanel>
+            </Border>
+
+            <!-- Add / remove -->
+            <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="4,0">
+                <Button Content="▶" Style="{StaticResource Square}" Command="{Binding Parameters.AddCommand}" ToolTip="Add selected parameters" />
+                <Button Content="⏩" Style="{StaticResource Square}" Command="{Binding Parameters.AddAllCommand}" ToolTip="Add all visible parameters" />
+                <Button Content="◀" Style="{StaticResource Square}" Command="{Binding Parameters.RemoveCommand}" ToolTip="Remove selected parameters" />
+                <Button Content="⏪" Style="{StaticResource Square}" Command="{Binding Parameters.RemoveAllCommand}" ToolTip="Remove all parameters" />
+            </StackPanel>
+
+            <GridSplitter Grid.Column="4" Width="6" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <!-- Selected parameters (export order) -->
+            <Border Grid.Column="5" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                        <TextBlock Style="{StaticResource PanelTitle}">
+                            <Run Text="Selected Parameters (" /><Run Text="{Binding Parameters.SelectedCount, Mode=OneWay}" /><Run Text=")" />
+                        </TextBlock>
+                    </Border>
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource Search}" Text="{Binding Parameters.SearchSelected, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="4">
+                        <Button Content="⤒" Style="{StaticResource Square}" Command="{Binding Parameters.MoveTopCommand}" ToolTip="Move to top" />
+                        <Button Content="▲" Style="{StaticResource Square}" Command="{Binding Parameters.MoveUpCommand}" ToolTip="Move up" />
+                        <Button Content="▼" Style="{StaticResource Square}" Command="{Binding Parameters.MoveDownCommand}" ToolTip="Move down" />
+                        <Button Content="⤓" Style="{StaticResource Square}" Command="{Binding Parameters.MoveBottomCommand}" ToolTip="Move to bottom" />
+                        <Button Content="A↓" Style="{StaticResource Square}" Command="{Binding Parameters.SortSelectedCommand}" ToolTip="Sort: instance first, then type, alphabetically" />
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Bottom" Margin="6,2" Style="{StaticResource Hint}"
+                               Text="Columns are exported in this order. Double-click to remove." />
+                    <ListBox x:Name="SelectedList" ItemsSource="{Binding Parameters.VisibleSelected}" SelectionMode="Extended" BorderThickness="0"
+                             ItemTemplate="{StaticResource ParamItemTemplate}" ItemContainerStyle="{StaticResource SelectableItem}"
+                             SelectionChanged="OnListSelectionChanged" MouseDoubleClick="OnSelectedDoubleClick" />
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

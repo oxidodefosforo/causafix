@@ -1,0 +1,153 @@
+<Window x:Class="CausaFix.Addin.Modules.ExcelLink.ReviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CausaFix · Review changes before writing"
+        Width="1180" Height="720" MinWidth="820" MinHeight="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        FontFamily="Segoe UI" FontSize="12" Background="#F7F9FA">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CausaFix.Addin;component/Shared/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,6">
+            <TextBlock FontSize="15" FontWeight="SemiBold">
+                <Run Text="Review: " /><Run Text="{Binding SourceTitle, Mode=OneWay}" /><Run Text="  →  " Foreground="#6B7680" /><Run Text="{Binding DocumentTitle, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Text="{Binding IdentityNote}" Foreground="#8A5A00" TextWrapping="Wrap" Visibility="{Binding IdentityNote, Converter={StaticResource TextToVis}}" />
+            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            <TextBlock Style="{StaticResource Hint}" Text="Original = value when exported/loaded · Current = value in Revit now · Proposed = your value. Conflicts are never overwritten unless you include them. Type rows change every instance of the type." />
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+            <TextBlock Text="Show:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ComboBox x:Name="FilterBox" Width="180" SelectionChanged="OnFilterChanged">
+                <ComboBoxItem Content="All" IsSelected="True" />
+                <ComboBoxItem Content="Will be written" />
+                <ComboBoxItem Content="Conflicts" />
+                <ComboBoxItem Content="Blocked" />
+                <ComboBoxItem Content="Already in model" />
+            </ComboBox>
+            <Button Content="Include all changes" Command="{Binding IncludeAllCommand}" Margin="12,0,3,0" />
+            <Button Content="Exclude all" Command="{Binding ExcludeAllCommand}" />
+        </WrapPanel>
+
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Visible}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA"
+                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" SelectionUnit="FullRow" RowHeight="24">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Write" Width="46">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Include, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanInclude}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Status" Width="150" SortMemberPath="StatusLabel">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border x:Name="b" Padding="4,1" CornerRadius="2">
+                                <TextBlock Text="{Binding StatusLabel}" />
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Status}" Value="Change"><Setter TargetName="b" Property="Background" Value="#D6F0DC" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Conflict"><Setter TargetName="b" Property="Background" Value="#FFE0B3" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="ProposalConflict"><Setter TargetName="b" Property="Background" Value="#FFE0B3" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Blocked"><Setter TargetName="b" Property="Background" Value="#F8D7DA" /></DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="AlreadyMatches"><Setter TargetName="b" Property="Background" Value="#EDEDED" /></DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Element / type" Binding="{Binding Element, Mode=OneWay}" Width="230" />
+                <DataGridTextColumn Header="Parameter" Binding="{Binding Parameter, Mode=OneWay}" Width="140" />
+                <DataGridTextColumn Header="Original" Binding="{Binding Original, Mode=OneWay}" Width="110" />
+                <DataGridTextColumn Header="Current (Revit)" Binding="{Binding Current, Mode=OneWay}" Width="110" />
+                <DataGridTemplateColumn Header="Proposed" Width="150">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <TextBlock Text="{Binding Proposed}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           Visibility="{Binding HasAlternatives, Converter={StaticResource InverseBoolToVis}}" />
+                                <ComboBox ItemsSource="{Binding Alternatives}" SelectedIndex="{Binding SelectedAlternative, Mode=TwoWay}"
+                                          ToolTip="Several values were proposed: choose one" Visibility="{Binding HasAlternatives, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Affects" Binding="{Binding Affects, Mode=OneWay}" Width="120" />
+                <DataGridTextColumn Header="Reason" Binding="{Binding Reason, Mode=OneWay}" Width="*" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Sources, Mode=OneWay}" Width="160" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Expander Grid.Row="3" Margin="0,6,0,0">
+            <Expander.Header>
+                <TextBlock>
+                    <Run Text="Messages (" /><Run Text="{Binding Issues.Count, Mode=OneWay}" /><Run Text=") – rows/columns ignored, formulas used, duplicates, structural problems" />
+                </TextBlock>
+            </Expander.Header>
+            <ListBox ItemsSource="{Binding Issues}" MaxHeight="160">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock TextWrapping="Wrap">
+                            <Run Text="{Binding Severity, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Location, Mode=OneWay}" Foreground="#6B7680" /><Run Text="  " /><Run Text="{Binding Message, Mode=OneWay}" />
+                        </TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Expander>
+
+        <!-- Result after applying -->
+        <Border Grid.Row="4" Margin="0,6,0,0" Padding="8" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                Visibility="{Binding HasResult, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Open report" Command="{Binding OpenReportCommand}" VerticalAlignment="Top" />
+                <StackPanel>
+                    <TextBlock Text="{Binding ResultSummary}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <DataGrid ItemsSource="{Binding ResultOps}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="150" Margin="0,4,0,0"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="90" />
+                            <DataGridTextColumn Header="Element" Binding="{Binding Label}" Width="220" />
+                            <DataGridTextColumn Header="Parameter" Binding="{Binding Parameter}" Width="130" />
+                            <DataGridTextColumn Header="Old" Binding="{Binding OldValue}" Width="110" />
+                            <DataGridTextColumn Header="New" Binding="{Binding NewValue}" Width="110" />
+                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Row="5" Margin="0,8,0,0">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <RadioButton Content="All or nothing" IsChecked="{Binding AtomicMode}" GroupName="applyMode" Margin="0,0,12,0"
+                             ToolTip="If any approved change fails, nothing is written (recommended)." />
+                <RadioButton Content="Apply valid changes only" IsChecked="{Binding ValidOnlyMode}" GroupName="applyMode"
+                             ToolTip="Failed changes are skipped and reported; the rest is written." />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Apply to Revit…" Command="{Binding ApplyCommand}" Style="{StaticResource Primary}" />
+                <Button Content="Close" IsCancel="True" Click="OnClose" />
+            </StackPanel>
+            <TextBlock Text="Nothing is saved or synchronised automatically. One Undo in Revit reverts the whole operation."
+                       Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="12,0" />
+        </DockPanel>
+    </Grid>
+</Window>

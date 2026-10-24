@@ -1,0 +1,13 @@
+CausaFix
+Copyright (c) 2026 CausaFix. All rights reserved.
+
+Third-party components
+----------------------
+None are redistributed. CausaFix reads and writes .xlsx files with its own code (System.IO.Compression
+and System.Xml from .NET), so no third-party library or license applies to the binaries.
+
+RevitAPI.dll and RevitAPIUI.dll are referenced at build time only and are NOT distributed. They are
+provided by the user's Autodesk Revit installation.
+
+"Revit" and "Autodesk" are trademarks of Autodesk, Inc. "Excel" is a trademark of Microsoft Corporation.
+CausaFix is not affiliated with Autodesk, Microsoft or DiRoots.

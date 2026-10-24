@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Excel Link module logic: view models and use cases. No WPF and no Revit API here, so it compiles
+    and is tested on any machine (tests drive it with an in-memory gateway). Views (XAML) live in
+    CausaFix.Addin; Revit access goes through IExcelLinkGateway (implemented in CausaFix.Revit).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>CausaFix.ExcelLink</RootNamespace>
+    <AssemblyName>CausaFix.ExcelLink</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,100 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:shared="clr-namespace:CausaFix.Addin.Shared">
+
+    <!-- CausaFix palette -->
+    <Color x:Key="InkColor">#1F2A33</Color>
+    <Color x:Key="SlateColor">#23394D</Color>
+    <Color x:Key="TealColor">#0E7C86</Color>
+    <Color x:Key="AmberColor">#F2B53A</Color>
+    <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
+    <SolidColorBrush x:Key="Slate" Color="{StaticResource SlateColor}" />
+    <SolidColorBrush x:Key="Teal" Color="{StaticResource TealColor}" />
+    <SolidColorBrush x:Key="Amber" Color="{StaticResource AmberColor}" />
+    <SolidColorBrush x:Key="Muted" Color="#6B7680" />
+    <SolidColorBrush x:Key="Line" Color="#D5DBE0" />
+    <SolidColorBrush x:Key="Surface" Color="#F7F9FA" />
+    <SolidColorBrush x:Key="PanelHeader" Color="#ECEFF2" />
+
+    <!-- Parameter / cell roles (always paired with a text tag) -->
+    <SolidColorBrush x:Key="InstanceBrush" Color="#E2F0D9" />
+    <SolidColorBrush x:Key="TypeBrush" Color="#FFF2CC" />
+    <SolidColorBrush x:Key="ReadOnlyBrush" Color="#F8D7DA" />
+    <SolidColorBrush x:Key="NotApplicableBrush" Color="#EDEDED" />
+    <SolidColorBrush x:Key="ContextBrush" Color="#F5F5F5" />
+    <SolidColorBrush x:Key="EditedBrush" Color="#D6E4FF" />
+    <SolidColorBrush x:Key="InvalidBrush" Color="#FFB8B8" />
+
+    <shared:RoleToBrushConverter x:Key="RoleBrush" />
+    <shared:CellBrushConverter x:Key="CellBrush" />
+    <shared:BoolToVisibilityConverter x:Key="BoolToVis" />
+    <shared:BoolToVisibilityConverter x:Key="InverseBoolToVis" Invert="True" />
+    <shared:NullOrEmptyToVisibilityConverter x:Key="TextToVis" />
+
+    <Style TargetType="{x:Type TextBlock}" x:Key="PanelTitle">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="{x:Type TextBlock}" x:Key="Hint">
+        <Setter Property="Foreground" Value="{StaticResource Muted}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style TargetType="{x:Type Border}" x:Key="Panel">
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="CornerRadius" Value="3" />
+    </Style>
+
+    <Style TargetType="{x:Type Button}">
+        <Setter Property="Padding" Value="10,3" />
+        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="Margin" Value="3,0" />
+    </Style>
+
+    <Style TargetType="{x:Type Button}" x:Key="Primary" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Teal}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderBrush" Value="{StaticResource Teal}" />
+    </Style>
+
+    <Style TargetType="{x:Type Button}" x:Key="Square" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="2" />
+        <Setter Property="FontFamily" Value="Segoe UI Symbol" />
+    </Style>
+
+    <Style TargetType="{x:Type TextBox}" x:Key="Search">
+        <Setter Property="Margin" Value="4" />
+        <Setter Property="Padding" Value="4,2" />
+        <Setter Property="ToolTip" Value="Search" />
+    </Style>
+
+    <!-- A role tag ("I", "T · RO") with its colour -->
+    <DataTemplate x:Key="ParamItemTemplate">
+        <Border Background="{Binding Role, Converter={StaticResource RoleBrush}}" Padding="4,2" Margin="0,0,0,1" ToolTip="{Binding Details}">
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="44" Margin="0,0,6,0" BorderBrush="#33000000" BorderThickness="0,0,1,0">
+                    <TextBlock Text="{Binding Tag}" FontSize="10" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock DockPanel.Dock="Right" Text="missing" Foreground="#B00020" FontSize="10" Margin="6,0,0,0"
+                           Visibility="{Binding IsMissing, Converter={StaticResource BoolToVis}}" />
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+    </DataTemplate>
+
+    <Style TargetType="{x:Type ListBoxItem}" x:Key="SelectableItem">
+        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+</ResourceDictionary>

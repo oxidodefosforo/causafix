@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Revit entry point: IExternalApplication (ribbon tab "CausaFix"), module registry, shared WPF services
+    and the Excel Link views. Build per year: -p:RevitVersion=2024|2025|2026 (Windows only: WPF).
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(RevitTargetFramework)</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>CausaFix.Addin</RootNamespace>
+    <AssemblyName>CausaFix.Addin</AssemblyName>
+    <RevitApiDir Condition="'$(RevitApiDir)' == ''">$(ProgramW6432)\Autodesk\Revit $(RevitVersion)</RevitApiDir>
+    <!-- Revit loads add-ins from their folder; copy project references next to the add-in. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateResourceUsePreserializedResources>false</GenerateResourceUsePreserializedResources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
+    <ProjectReference Include="..\CausaFix.ExcelLink\CausaFix.ExcelLink.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
+    <ProjectReference Include="..\CausaFix.Revit\CausaFix.Revit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRevitNuGet)' != 'true'">
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRevitNuGet)' == 'true'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

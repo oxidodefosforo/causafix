@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Núcleo independiente de Revit y de WPF: modelos, claves, valores, comparación de tres estados,
+    lectura/escritura .xlsx (sin dependencias externas), esquema del libro, perfiles e informes.
+    Se compila para los dos runtimes que usa Revit: net48 (2024) y net8.0 (2025/2026).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>CausaFix.Core</RootNamespace>
+    <AssemblyName>CausaFix.Core</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>

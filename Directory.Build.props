@@ -1,0 +1,48 @@
+<Project>
+  <!--
+    CausaFix – propiedades comunes.
+    RevitVersion selecciona el año de Revit (2024 | 2025 | 2026). Por defecto 2026.
+      dotnet build CausaFix.sln -c Release -p:RevitVersion=2024
+  -->
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2026</RevitVersion>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <Company>CausaFix</Company>
+    <Product>CausaFix</Product>
+    <Copyright>CausaFix</Copyright>
+    <Version>0.1.0</Version>
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">AnyCPU</PlatformTarget>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;NU1603</NoWarn>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- Runtime por año de Revit -->
+  <PropertyGroup Condition="'$(RevitVersion)' == '2024'">
+    <RevitTargetFramework>net48</RevitTargetFramework>
+    <CoreTargetFramework>net48</CoreTargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RevitVersion)' == '2025' or '$(RevitVersion)' == '2026'">
+    <RevitTargetFramework>net8.0-windows</RevitTargetFramework>
+    <CoreTargetFramework>net8.0</CoreTargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' != '2024'">$(DefineConstants);REVIT2025_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' == '2026'">$(DefineConstants);REVIT2026_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <!--
+    Solo para compilar fuera de Windows (CI/Linux): usa las referencias de .NET Framework 4.8
+    de Mono en lugar del paquete Microsoft.NETFramework.ReferenceAssemblies.
+    En Windows con el Developer Pack 4.8 instalado no se aplica.
+  -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT' and Exists('/usr/lib/mono/4.8-api')">
+    <FrameworkPathOverride>/usr/lib/mono/4.8-api</FrameworkPathOverride>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+  </PropertyGroup>
+</Project>

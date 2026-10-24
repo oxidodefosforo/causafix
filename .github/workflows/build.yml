@@ -1,0 +1,47 @@
+# Compila y prueba CausaFix en Windows (GitHub Actions) y publica el paquete instalable.
+# - En cada push / pull request: pruebas (.NET 8 y .NET Framework 4.8) + builds 2024, 2025, 2026.
+#   El zip queda en la pestaña Actions -> ejecución -> "Artifacts".
+# - Al crear una etiqueta v* (por ejemplo v0.1.0): además crea un Release con el zip.
+# Las DLL de Revit se toman de los paquetes de referencia Nice3point.Revit.Api (no se distribuyen).
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Tests (.NET 8)
+        run: dotnet run --project tests/CausaFix.Core.Tests -c Release -f net8.0
+
+      - name: Tests (.NET Framework 4.8)
+        run: dotnet run --project tests/CausaFix.Core.Tests -c Release -f net48
+
+      - name: Build 2024 / 2025 / 2026 and package
+        shell: pwsh
+        run: ./build.ps1 -UseRevitNuGet -SkipTests
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CausaFix-package
+          path: dist/*.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
