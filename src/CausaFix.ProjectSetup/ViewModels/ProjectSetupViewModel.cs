@@ -115,18 +115,55 @@ namespace CausaFix.ProjectSetup.ViewModels
         public IEnumerable<AlignmentMethod> AlignmentMethods => (AlignmentMethod[])Enum.GetValues(typeof(AlignmentMethod));
         public IEnumerable<SheetFrame> SheetFrames => (SheetFrame[])Enum.GetValues(typeof(SheetFrame));
         public IEnumerable<ViewportRotationOption> Rotations => (ViewportRotationOption[])Enum.GetValues(typeof(ViewportRotationOption));
-        public IEnumerable<string> GroupKeys => Groups.Select(g => g.Key);
+        public IList<string> GroupKeys { get; private set; } = new List<string>();
         public string TokenHelp => "Tokens: " + string.Join(" ", NamePattern.Tokens.Select(t => "{" + t + "}")) + "  ·  {Sequence:000} pads with zeros  ·  {LevelName:upper} / :lower  ·  {{ }} for literal braces";
 
         /// <summary>Catalog lists filtered for the selected View Set's family (for combo boxes).</summary>
-        public IEnumerable<ViewFamilyTypeInfo> ViewTypesForSelected => _cat.ViewFamilyTypes.Where(v => SelectedSet == null || v.Family == SelectedSet.Family);
-        public IEnumerable<object> TemplatesForSelected => new object[] { new NamedRef { UniqueId = "", Name = "(none)" } }
-            .Concat(_cat.Templates.Where(t => SelectedSet == null || !t.Family.HasValue || t.Family == SelectedSet.Family).Select(t => (object)new NamedRef { UniqueId = t.UniqueId, Name = t.Name + (t.ControlsScale ? "  [scale 1:" + t.Scale + "]" : "") }));
-        public IEnumerable<TitleBlockInfo> TitleBlocks => _cat.TitleBlocks;
-        public IEnumerable<NamedRef> ViewportTypes => new[] { new NamedRef { UniqueId = "", Name = "(default)" } }.Concat(_cat.ViewportTypes);
-        public IEnumerable<NamedRef> ScopeBoxes => new[] { new NamedRef { UniqueId = "", Name = "(none)" } }.Concat(_cat.ScopeBoxes);
-        public IEnumerable<ExistingViewInfo> ExistingPlanViews => _cat.Views.Where(v => v.Family.HasValue).OrderBy(v => v.Name);
-        public IEnumerable<ExistingSheetInfo> ExistingSheets => _cat.Sheets.Where(s => !s.IsPlaceholder).OrderBy(s => s.Number);
+        // Combo box sources are cached lists. They are rebuilt only when the catalog, the selected View Set or its
+        // family changes: handing WPF a new collection on every edit makes each combo re-write its value, which
+        // triggers another edit – an endless synchronous loop that overflows the stack and closes Revit.
+        public IList<ViewFamilyTypeInfo> ViewTypesForSelected { get; private set; } = new List<ViewFamilyTypeInfo>();
+        public IList<NamedRef> TemplatesForSelected { get; private set; } = new List<NamedRef>();
+        public IList<TitleBlockInfo> TitleBlocks { get; private set; } = new List<TitleBlockInfo>();
+        public IList<NamedRef> ViewportTypes { get; private set; } = new List<NamedRef>();
+        public IList<NamedRef> ScopeBoxes { get; private set; } = new List<NamedRef>();
+        public IList<ExistingViewInfo> ExistingPlanViews { get; private set; } = new List<ExistingViewInfo>();
+        public IList<ExistingSheetInfo> ExistingSheets { get; private set; } = new List<ExistingSheetInfo>();
+        private PlanFamily? _listsFamily;
+        private bool _inChanged;
+
+        private void RebuildCatalogLists()
+        {
+            TitleBlocks = _cat.TitleBlocks.ToList();
+            ViewportTypes = new[] { new NamedRef { UniqueId = "", Name = "(default)" } }.Concat(_cat.ViewportTypes).ToList();
+            ScopeBoxes = new[] { new NamedRef { UniqueId = "", Name = "(none)" } }.Concat(_cat.ScopeBoxes).ToList();
+            ExistingPlanViews = _cat.Views.Where(v => v.Family.HasValue).OrderBy(v => v.Name).ToList();
+            ExistingSheets = _cat.Sheets.Where(x => !x.IsPlaceholder).OrderBy(x => x.Number).ToList();
+            foreach (var n in new[] { nameof(TitleBlocks), nameof(ViewportTypes), nameof(ScopeBoxes), nameof(ExistingPlanViews), nameof(ExistingSheets), nameof(Families) })
+                OnPropertyChanged(n);
+            RebuildSelectedLists(force: true);
+        }
+
+        private void RebuildSelectedLists(bool force = false)
+        {
+            var fam = SelectedSet?.Family;
+            if (!force && fam == _listsFamily) return;
+            _listsFamily = fam;
+            ViewTypesForSelected = _cat.ViewFamilyTypes.Where(v => fam == null || v.Family == fam).ToList();
+            TemplatesForSelected = new[] { new NamedRef { UniqueId = "", Name = "(none)" } }
+                .Concat(_cat.Templates.Where(t => fam == null || !t.Family.HasValue || t.Family == fam)
+                .Select(t => new NamedRef { UniqueId = t.UniqueId, Name = t.Name + (t.ControlsScale ? "  [scale 1:" + t.Scale + "]" : "") })).ToList();
+            OnPropertyChanged(nameof(ViewTypesForSelected));
+            OnPropertyChanged(nameof(TemplatesForSelected));
+        }
+
+        private void RebuildGroupKeys()
+        {
+            var keys = Groups.Select(g => g.Key).ToList();
+            if (keys.SequenceEqual(GroupKeys)) return;
+            GroupKeys = keys;
+            RebuildGroupKeys();
+        }
 
         public SetupMode Mode
         {
@@ -160,8 +197,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             set
             {
                 if (!Set(ref _selectedSet, value)) return;
-                OnPropertyChanged(nameof(ViewTypesForSelected));
-                OnPropertyChanged(nameof(TemplatesForSelected));
+                RebuildSelectedLists();
                 DuplicateSetCommand.Refresh(); RemoveSetCommand.Refresh();
             }
         }
@@ -236,8 +272,9 @@ namespace CausaFix.ProjectSetup.ViewModels
             if (string.IsNullOrEmpty(_cfg.DocumentKey)) _cfg.DocumentKey = _gw.DocumentKey;
             SyncLevels();
             LoadEditors();
-            foreach (var n in new[] { nameof(Families), nameof(TitleBlocks), nameof(ViewportTypes), nameof(ScopeBoxes), nameof(ExistingPlanViews), nameof(ExistingSheets), nameof(DocumentTitle), nameof(ProjectNumber), nameof(ViewTypesForSelected), nameof(TemplatesForSelected) })
-                OnPropertyChanged(n);
+            RebuildCatalogLists();
+            OnPropertyChanged(nameof(DocumentTitle));
+            OnPropertyChanged(nameof(ProjectNumber));
             Status = _cat.Levels.Count + " level(s), " + _cat.Templates.Count + " template(s), " + _cat.TitleBlocks.Count + " title block type(s), " + _cat.Sheets.Count + " sheet(s) read from '" + _cat.DocumentTitle + "'.";
             Changed();
         }
@@ -289,7 +326,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             SelectedGroup = Groups.FirstOrDefault(g => g.Key == keepGroup) ?? Groups.FirstOrDefault();
             Placements.Clear();
             foreach (var p in _cfg.Placements) Placements.Add(new PlacementItem(p, Changed));
-            OnPropertyChanged(nameof(Mode)); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ToleranceMm)); OnPropertyChanged(nameof(GroupKeys));
+            OnPropertyChanged(nameof(Mode)); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ToleranceMm)); RebuildGroupKeys();
             foreach (var n in new[] { nameof(UsableLeft), nameof(UsableBottom), nameof(UsableRight), nameof(UsableTop), nameof(AllowRealignPinned), nameof(ProjectNumber) }) OnPropertyChanged(n);
             _suspend = false;
         }
@@ -314,11 +351,16 @@ namespace CausaFix.ProjectSetup.ViewModels
 
         private void Changed()
         {
-            if (_suspend) return;
-            OnPropertyChanged(nameof(ViewTypesForSelected));
-            OnPropertyChanged(nameof(TemplatesForSelected));
-            RefreshExamples();
-            if (Step == ReviewStep) Rebuild();
+            if (_suspend || _inChanged) return;
+            _inChanged = true;
+            try
+            {
+                RebuildSelectedLists();   // only when the family changed
+                RebuildGroupKeys();
+                RefreshExamples();
+                if (Step == ReviewStep) Rebuild();
+            }
+            finally { _inChanged = false; }
         }
 
         private void RefreshExamples()
@@ -425,7 +467,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             var item = new GroupItem(g, Changed);
             Groups.Add(item);
             SelectedGroup = item;
-            OnPropertyChanged(nameof(GroupKeys));
+            RebuildGroupKeys();
             Changed();
         }
 
@@ -434,7 +476,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             _cfg.Groups.Remove(SelectedGroup.Group);
             Groups.Remove(SelectedGroup);
             SelectedGroup = Groups.FirstOrDefault();
-            OnPropertyChanged(nameof(GroupKeys));
+            RebuildGroupKeys();
             Changed();
         }
 

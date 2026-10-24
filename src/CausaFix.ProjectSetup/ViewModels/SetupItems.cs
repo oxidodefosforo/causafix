@@ -38,13 +38,13 @@ namespace CausaFix.ProjectSetup.ViewModels
         public string Code
         {
             get => Selection.Code;
-            set { Selection.Code = (value ?? "").Trim(); OnPropertyChanged(); _changed(); }
+            set { var v = (value ?? "").Trim(); if (Selection.Code == v) return; Selection.Code = v; OnPropertyChanged(); _changed(); }
         }
 
         public string Zone
         {
             get => Selection.Zone;
-            set { Selection.Zone = (value ?? "").Trim(); OnPropertyChanged(); _changed(); }
+            set { var v = (value ?? "").Trim(); if (Selection.Zone == v) return; Selection.Zone = v; OnPropertyChanged(); _changed(); }
         }
 
         public int Order => Selection.Order;
@@ -66,32 +66,54 @@ namespace CausaFix.ProjectSetup.ViewModels
         public ViewSetRule Rule { get; }
         private void C(string name) { OnPropertyChanged(name); _changed(); }
 
-        public bool Enabled { get => Rule.Enabled; set { Rule.Enabled = value; C(nameof(Enabled)); } }
-        public string Name { get => Rule.Name; set { Rule.Name = value ?? ""; C(nameof(Name)); } }
-        public string Code { get => Rule.Code; set { Rule.Code = value ?? ""; C(nameof(Code)); } }
-        public string DisciplineCode { get => Rule.DisciplineCode; set { Rule.DisciplineCode = value ?? ""; C(nameof(DisciplineCode)); } }
-        public PlanFamily Family { get => Rule.Family; set { Rule.Family = value; Rule.ViewFamilyTypeUniqueId = ""; Rule.TemplateUniqueId = ""; C(nameof(Family)); OnPropertyChanged(nameof(ViewFamilyTypeUniqueId)); OnPropertyChanged(nameof(TemplateUniqueId)); } }
-        public string ViewFamilyTypeUniqueId { get => Rule.ViewFamilyTypeUniqueId; set { Rule.ViewFamilyTypeUniqueId = value ?? ""; C(nameof(ViewFamilyTypeUniqueId)); } }
-        public string TemplateUniqueId { get => Rule.TemplateUniqueId; set { Rule.TemplateUniqueId = value ?? ""; C(nameof(TemplateUniqueId)); } }
-        public string ViewNamePattern { get => Rule.ViewNamePattern; set { Rule.ViewNamePattern = value ?? ""; C(nameof(ViewNamePattern)); } }
-        public string TitleOnSheetPattern { get => Rule.TitleOnSheetPattern; set { Rule.TitleOnSheetPattern = value ?? ""; C(nameof(TitleOnSheetPattern)); } }
-        public int Scale { get => Rule.Scale; set { Rule.Scale = Math.Max(1, value); C(nameof(Scale)); } }
-        public CropOption Crop { get => Rule.Crop; set { Rule.Crop = value; C(nameof(Crop)); } }
-        public string ScopeBoxUniqueId { get => Rule.ScopeBoxUniqueId; set { Rule.ScopeBoxUniqueId = value ?? ""; C(nameof(ScopeBoxUniqueId)); } }
-        public SheetMode SheetMode { get => Rule.SheetMode; set { Rule.SheetMode = value; C(nameof(SheetMode)); } }
-        public string SheetNumberPattern { get => Rule.SheetNumberPattern; set { Rule.SheetNumberPattern = value ?? ""; C(nameof(SheetNumberPattern)); } }
-        public string SheetNamePattern { get => Rule.SheetNamePattern; set { Rule.SheetNamePattern = value ?? ""; C(nameof(SheetNamePattern)); } }
-        public TextCase ViewNameCase { get => Rule.ViewNameCase; set { Rule.ViewNameCase = value; C(nameof(ViewNameCase)); } }
-        public TextCase SheetNameCase { get => Rule.SheetNameCase; set { Rule.SheetNameCase = value; C(nameof(SheetNameCase)); } }
-        public int SequenceStart { get => Rule.Sequence.Start; set { Rule.Sequence.Start = value; C(nameof(SequenceStart)); } }
-        public int SequenceIncrement { get => Rule.Sequence.Increment; set { Rule.Sequence.Increment = value == 0 ? 1 : value; C(nameof(SequenceIncrement)); } }
-        public SequenceScope SequenceScope { get => Rule.Sequence.Scope; set { Rule.Sequence.Scope = value; C(nameof(SequenceScope)); } }
-        public string TitleBlockUniqueId { get => Rule.TitleBlockUniqueId; set { Rule.TitleBlockUniqueId = value ?? ""; C(nameof(TitleBlockUniqueId)); } }
-        public string AlignmentGroupKey { get => Rule.AlignmentGroupKey; set { Rule.AlignmentGroupKey = value ?? "Main"; C(nameof(AlignmentGroupKey)); } }
-        public string SlotName { get => Rule.SlotName; set { Rule.SlotName = value ?? "A"; C(nameof(SlotName)); } }
-        public string ViewportTypeUniqueId { get => Rule.ViewportTypeUniqueId; set { Rule.ViewportTypeUniqueId = value ?? ""; C(nameof(ViewportTypeUniqueId)); } }
-        public ViewportRotationOption Rotation { get => Rule.Rotation; set { Rule.Rotation = value; C(nameof(Rotation)); } }
-        public string Zone { get => Rule.Zone; set { Rule.Zone = value ?? ""; C(nameof(Zone)); } }
+        /// <summary>Assigns only when the value really changes (combo boxes re-write equal values when their lists refresh).</summary>
+        private bool Upd<T>(T current, T value, Action<T> assign, string name)
+        {
+            if (EqualityComparer<T>.Default.Equals(current, value)) return false;
+            assign(value);
+            C(name);
+            return true;
+        }
+
+        public bool Enabled { get => Rule.Enabled; set => Upd(Rule.Enabled, value, v => Rule.Enabled = v, nameof(Enabled)); }
+        public string Name { get => Rule.Name; set => Upd(Rule.Name, value ?? "", v => Rule.Name = v, nameof(Name)); }
+        public string Code { get => Rule.Code; set => Upd(Rule.Code, value ?? "", v => Rule.Code = v, nameof(Code)); }
+        public string DisciplineCode { get => Rule.DisciplineCode; set => Upd(Rule.DisciplineCode, value ?? "", v => Rule.DisciplineCode = v, nameof(DisciplineCode)); }
+        public PlanFamily Family
+        {
+            get => Rule.Family;
+            set
+            {
+                if (Rule.Family == value) return;
+                Rule.Family = value;
+                Rule.ViewFamilyTypeUniqueId = "";
+                Rule.TemplateUniqueId = "";
+                C(nameof(Family));
+                OnPropertyChanged(nameof(ViewFamilyTypeUniqueId));
+                OnPropertyChanged(nameof(TemplateUniqueId));
+            }
+        }
+        public string ViewFamilyTypeUniqueId { get => Rule.ViewFamilyTypeUniqueId; set => Upd(Rule.ViewFamilyTypeUniqueId, value ?? Rule.ViewFamilyTypeUniqueId, v => Rule.ViewFamilyTypeUniqueId = v, nameof(ViewFamilyTypeUniqueId)); }
+        public string TemplateUniqueId { get => Rule.TemplateUniqueId; set => Upd(Rule.TemplateUniqueId, value ?? Rule.TemplateUniqueId, v => Rule.TemplateUniqueId = v, nameof(TemplateUniqueId)); }
+        public string ViewNamePattern { get => Rule.ViewNamePattern; set => Upd(Rule.ViewNamePattern, value ?? "", v => Rule.ViewNamePattern = v, nameof(ViewNamePattern)); }
+        public string TitleOnSheetPattern { get => Rule.TitleOnSheetPattern; set => Upd(Rule.TitleOnSheetPattern, value ?? "", v => Rule.TitleOnSheetPattern = v, nameof(TitleOnSheetPattern)); }
+        public int Scale { get => Rule.Scale; set => Upd(Rule.Scale, Math.Max(1, value), v => Rule.Scale = v, nameof(Scale)); }
+        public CropOption Crop { get => Rule.Crop; set => Upd(Rule.Crop, value, v => Rule.Crop = v, nameof(Crop)); }
+        public string ScopeBoxUniqueId { get => Rule.ScopeBoxUniqueId; set => Upd(Rule.ScopeBoxUniqueId, value ?? Rule.ScopeBoxUniqueId, v => Rule.ScopeBoxUniqueId = v, nameof(ScopeBoxUniqueId)); }
+        public SheetMode SheetMode { get => Rule.SheetMode; set => Upd(Rule.SheetMode, value, v => Rule.SheetMode = v, nameof(SheetMode)); }
+        public string SheetNumberPattern { get => Rule.SheetNumberPattern; set => Upd(Rule.SheetNumberPattern, value ?? "", v => Rule.SheetNumberPattern = v, nameof(SheetNumberPattern)); }
+        public string SheetNamePattern { get => Rule.SheetNamePattern; set => Upd(Rule.SheetNamePattern, value ?? "", v => Rule.SheetNamePattern = v, nameof(SheetNamePattern)); }
+        public TextCase ViewNameCase { get => Rule.ViewNameCase; set => Upd(Rule.ViewNameCase, value, v => Rule.ViewNameCase = v, nameof(ViewNameCase)); }
+        public TextCase SheetNameCase { get => Rule.SheetNameCase; set => Upd(Rule.SheetNameCase, value, v => Rule.SheetNameCase = v, nameof(SheetNameCase)); }
+        public int SequenceStart { get => Rule.Sequence.Start; set => Upd(Rule.Sequence.Start, value, v => Rule.Sequence.Start = v, nameof(SequenceStart)); }
+        public int SequenceIncrement { get => Rule.Sequence.Increment; set => Upd(Rule.Sequence.Increment, value == 0 ? 1 : value, v => Rule.Sequence.Increment = v, nameof(SequenceIncrement)); }
+        public SequenceScope SequenceScope { get => Rule.Sequence.Scope; set => Upd(Rule.Sequence.Scope, value, v => Rule.Sequence.Scope = v, nameof(SequenceScope)); }
+        public string TitleBlockUniqueId { get => Rule.TitleBlockUniqueId; set => Upd(Rule.TitleBlockUniqueId, value ?? Rule.TitleBlockUniqueId, v => Rule.TitleBlockUniqueId = v, nameof(TitleBlockUniqueId)); }
+        public string AlignmentGroupKey { get => Rule.AlignmentGroupKey; set => Upd(Rule.AlignmentGroupKey, value ?? Rule.AlignmentGroupKey, v => Rule.AlignmentGroupKey = v, nameof(AlignmentGroupKey)); }
+        public string SlotName { get => Rule.SlotName; set => Upd(Rule.SlotName, value ?? "A", v => Rule.SlotName = v, nameof(SlotName)); }
+        public string ViewportTypeUniqueId { get => Rule.ViewportTypeUniqueId; set => Upd(Rule.ViewportTypeUniqueId, value ?? Rule.ViewportTypeUniqueId, v => Rule.ViewportTypeUniqueId = v, nameof(ViewportTypeUniqueId)); }
+        public ViewportRotationOption Rotation { get => Rule.Rotation; set => Upd(Rule.Rotation, value, v => Rule.Rotation = v, nameof(Rotation)); }
+        public string Zone { get => Rule.Zone; set => Upd(Rule.Zone, value ?? "", v => Rule.Zone = v, nameof(Zone)); }
 
         /// <summary>Levels this rule is limited to (empty = all selected).</summary>
         public ObservableCollection<Selectable<LevelItem>> Levels { get; } = new ObservableCollection<Selectable<LevelItem>>();
@@ -107,10 +129,10 @@ namespace CausaFix.ProjectSetup.ViewModels
         public SlotItem(SlotTarget slot, Action changed) { Slot = slot; _changed = changed; }
         public SlotTarget Slot { get; }
         private void C(string n) { OnPropertyChanged(n); _changed(); }
-        public string Name { get => Slot.Name; set { Slot.Name = (value ?? "").Trim(); C(nameof(Name)); } }
-        public double Xmm { get => Slot.Xmm; set { Slot.Xmm = value; Slot.ReferenceDescription = ""; C(nameof(Xmm)); OnPropertyChanged(nameof(ReferenceDescription)); } }
-        public double Ymm { get => Slot.Ymm; set { Slot.Ymm = value; Slot.ReferenceDescription = ""; C(nameof(Ymm)); OnPropertyChanged(nameof(ReferenceDescription)); } }
-        public SheetFrame Frame { get => Slot.Frame; set { Slot.Frame = value; C(nameof(Frame)); } }
+        public string Name { get => Slot.Name; set { var v = (value ?? "").Trim(); if (Slot.Name == v) return; Slot.Name = v; C(nameof(Name)); } }
+        public double Xmm { get => Slot.Xmm; set { if (Slot.Xmm == value) return; Slot.Xmm = value; Slot.ReferenceDescription = ""; C(nameof(Xmm)); OnPropertyChanged(nameof(ReferenceDescription)); } }
+        public double Ymm { get => Slot.Ymm; set { if (Slot.Ymm == value) return; Slot.Ymm = value; Slot.ReferenceDescription = ""; C(nameof(Ymm)); OnPropertyChanged(nameof(ReferenceDescription)); } }
+        public SheetFrame Frame { get => Slot.Frame; set { if (Slot.Frame == value) return; Slot.Frame = value; C(nameof(Frame)); } }
         public string ReferenceDescription => Slot.ReferenceDescription;
         public void Refresh() { OnPropertyChanged(nameof(Xmm)); OnPropertyChanged(nameof(Ymm)); OnPropertyChanged(nameof(Frame)); OnPropertyChanged(nameof(ReferenceDescription)); }
     }
@@ -126,8 +148,8 @@ namespace CausaFix.ProjectSetup.ViewModels
         }
         public AlignmentGroup Group { get; }
         public ObservableCollection<SlotItem> Slots { get; } = new ObservableCollection<SlotItem>();
-        public string Key { get => Group.Key; set { Group.Key = (value ?? "").Trim(); OnPropertyChanged(); _changed(); } }
-        public AlignmentMethod Method { get => Group.Method; set { Group.Method = value; OnPropertyChanged(); OnPropertyChanged(nameof(MethodHelp)); _changed(); } }
+        public string Key { get => Group.Key; set { var v = (value ?? "").Trim(); if (v.Length == 0 || Group.Key == v) return; Group.Key = v; OnPropertyChanged(); _changed(); } }
+        public AlignmentMethod Method { get => Group.Method; set { if (Group.Method == value) return; Group.Method = value; OnPropertyChanged(); OnPropertyChanged(nameof(MethodHelp)); _changed(); } }
         public string AnchorText => Group.Anchor.IsSet
             ? Group.Anchor.Description + "  (internal X " + Group.Anchor.X.ToString("0.###") + " ft, Y " + Group.Anchor.Y.ToString("0.###") + " ft)" + (Group.Anchor.HasSecond ? " + second reference" : "")
             : "No anchor – pick a grid intersection or a point.";
@@ -169,17 +191,18 @@ namespace CausaFix.ProjectSetup.ViewModels
             get => Row.Include;
             set
             {
+                if (value == Row.Include) return;
                 if (IsGenerated) _cfg.EnsureOverride(Row.RowKey).Include = value;
                 else { var p = _cfg.Placements.FirstOrDefault(x => PlanBuilder.PlacementRowKey(x.ViewUniqueId) == Row.RowKey); if (p != null) p.Include = value; }
                 _rebuild();
             }
         }
 
-        public string ViewName { get => Row.ViewName; set => Edit(o => o.ViewName = value); }
-        public string TitleOnSheet { get => Row.TitleOnSheet; set => Edit(o => o.TitleOnSheet = value); }
-        public string SheetNumber { get => Row.SheetNumber; set => Edit(o => o.SheetNumber = value); }
-        public string SheetName { get => Row.SheetName; set => Edit(o => o.SheetName = value); }
-        public bool PlaceAsDependent { get => _cfg.Override(Row.RowKey)?.PlaceAsDependent ?? false; set => Edit(o => o.PlaceAsDependent = value); }
+        public string ViewName { get => Row.ViewName; set { if (value != Row.ViewName) Edit(o => o.ViewName = value); } }
+        public string TitleOnSheet { get => Row.TitleOnSheet; set { if (value != Row.TitleOnSheet) Edit(o => o.TitleOnSheet = value); } }
+        public string SheetNumber { get => Row.SheetNumber; set { if (value != Row.SheetNumber) Edit(o => o.SheetNumber = value); } }
+        public string SheetName { get => Row.SheetName; set { if (value != Row.SheetName) Edit(o => o.SheetName = value); } }
+        public bool PlaceAsDependent { get => _cfg.Override(Row.RowKey)?.PlaceAsDependent ?? false; set { if (value != PlaceAsDependent) Edit(o => o.PlaceAsDependent = value); } }
 
         private void Edit(Action<RowOverride> a)
         {
@@ -204,10 +227,10 @@ namespace CausaFix.ProjectSetup.ViewModels
         private readonly Action _changed;
         public PlacementItem(ExistingPlacement p, Action changed) { Placement = p; _changed = changed; }
         public ExistingPlacement Placement { get; }
-        public string ViewUniqueId { get => Placement.ViewUniqueId; set { Placement.ViewUniqueId = value; OnPropertyChanged(); _changed(); } }
-        public string SheetUniqueId { get => Placement.SheetUniqueId; set { Placement.SheetUniqueId = value; OnPropertyChanged(); _changed(); } }
-        public string GroupKey { get => Placement.GroupKey; set { Placement.GroupKey = value ?? "Main"; OnPropertyChanged(); _changed(); } }
-        public string SlotName { get => Placement.SlotName; set { Placement.SlotName = value ?? "A"; OnPropertyChanged(); _changed(); } }
+        public string ViewUniqueId { get => Placement.ViewUniqueId; set { if (value == null || Placement.ViewUniqueId == value) return; Placement.ViewUniqueId = value; OnPropertyChanged(); _changed(); } }
+        public string SheetUniqueId { get => Placement.SheetUniqueId; set { if (value == null || Placement.SheetUniqueId == value) return; Placement.SheetUniqueId = value; OnPropertyChanged(); _changed(); } }
+        public string GroupKey { get => Placement.GroupKey; set { if (value == null || Placement.GroupKey == value) return; Placement.GroupKey = value; OnPropertyChanged(); _changed(); } }
+        public string SlotName { get => Placement.SlotName; set { var v = value ?? "A"; if (Placement.SlotName == v) return; Placement.SlotName = v; OnPropertyChanged(); _changed(); } }
     }
 
     /// <summary>Data for the 2D sheet preview (drawn by the view).</summary>

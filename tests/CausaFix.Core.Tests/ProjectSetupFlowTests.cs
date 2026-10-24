@@ -170,5 +170,52 @@ namespace CausaFix.Core.Tests
             }
             finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         }
+
+        /// <summary>
+        /// Regression for the Revit crash when opening Project Setup: combo boxes re-write their value whenever their
+        /// item list is replaced. The view model must not hand out new lists on every edit (endless re-entrant loop →
+        /// stack overflow → Revit closes) and must not lose a stored choice when a combo pushes null.
+        /// </summary>
+        [Test]
+        public static void ViewModel_ComboRewrites_DoNotLoopOrEraseChoices()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cf-psvm-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var vm = new ProjectSetupViewModel(new FakeSetupGateway(), new FakeSetupDialogs(), Path.Combine(dir, "p"), Path.Combine(dir, "l"));
+                int writes = 0, depth = 0, maxDepth = 0;
+                vm.PropertyChanged += (o, e) =>
+                {
+                    if (vm.SelectedSet == null) return;
+                    if (e.PropertyName != nameof(ProjectSetupViewModel.TemplatesForSelected) && e.PropertyName != nameof(ProjectSetupViewModel.ViewTypesForSelected)
+                        && e.PropertyName != nameof(ProjectSetupViewModel.TitleBlocks)) return;
+                    if (++writes > 10000) throw new InvalidOperationException("endless loop");
+                    depth++; maxDepth = Math.Max(maxDepth, depth);
+                    // What WPF does: re-assign the current value, or null when it is not in the new list.
+                    vm.SelectedSet.TemplateUniqueId = vm.SelectedSet.TemplateUniqueId;
+                    vm.SelectedSet.TemplateUniqueId = null;
+                    vm.SelectedSet.ViewFamilyTypeUniqueId = vm.SelectedSet.ViewFamilyTypeUniqueId;
+                    vm.SelectedSet.TitleBlockUniqueId = null;
+                    depth--;
+                };
+                vm.InitializeAsync().GetAwaiter().GetResult();
+                foreach (var l in vm.Levels) l.Selected = true;
+                vm.SelectedSet = vm.ViewSets[0];
+                vm.SelectedSet.TemplateUniqueId = "tpl-ltg";
+                var lists = vm.TemplatesForSelected;
+                vm.SelectedSet.Name = "LIGHTING";
+                vm.SelectedSet.Scale = 50;
+                Assert.True(ReferenceEquals(lists, vm.TemplatesForSelected), "editing does not replace combo lists");
+                Assert.Equal("tpl-ltg", vm.SelectedSet.TemplateUniqueId, "a null from a combo never erases the choice");
+                Assert.Equal("tb-a1", vm.SelectedSet.TitleBlockUniqueId);
+                Assert.True(maxDepth <= 2, "no re-entrant cascade (depth " + maxDepth + ")");
+                vm.SelectedSet.Family = PlanFamily.CeilingPlan;   // a family change does rebuild the lists, once
+                Assert.False(ReferenceEquals(lists, vm.TemplatesForSelected));
+                Assert.True(vm.ViewTypesForSelected.All(t => t.Family == PlanFamily.CeilingPlan));
+                vm.Step = ProjectSetupViewModel.ReviewStep;
+                Assert.True(writes < 100, "bounded number of combo writes: " + writes);
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
     }
 }
