@@ -25,7 +25,7 @@ namespace CausaFix.Addin.Modules.ProjectSetup
                 Name = "CausaFix.ProjectSetup",
                 Text = "Project\nSetup",
                 Tooltip = "Create plan views per level with templates and names, create sheets, and place the views so a building reference lands on the same point of every sheet.",
-                LongDescription = "Levels → View Sets → Sheets → Placement → Review → Run Setup. Everything is a draft until Run Setup; the run is atomic (one Undo).",
+                LongDescription = "Levels → View Sets → Sheets (rules, Sheet Name, Views on Sheet) → Numbering → Placement (alignment, view titles) → Review → Run Setup. Everything is a draft until Run Setup; the run is atomic (one Undo).",
                 CommandType = typeof(ProjectSetupCommand),
                 AvailabilityType = typeof(ProjectDocumentAvailability),
                 IconGlyph = "PS",

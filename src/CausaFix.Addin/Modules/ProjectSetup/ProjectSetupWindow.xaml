@@ -25,6 +25,55 @@
             <Style TargetType="{x:Type ComboBox}">
                 <Setter Property="Margin" Value="0,2" />
             </Style>
+            <CollectionViewSource x:Key="ReviewRows" Source="{Binding Rows}">
+                <CollectionViewSource.GroupDescriptions>
+                    <PropertyGroupDescription PropertyName="SheetGroup" />
+                </CollectionViewSource.GroupDescriptions>
+            </CollectionViewSource>
+            <!-- View Title Placement editor (DataContext: TitlePlacementItem) -->
+            <DataTemplate x:Key="TitleEditor">
+                <StackPanel>
+                    <CheckBox Content="Override (otherwise inherited)" IsChecked="{Binding Override}" Margin="0,0,0,4"
+                              Visibility="{Binding CanInherit, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="#23394D" Margin="0,0,0,4" />
+                    <StackPanel IsEnabled="{Binding IsEditable}">
+                        <WrapPanel>
+                            <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ComboBox Width="150" ItemsSource="{Binding DataContext.TitleModes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Mode}" />
+                            <TextBlock Text="Title corner" VerticalAlignment="Center" Margin="12,0,6,0" />
+                            <ComboBox Width="110" ItemsSource="{Binding DataContext.TitleAnchors, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Anchor}"
+                                      ToolTip="This corner of the title goes to the same corner of the viewport box plus the offset (Relative), or to the fixed point (Fixed)" />
+                        </WrapPanel>
+                        <WrapPanel Visibility="{Binding IsRelative, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                            <TextBlock Text="Offset X / Y (mm)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBox Width="50" Text="{Binding OffsetXmm, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Width="50" Margin="4,2,0,2" Text="{Binding OffsetYmm, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Text="relative to" VerticalAlignment="Center" Margin="12,0,6,0" />
+                            <ComboBox Width="130" ItemsSource="{Binding DataContext.TitleRelativeTos, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding RelativeTo}"
+                                      ToolTip="Viewport: the member's own box · OverlayEnvelope: the joint box of all overlay members" />
+                        </WrapPanel>
+                        <WrapPanel Visibility="{Binding IsFixed, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                            <TextBlock Text="Position X / Y (mm)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBox Width="55" Text="{Binding FixedXmm, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Width="55" Margin="4,2,0,2" Text="{Binding FixedYmm, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Text="frame" VerticalAlignment="Center" Margin="12,0,6,0" />
+                            <ComboBox Width="100" ItemsSource="{Binding DataContext.SheetFrames, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Frame}" />
+                        </WrapPanel>
+                        <WrapPanel Visibility="{Binding IsMatch, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                            <TextBlock Text="Capture as" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ComboBox Width="130" ItemsSource="{Binding DataContext.TitleCaptureKinds, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding CaptureKind}"
+                                      ToolTip="RelativeOffset: offset from the viewport (moves with the drawing) · FixedPosition: the paper position" />
+                            <TextBlock Text="{Binding ReferenceDescription}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#6B7680" />
+                        </WrapPanel>
+                        <WrapPanel Margin="0,4,0,0">
+                            <TextBlock Text="Title line" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ComboBox Width="70" ItemsSource="{Binding DataContext.TitleLineModes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding LineMode}" />
+                            <TextBox Width="55" Margin="6,2,0,2" Text="{Binding LineLengthMm, UpdateSourceTrigger=LostFocus}" ToolTip="Length in mm of paper; negative = towards the left" />
+                            <TextBlock Text="mm (negative = to the left)" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="#6B7680" />
+                        </WrapPanel>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -117,7 +166,7 @@
             <TabItem Header="2  View Sets">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="240" />
+                        <ColumnDefinition Width="220" />
                         <ColumnDefinition Width="8" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
@@ -143,70 +192,89 @@
                         </DockPanel>
                     </Border>
 
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                        <Grid DataContext="{Binding SelectedSet}" Margin="4,0,8,0">
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Margin="4,0,8,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="200" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" /><RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
+                            <Grid DataContext="{Binding SelectedSet}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource Label}" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
+                                <TextBlock Grid.Row="1" Text="Set code / Discipline" Style="{StaticResource Label}" />
+                                <WrapPanel Grid.Row="1" Grid.Column="1">
+                                    <TextBox Width="80" Text="{Binding Code, UpdateSourceTrigger=LostFocus}" ToolTip="View Set code (CausaFix field)" />
+                                    <TextBox Width="50" Margin="8,2,0,2" Text="{Binding DisciplineCode, UpdateSourceTrigger=LostFocus}" ToolTip="Discipline code (CausaFix field)" />
+                                    <TextBlock Text="Zone" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                    <TextBox Width="60" Text="{Binding Zone, UpdateSourceTrigger=LostFocus}" ToolTip="Zone when the level has none" />
+                                </WrapPanel>
+                                <TextBlock Grid.Row="2" Text="Condition / Prefix / Series" Style="{StaticResource Label}" />
+                                <WrapPanel Grid.Row="2" Grid.Column="1">
+                                    <TextBox Width="100" Text="{Binding Condition, UpdateSourceTrigger=LostFocus}" ToolTip="Condition / status for names and numbers (Proposed, Demolished, Existing…). A documentary code: it never changes the view's Phase or Phase Filter." />
+                                    <TextBox Width="70" Margin="8,2,0,2" Text="{Binding Purpose, UpdateSourceTrigger=LostFocus}" ToolTip="Special prefix / purpose (FCC = Fire Coverage Check…)" />
+                                    <TextBox Width="60" Margin="8,2,0,2" Text="{Binding Series, UpdateSourceTrigger=LostFocus}" ToolTip="Series / sheet-type code (e.g. 1 for lighting, 2 for power)" />
+                                    <TextBlock Text="{Binding Composition, StringFormat='On composed sheet: {0}'}" Style="{StaticResource Hint}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                               Visibility="{Binding Composition, Converter={StaticResource TextToVis}}" />
+                                </WrapPanel>
+                                <TextBlock Grid.Row="3" Text="View family / type" Style="{StaticResource Label}" />
+                                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
+                                    <ComboBox Width="130" ItemsSource="{Binding DataContext.Families, ElementName=Root}" SelectedItem="{Binding Family}" />
+                                    <ComboBox Width="240" Margin="8,2,0,2" ItemsSource="{Binding DataContext.ViewTypesForSelected, ElementName=Root}"
+                                              DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ViewFamilyTypeUniqueId}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="4" Text="View template" Style="{StaticResource Label}" />
+                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding DataContext.TemplatesForSelected, ElementName=Root}"
+                                          DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding TemplateUniqueId}"
+                                          ToolTip="Assigned with its link kept. Values the template controls (scale, scope box…) are shown as effective values and never forced." />
+                                <TextBlock Grid.Row="5" Text="Scale 1:" Style="{StaticResource Label}" />
+                                <WrapPanel Grid.Row="5" Grid.Column="1">
+                                    <TextBox Width="60" Text="{Binding Scale, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Crop" Style="{StaticResource Label}" Margin="16,0,6,0" />
+                                    <ComboBox Width="110" ItemsSource="{Binding DataContext.CropOptions, ElementName=Root}" SelectedItem="{Binding Crop}" />
+                                    <TextBlock Text="Scope box" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                    <ComboBox Width="160" ItemsSource="{Binding DataContext.ScopeBoxes, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ScopeBoxUniqueId}" />
+                                </WrapPanel>
+                                <Border Grid.Row="6" Grid.ColumnSpan="2" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,6" Margin="0,4">
+                                    <TextBlock Text="{Binding Example}" TextWrapping="Wrap" FontFamily="Consolas" />
+                                </Border>
+                            </Grid>
 
-                            <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource Label}" />
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
-                            <TextBlock Grid.Row="1" Text="Set code / Discipline" Style="{StaticResource Label}" />
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                                <TextBox Width="90" Text="{Binding Code, UpdateSourceTrigger=LostFocus}" ToolTip="{}{ViewSetCode}" />
-                                <TextBox Width="60" Margin="8,2,0,2" Text="{Binding DisciplineCode, UpdateSourceTrigger=LostFocus}" ToolTip="{}{DisciplineCode}" />
-                                <TextBlock Text="Zone" Style="{StaticResource Label}" Margin="12,0,6,0" />
-                                <TextBox Width="80" Text="{Binding Zone, UpdateSourceTrigger=LostFocus}" ToolTip="{}{Zone} when the level has no zone" />
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Limit to levels (none = all selected)" FontWeight="SemiBold" />
+                                <ListBox DataContext="{Binding SelectedSet}" ItemsSource="{Binding Levels}" Height="190" BorderBrush="{StaticResource Line}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate><CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Item.Name}" /></DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </StackPanel>
-                            <TextBlock Grid.Row="2" Text="View family" Style="{StaticResource Label}" />
-                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DataContext.Families, ElementName=Root}" SelectedItem="{Binding Family}" />
-                            <TextBlock Grid.Row="3" Text="View type" Style="{StaticResource Label}" />
-                            <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding DataContext.ViewTypesForSelected, ElementName=Root}"
-                                      DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ViewFamilyTypeUniqueId}" />
-                            <TextBlock Grid.Row="4" Text="View template" Style="{StaticResource Label}" />
-                            <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding DataContext.TemplatesForSelected, ElementName=Root}"
-                                      DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding TemplateUniqueId}"
-                                      ToolTip="Assigned with its link kept. Values the template controls (scale, scope box…) are shown as effective values and never forced." />
-                            <TextBlock Grid.Row="5" Text="Scale 1:" Style="{StaticResource Label}" />
-                            <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
-                                <TextBox Width="70" Text="{Binding Scale, UpdateSourceTrigger=LostFocus}" />
-                                <TextBlock Text="Crop" Style="{StaticResource Label}" Margin="16,0,6,0" />
-                                <ComboBox Width="120" ItemsSource="{Binding DataContext.CropOptions, ElementName=Root}" SelectedItem="{Binding Crop}" />
-                                <TextBlock Text="Scope box" Style="{StaticResource Label}" Margin="12,0,6,0" />
-                                <ComboBox Width="170" ItemsSource="{Binding DataContext.ScopeBoxes, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ScopeBoxUniqueId}" />
-                            </StackPanel>
-                            <TextBlock Grid.Row="6" Text="View Name pattern" Style="{StaticResource Label}" />
-                            <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
-                                <TextBox Width="330" Text="{Binding ViewNamePattern, UpdateSourceTrigger=LostFocus}" FontFamily="Consolas" />
-                                <ComboBox Width="90" Margin="8,2,0,2" ItemsSource="{Binding DataContext.TextCases, ElementName=Root}" SelectedItem="{Binding ViewNameCase}" ToolTip="Case conversion" />
-                            </StackPanel>
-                            <TextBlock Grid.Row="7" Text="Title on Sheet pattern" Style="{StaticResource Label}" />
-                            <TextBox Grid.Row="7" Grid.Column="1" Width="330" HorizontalAlignment="Left" Text="{Binding TitleOnSheetPattern, UpdateSourceTrigger=LostFocus}" FontFamily="Consolas"
-                                     ToolTip="Optional. A separate field from View Name. Leave empty to keep the view's title." />
-                            <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="{Binding DataContext.TokenHelp, ElementName=Root}" Style="{StaticResource Hint}" Margin="0,4" />
-                            <Border Grid.Row="9" Grid.ColumnSpan="2" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,6" Margin="0,4">
-                                <TextBlock Text="{Binding Example}" TextWrapping="Wrap" FontFamily="Consolas" />
-                            </Border>
-                            <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Style="{StaticResource Hint}" Margin="0,6,0,0"
+
+                            <TabControl Grid.Row="1" Grid.ColumnSpan="3" Margin="0,6,0,0">
+                                <TabItem Header="View Name">
+                                    <local:NameBuilderControl DataContext="{Binding ViewNameBuilder}" Visibility="{Binding ViewNameBuilder, Converter={StaticResource NullToVis}}" />
+                                </TabItem>
+                                <TabItem Header="Title on Sheet">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,4" Text="Text of the view's title when it is placed (a separate field from View Name). An empty rule keeps the view's current title." />
+                                        <local:NameBuilderControl DataContext="{Binding TitleBuilder}" Visibility="{Binding TitleBuilder, Converter={StaticResource NullToVis}}" />
+                                    </StackPanel>
+                                </TabItem>
+                            </TabControl>
+                            <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Style="{StaticResource Hint}" Margin="0,6,0,0"
                                        Text="Views are created with ViewPlan.Create on each level (never by copying another level's plan). Area plans, sections, elevations and 3D views are outside the level-based generation of this version." />
-
-                            <TextBlock Grid.Column="3" Grid.Row="0" Text="Limit to levels (none = all selected)" FontWeight="SemiBold" />
-                            <ListBox Grid.Column="3" Grid.Row="1" Grid.RowSpan="10" ItemsSource="{Binding Levels}" MinHeight="200" BorderBrush="{StaticResource Line}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Item.Name}" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
                         </Grid>
                     </ScrollViewer>
                 </Grid>
@@ -214,60 +282,296 @@
 
             <!-- 3. SHEETS -->
             <TabItem Header="3  Sheets">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="0,0,0,6"
-                               Text="One row per View Set. Sheet Number must be unique in Revit (checked against all sheets and placeholders); Sheet Name may repeat. Sequence: start, increment and scope; numbers already given are kept when levels are added – use Regenerate numbering in Review to renumber explicitly. Shared sheet = rows whose Sheet Number is the same go on one sheet, each in its own slot." />
-                    <DataGrid ItemsSource="{Binding ViewSets}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="26">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="View Set" Binding="{Binding Name, Mode=OneWay}" Width="120" />
-                            <DataGridTemplateColumn Header="Sheets" Width="150">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.SheetModes, ElementName=Root}" SelectedItem="{Binding SheetMode, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Title block" Width="220">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.TitleBlocks, ElementName=Root}" DisplayMemberPath="Display" SelectedValuePath="UniqueId" SelectedValue="{Binding TitleBlockUniqueId, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Sheet Number pattern" Binding="{Binding SheetNumberPattern}" Width="170" FontFamily="Consolas" />
-                            <DataGridTextColumn Header="Sheet Name pattern" Binding="{Binding SheetNamePattern}" Width="200" FontFamily="Consolas" />
-                            <DataGridTemplateColumn Header="Name case" Width="90">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.TextCases, ElementName=Root}" SelectedItem="{Binding SheetNameCase, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Start" Binding="{Binding SequenceStart}" Width="50" />
-                            <DataGridTextColumn Header="Step" Binding="{Binding SequenceIncrement}" Width="45" />
-                            <DataGridTemplateColumn Header="Sequence per" Width="105">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.SequenceScopes, ElementName=Root}" SelectedItem="{Binding SequenceScope, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Viewport type" Width="140">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.ViewportTypes, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ViewportTypeUniqueId, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Rotation on sheet" Width="130">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.Rotations, ElementName=Root}" SelectedItem="{Binding Rotation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Viewport rotation on the sheet – not the view orientation" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Group" Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.GroupKeys, ElementName=Root}" SelectedItem="{Binding AlignmentGroupKey, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Slot" Binding="{Binding SlotName}" Width="50" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DockPanel>
+                <TabControl>
+                    <TabItem Header="Sheet rules">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="0,0,0,6"
+                                       Text="One row per View Set. The Sheet Number comes from the numbering profile (step Numbering); Sheet Name from its Build Name rule. A View Set that is a member of a Views on Sheet composition is placed on the composed sheet instead." />
+                            <DataGrid ItemsSource="{Binding ViewSets}" SelectedItem="{Binding SelectedSet}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="26">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="View Set" Binding="{Binding Name, Mode=OneWay}" Width="110" />
+                                    <DataGridTextColumn Header="Composed sheet" Binding="{Binding Composition, Mode=OneWay}" Width="110" />
+                                    <DataGridTemplateColumn Header="Sheets" Width="110">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.SheetModesUi, ElementName=Root}" SelectedItem="{Binding SheetMode, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Title block" Width="190">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.TitleBlocks, ElementName=Root}" DisplayMemberPath="Display" SelectedValuePath="UniqueId" SelectedValue="{Binding TitleBlockUniqueId, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Numbering" Width="150">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.NumberingChoices, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding NumberingProfileKey, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Viewport type" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.ViewportTypes, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ViewportTypeUniqueId, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Rotation on sheet" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.Rotations, ElementName=Root}" SelectedItem="{Binding Rotation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Viewport rotation on the sheet – not the view orientation" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Group" Width="90">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate><ComboBox ItemsSource="{Binding DataContext.GroupKeys, ElementName=Root}" SelectedItem="{Binding AlignmentGroupKey, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Slot" Binding="{Binding SlotName}" Width="45" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+
+                    <TabItem Header="Sheet Name">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="View Set" Style="{StaticResource Label}" />
+                                    <ComboBox Width="220" ItemsSource="{Binding ViewSets}" SelectedItem="{Binding SelectedSet}" DisplayMemberPath="Name" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="12,0" VerticalAlignment="Center" Text="Sheet Name may repeat in Revit. A composed sheet uses its primary View Set's rule unless the composition has its own." />
+                                </StackPanel>
+                                <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding SheetNameBuilder, Converter={StaticResource NullToVis}}" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Views on Sheet">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="210" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource Panel}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                                        <TextBlock Text="Compositions (one sheet per level)" Style="{StaticResource PanelTitle}" />
+                                    </Border>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="4">
+                                        <Button Content="Add" Command="{Binding AddCompositionCommand}" />
+                                        <Button Content="Duplicate" Command="{Binding DuplicateCompositionCommand}" />
+                                        <Button Content="Remove" Command="{Binding RemoveCompositionCommand}" />
+                                    </StackPanel>
+                                    <ListBox ItemsSource="{Binding Compositions}" SelectedItem="{Binding SelectedComposition}" BorderThickness="0" HorizontalContentAlignment="Stretch">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding Enabled}">
+                                                    <TextBlock><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Mode, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </DockPanel>
+                            </Border>
+
+                            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="4,0,8,0" DataContext="{Binding SelectedComposition}" Visibility="{Binding Converter={StaticResource NullToVis}}">
+                                    <WrapPanel>
+                                        <TextBlock Text="Name" Style="{StaticResource Label}" />
+                                        <TextBox Width="200" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
+                                        <TextBlock Text="Placement" Style="{StaticResource Label}" Margin="16,0,6,0" />
+                                        <ComboBox Width="110" ItemsSource="{Binding DataContext.CompositionModes, ElementName=Root}" SelectedItem="{Binding Mode}" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding ModeHelp}" Style="{StaticResource Hint}" Margin="0,4" TextWrapping="Wrap" />
+
+                                    <TextBlock Text="Views on this sheet" FontWeight="SemiBold" Margin="0,6,0,2" />
+                                    <DataGrid ItemsSource="{Binding Members}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="26" MaxHeight="220">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Primary" Width="56">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><RadioButton IsChecked="{Binding IsPrimary, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                               ToolTip="The primary defines the sheet (number, name, title block) and shows the title in 'Only primary title'" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="On" Width="32">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><CheckBox IsChecked="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Kind" Binding="{Binding Kind, Mode=OneWay}" Width="80" />
+                                            <DataGridTemplateColumn Header="Source" Width="*" MinWidth="200">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <ComboBox ItemsSource="{Binding DataContext.ViewSetChoices, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding ViewSetKey, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding IsExistingView, Converter={StaticResource InverseBoolToVis}}" ToolTip="View Set applied on the composition's level" />
+                                                            <ComboBox ItemsSource="{Binding DataContext.ExistingPlanViews, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="UniqueId" SelectedValue="{Binding ExistingViewUniqueId, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding IsExistingView, Converter={StaticResource BoolToVis}}" ToolTip="Existing view: used on its own level only, keeps its name, template and title" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Slot" Binding="{Binding SlotName, UpdateSourceTrigger=LostFocus}" Width="45" />
+                                            <DataGridTemplateColumn Header="Title" Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><CheckBox IsChecked="{Binding ShowTitle, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Show the title (Per member visibility)" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Viewport type" Width="150">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><ComboBox ItemsSource="{Binding DataContext.ViewportTypeChoicesInherit, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding ViewportTypeUniqueId, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Title dX" Binding="{Binding TitleOffsetXmm, UpdateSourceTrigger=LostFocus}" Width="55" />
+                                            <DataGridTextColumn Header="Title dY" Binding="{Binding TitleOffsetYmm, UpdateSourceTrigger=LostFocus}" Width="55" />
+                                            <DataGridTemplateColumn Header="" Width="32">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><Button Content="✕" Style="{StaticResource Square}" Width="24" Height="20" Command="{Binding DataContext.RemoveMemberCommand, ElementName=Root}" CommandParameter="{Binding}" ToolTip="Remove from the composition (nothing is deleted in the model)" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <WrapPanel Margin="0,4">
+                                        <Button Content="Add View Set member" Command="{Binding DataContext.AddViewSetMemberCommand, ElementName=Root}" />
+                                        <Button Content="Add existing view" Command="{Binding DataContext.AddExistingMemberCommand, ElementName=Root}" />
+                                        <TextBlock Style="{StaticResource Hint}" Margin="12,0" VerticalAlignment="Center" MaxWidth="460" TextWrapping="Wrap"
+                                                   Text="A plan view can be on one sheet only: a view already placed elsewhere needs another view or an explicit dependent copy (Review). Removing a member never deletes views or sheets." />
+                                    </WrapPanel>
+
+                                    <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8" Margin="0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Numbering / title block" Style="{StaticResource Label}" />
+                                            <WrapPanel Grid.Column="1">
+                                                <ComboBox Width="170" ItemsSource="{Binding DataContext.NumberingChoicesInherit, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding NumberingProfileKey}" />
+                                                <ComboBox Width="230" Margin="8,2,0,2" ItemsSource="{Binding DataContext.TitleBlockChoicesInherit, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding TitleBlockUniqueId}" />
+                                            </WrapPanel>
+                                            <TextBlock Grid.Row="1" Text="Alignment group / slot" Style="{StaticResource Label}" />
+                                            <WrapPanel Grid.Row="1" Grid.Column="1">
+                                                <ComboBox Width="170" ItemsSource="{Binding DataContext.GroupChoicesInherit, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding GroupKey}" />
+                                                <TextBox Width="50" Margin="8,2,0,2" Text="{Binding SlotName, UpdateSourceTrigger=LostFocus}" ToolTip="Overlay slot ('' = primary View Set's slot)" />
+                                            </WrapPanel>
+                                            <TextBlock Grid.Row="2" Text="Titles" Style="{StaticResource Label}" />
+                                            <WrapPanel Grid.Row="2" Grid.Column="1">
+                                                <ComboBox Width="120" ItemsSource="{Binding DataContext.TitleVisibilities, ElementName=Root}" SelectedItem="{Binding TitleVisibility}" ToolTip="OnlyPrimary (default for overlays) · All · PerMember" />
+                                                <TextBlock Text="Hidden-title viewport type" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                                <ComboBox Width="230" ItemsSource="{Binding DataContext.ViewportTypeChoices, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding HiddenTitleViewportTypeUniqueId}"
+                                                          ToolTip="A viewport type whose Show Title is No. CausaFix assigns it; it never edits a shared type. Line length 0 is not a way to hide titles." />
+                                            </WrapPanel>
+                                            <TextBlock Grid.Row="3" Text="Condition / Prefix / Series" Style="{StaticResource Label}" />
+                                            <WrapPanel Grid.Row="3" Grid.Column="1">
+                                                <TextBox Width="100" Text="{Binding Condition, UpdateSourceTrigger=LostFocus}" ToolTip="Empty = the primary View Set's value" />
+                                                <TextBox Width="70" Margin="8,2,0,2" Text="{Binding Purpose, UpdateSourceTrigger=LostFocus}" ToolTip="Empty = the primary View Set's value" />
+                                                <TextBox Width="60" Margin="8,2,0,2" Text="{Binding Series, UpdateSourceTrigger=LostFocus}" ToolTip="Empty = the primary View Set's value" />
+                                            </WrapPanel>
+                                            <CheckBox Grid.Row="4" Grid.ColumnSpan="2" Margin="0,6,0,0" Content="Own Sheet Name rule (otherwise the primary View Set's)" IsChecked="{Binding OwnSheetName}" />
+                                        </Grid>
+                                    </Border>
+                                    <local:NameBuilderControl DataContext="{Binding SheetNameBuilder}" Visibility="{Binding SheetNameBuilder, Converter={StaticResource NullToVis}}" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
             </TabItem>
 
-            <!-- 4. PLACEMENT -->
-            <TabItem Header="4  Placement">
+            <!-- 4. NUMBERING -->
+            <TabItem Header="4  Numbering">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Panel}">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Top" Background="{StaticResource PanelHeader}" Padding="6,4">
+                                <TextBlock Text="Numbering profiles" Style="{StaticResource PanelTitle}" />
+                            </Border>
+                            <WrapPanel DockPanel.Dock="Bottom" Margin="4">
+                                <Button Content="Add" Command="{Binding AddNumberingCommand}" />
+                                <Button Content="Duplicate" Command="{Binding DuplicateNumberingCommand}" />
+                                <Button Content="Remove" Command="{Binding RemoveNumberingCommand}" />
+                                <Button Content="Import…" Command="{Binding ImportNumberingCommand}" />
+                                <Button Content="Export…" Command="{Binding ExportNumberingCommand}" />
+                            </WrapPanel>
+                            <ListBox ItemsSource="{Binding NumberingProfiles}" SelectedItem="{Binding SelectedNumbering}" DisplayMemberPath="Name" BorderThickness="0" />
+                        </DockPanel>
+                    </Border>
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="4,0,8,0">
+                            <StackPanel DataContext="{Binding SelectedNumbering}" Visibility="{Binding Converter={StaticResource NullToVis}}">
+                                <WrapPanel>
+                                    <TextBlock Text="Name" Style="{StaticResource Label}" />
+                                    <TextBox Width="200" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" ToolTip="Rename the profile" />
+                                    <TextBlock Text="Start" Style="{StaticResource Label}" Margin="16,0,6,0" />
+                                    <TextBox Width="50" Text="{Binding Start, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Increment" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                    <TextBox Width="40" Text="{Binding Increment, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock Text="Order" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                    <ComboBox Width="140" ItemsSource="{Binding DataContext.SequenceOrders, ElementName=Root}" SelectedItem="{Binding Order}" />
+                                    <TextBlock Text="Counter" Style="{StaticResource Label}" Margin="12,0,6,0" />
+                                    <TextBox Width="90" Text="{Binding CounterKey, UpdateSourceTrigger=LostFocus}" ToolTip="Profiles with the same counter name share one sequence (empty = own counter)" />
+                                </WrapPanel>
+                                <TextBlock Text="Restart the sequence for each" FontWeight="SemiBold" Margin="0,6,0,2" />
+                                <ItemsControl ItemsSource="{Binding GroupBy}">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Item}" Margin="0,0,14,2" /></DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding Usage}" Style="{StaticResource Hint}" Margin="0,4" TextWrapping="Wrap" />
+                                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Text="The unit of numbering is the sheet: a sheet with a plan and an overlaid RCP has one number. Optional segments (prefix, zone, condition…) are omitted with their separator. Numbers already given are kept when levels or members are added." />
+                                <local:NameBuilderControl DataContext="{Binding Builder}" />
+                            </StackPanel>
+
+                            <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8" Margin="0,8">
+                                <StackPanel>
+                                    <TextBlock Text="Pending renumbering (rule or prefix changed – existing numbers are kept until approved)" FontWeight="SemiBold" />
+                                    <DataGrid ItemsSource="{Binding PendingRenumbers}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" RowHeight="24" MaxHeight="180" Margin="0,4">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Apply" Width="44">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><CheckBox IsChecked="{Binding Include, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Sheet" Binding="{Binding Sheet, Mode=OneWay}" Width="*" />
+                                            <DataGridTextColumn Header="Current" Binding="{Binding Current, Mode=OneWay}" Width="120" />
+                                            <DataGridTextColumn Header="Proposed" Binding="{Binding Proposed, Mode=OneWay}" Width="120" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <Button Content="Approve selected" Command="{Binding ApprovePendingCommand}" HorizontalAlignment="Left" />
+
+                                    <TextBlock Text="Renumber (assign the sequences again in order)" FontWeight="SemiBold" Margin="0,12,0,2" />
+                                    <WrapPanel>
+                                        <CheckBox Content="Only sheets of the selected profile" IsChecked="{Binding RenumberSelectedOnly}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <Button Content="Preview renumbering" Command="{Binding PreviewRenumberCommand}" />
+                                        <Button Content="Apply selected…" Command="{Binding ApplyRenumberCommand}" Style="{StaticResource Primary}" />
+                                    </WrapPanel>
+                                    <DataGrid ItemsSource="{Binding Renumbers}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" RowHeight="24" MaxHeight="220" Margin="0,4">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Apply" Width="44">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate><CheckBox IsChecked="{Binding Include, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" /></DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Sheet" Binding="{Binding Sheet, Mode=OneWay}" Width="*" />
+                                            <DataGridTextColumn Header="Current" Binding="{Binding Current, Mode=OneWay}" Width="120" />
+                                            <DataGridTextColumn Header="Proposed" Binding="{Binding Proposed, Mode=OneWay}" Width="120" />
+                                            <DataGridCheckBoxColumn Header="In model" Binding="{Binding Exists, Mode=OneWay}" Width="64" IsReadOnly="True" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- 5. PLACEMENT -->
+            <TabItem Header="5  Placement">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="200" />
@@ -356,11 +660,35 @@
                                 </WrapPanel>
                             </Border>
 
+                            <!-- View Title Placement -->
+                            <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Text="View Title Placement (the viewport title, not the title block)" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,2,0,6"
+                                               Text="Applied after the drawing is aligned, with Viewport.LabelOffset / LabelLineLength, and verified with the title outline Revit reports. Moving a title never moves the viewport. The text of the title is 'Title on Sheet' (View Sets). Per-viewport overrides are in Review." />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ListBox ItemsSource="{Binding TitleScopes}" SelectedItem="{Binding SelectedTitleScope}" Height="130" BorderBrush="{StaticResource Line}"
+                                                 ToolTip="Profile default → group → composition → viewport (Review)" />
+                                        <StackPanel Grid.Column="2">
+                                            <ContentControl Content="{Binding SelectedTitleScope}" ContentTemplate="{StaticResource TitleEditor}" />
+                                            <Button Content="Match reference title…" Command="{Binding PickReferenceTitleCommand}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                                    ToolTip="Mode 'MatchReference': open the reference sheet in Revit and pick a viewport whose title is correctly placed" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Place / Re-align Existing -->
                             <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8" Margin="0,4"
-                                    Visibility="{Binding IsPlaceExisting, Converter={StaticResource BoolToVis}}">
+                                    Visibility="{Binding ShowPlacementsList, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
-                                    <TextBlock Text="Place / Re-align Existing: views and their target sheets" FontWeight="SemiBold" />
+                                    <TextBlock Text="Place / Re-align Existing and Update Titles Only: views and their target sheets" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Hint}" Text="Views on the same sheet and slot with the same Overlay id are an intentional overlay (verified and re-aligned as one group)." />
                                     <DataGrid ItemsSource="{Binding Placements}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" RowHeight="26" MaxHeight="260" Margin="0,4">
                                         <DataGrid.Columns>
                                             <DataGridTemplateColumn Header="View" Width="260">
@@ -381,6 +709,7 @@
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Slot" Binding="{Binding SlotName}" Width="60" />
+                                            <DataGridTextColumn Header="Overlay id" Binding="{Binding OverlayGroupId, UpdateSourceTrigger=LostFocus}" Width="80" />
                                             <DataGridTemplateColumn Header="" Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate><Button Content="✕" Command="{Binding DataContext.RemovePlacementCommand, ElementName=Root}" CommandParameter="{Binding}" /></DataTemplate>
@@ -396,8 +725,8 @@
                 </Grid>
             </TabItem>
 
-            <!-- 5. REVIEW -->
-            <TabItem Header="5  Review">
+            <!-- 6. REVIEW -->
+            <TabItem Header="6  Review">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -412,7 +741,7 @@
                     </Grid.ColumnDefinitions>
                     <WrapPanel Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,4">
                         <Button Content="Rebuild review" Command="{Binding RebuildCommand}" />
-                        <Button Content="Regenerate numbering…" Command="{Binding RegenerateNumbersCommand}" />
+                        <Button Content="Renumber…" Command="{Binding RegenerateNumbersCommand}" ToolTip="Opens the renumbering preview (step Numbering): nothing is renumbered without approval" />
                         <CheckBox Content="Errors only" IsChecked="{Binding ErrorsOnly}" VerticalAlignment="Center" Margin="12,0" />
                         <TextBlock Text="{Binding PlanSummary}" VerticalAlignment="Center" Margin="12,0" />
                     </WrapPanel>
@@ -420,9 +749,20 @@
                         <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="#B00020" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="24"
-                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" FrozenColumnCount="3">
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Source={StaticResource ReviewRows}}" SelectedItem="{Binding SelectedRow}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              CanUserSortColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="24"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True" FrozenColumnCount="3">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#ECEFF2" Padding="6,2" Margin="0,4,0,0">
+                                            <TextBlock><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding ItemCount, Mode=OneWay}" Foreground="#6B7680" /><Run Text=" view(s)" Foreground="#6B7680" /></TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="Run" Width="38">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -444,13 +784,16 @@
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Level" Binding="{Binding Level, Mode=OneWay}" Width="110" />
                             <DataGridTextColumn Header="View Set" Binding="{Binding ViewSet, Mode=OneWay}" Width="90" />
+                            <DataGridTextColumn Header="Role" Binding="{Binding Role, Mode=OneWay}" Width="80" />
                             <DataGridTextColumn Header="View type" Binding="{Binding ViewType, Mode=OneWay}" Width="120" />
                             <DataGridTextColumn Header="Template" Binding="{Binding Template, Mode=OneWay}" Width="110" />
                             <DataGridTextColumn Header="Scale" Binding="{Binding Scale, Mode=OneWay}" Width="90" />
                             <DataGridTextColumn Header="View Name" Binding="{Binding ViewName, UpdateSourceTrigger=LostFocus}" Width="150" />
                             <DataGridTextColumn Header="Title on Sheet" Binding="{Binding TitleOnSheet, UpdateSourceTrigger=LostFocus}" Width="140" />
-                            <DataGridTextColumn Header="Sheet Number" Binding="{Binding SheetNumber, UpdateSourceTrigger=LostFocus}" Width="90" />
+                            <DataGridTextColumn Header="Sheet Number" Binding="{Binding SheetNumber, UpdateSourceTrigger=LostFocus}" Width="100" />
                             <DataGridTextColumn Header="Sheet Name" Binding="{Binding SheetName, UpdateSourceTrigger=LostFocus}" Width="160" />
+                            <DataGridTextColumn Header="Numbering" Binding="{Binding Numbering, Mode=OneWay}" Width="110" />
+                            <DataGridTextColumn Header="View title" Binding="{Binding TitleText, Mode=OneWay}" Width="150" />
                             <DataGridTextColumn Header="Title block" Binding="{Binding TitleBlock, Mode=OneWay}" Width="110" />
                             <DataGridTextColumn Header="Group / slot" Binding="{Binding Slot, Mode=OneWay}" Width="110" />
                             <DataGridTextColumn Header="Action" Binding="{Binding Action, Mode=OneWay}" Width="200" />
@@ -469,6 +812,15 @@
                             <StackPanel DataContext="{Binding SelectedRow}">
                                 <TextBlock Text="Selected row" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" Margin="0,4" />
+                                <Expander Header="Name and number components" IsExpanded="False">
+                                    <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                        <TextBlock Text="{Binding NameDetails}" FontFamily="Consolas" FontSize="10" />
+                                    </ScrollViewer>
+                                </Expander>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding CanEditSheet, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="Numbering of this sheet" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <ComboBox Width="150" ItemsSource="{Binding DataContext.NumberingChoicesInherit, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding NumberingOverride}" />
+                                </StackPanel>
                                 <CheckBox Content="Place as dependent copy (view is on another sheet)" IsChecked="{Binding PlaceAsDependent}"
                                           Visibility="{Binding CanPlaceAsDependent, Converter={StaticResource BoolToVis}}" />
                                 <WrapPanel Margin="0,4,0,0">
@@ -478,6 +830,10 @@
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
+                        <Expander DockPanel.Dock="Top" Header="View title of this viewport" IsExpanded="False" Margin="0,4,0,0"
+                                  Visibility="{Binding RowTitle, Converter={StaticResource NullToVis}}">
+                            <ContentControl Content="{Binding RowTitle}" ContentTemplate="{StaticResource TitleEditor}" Margin="0,4" />
+                        </Expander>
                         <TextBlock DockPanel.Dock="Top" Text="Sheet preview" FontWeight="SemiBold" Margin="0,6,0,2" />
                         <local:SheetPreviewControl DockPanel.Dock="Top" Height="240" Data="{Binding Preview}" />
                         <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Preview.Notes}">
@@ -498,6 +854,7 @@
                                 <DataGridTextColumn Header="Final Y" Binding="{Binding FinalYmm, StringFormat=0.###}" Width="70" />
                                 <DataGridTextColumn Header="Error (mm)" Binding="{Binding ErrorMm, StringFormat=0.####}" Width="75" />
                                 <DataGridTextColumn Header="2nd point (mm)" Binding="{Binding SecondPointErrorMm, StringFormat=0.####}" Width="90" />
+                                <DataGridTextColumn Header="Title (mm)" Binding="{Binding TitleErrorMm, StringFormat=0.###}" Width="70" />
                                 <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>

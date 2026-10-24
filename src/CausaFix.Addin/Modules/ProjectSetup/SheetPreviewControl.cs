@@ -7,8 +7,10 @@ using CausaFix.ProjectSetup.ViewModels;
 namespace CausaFix.Addin.Modules.ProjectSetup
 {
     /// <summary>
-    /// 2D sketch of a sheet: outline (from the title block size, or an A1 estimate), usable area, slot anchors and,
-    /// after a run, the viewport boxes measured in Revit. Estimated elements are dashed; measured ones are solid.
+    /// 2D sketch of a sheet: outline (from the title block size, or an A1 estimate), usable area, slot anchors, overlays
+    /// (one anchor shared by several members), existing viewports/titles as read from the model (grey), estimated title
+    /// positions (dashed) and, after a run, the viewport and title outlines measured in Revit (solid).
+    /// Estimated elements are dashed; measured ones are solid – a sketch is never presented as a measurement.
     /// </summary>
     public sealed class SheetPreviewControl : FrameworkElement
     {
@@ -27,6 +29,10 @@ namespace CausaFix.Addin.Modules.ProjectSetup
         private static readonly Pen Usable = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x0E, 0x7C, 0x86)), 1) { DashStyle = DashStyles.Dot });
         private static readonly Pen Measured = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x5B, 0x4B, 0x8A)), 1.5));
         private static readonly Pen Anchor = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B)), 1.5));
+        private static readonly Pen Existing = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xA8, 0xB2, 0xBB)), 1));
+        private static readonly Pen TitleEstimated = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xD9, 0x8E, 0x04)), 1) { DashStyle = DashStyles.Dash });
+        private static readonly Pen TitleMeasured = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xD9, 0x8E, 0x04)), 1.5));
+        private static readonly Pen Overlay = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x0E, 0x7C, 0x86)), 2));
 
         private static Pen Frozen(Pen p) { p.Freeze(); return p; }
 
@@ -47,6 +53,24 @@ namespace CausaFix.Addin.Modules.ProjectSetup
             dc.DrawLine(Outline, P(0, 0), P(0, 30));
             Text(dc, "0,0", P(0, 0) + new Vector(2, 2), Brushes.DimGray);
 
+            Rect R(double[] b) => new Rect(P(b[0], b[3]), P(b[2], b[1]));
+            foreach (var (name, box, label) in d.ExistingViewports)
+            {
+                if (box != null && box.Length >= 4) dc.DrawRectangle(null, Existing, R(box));
+                if (label != null && label.Length >= 4) dc.DrawRectangle(null, Existing, R(label));
+            }
+            foreach (var (name, box) in d.EstimatedLabels)
+                if (box != null && box.Length >= 4) { dc.DrawRectangle(null, TitleEstimated, R(box)); Text(dc, name, P(box[0], box[1]) + new Vector(1, 1), TitleEstimated.Brush); }
+            foreach (var (name, box) in d.MeasuredLabels)
+                if (box != null && box.Length >= 4) dc.DrawRectangle(null, TitleMeasured, R(box));
+            foreach (var (name, x, y, members) in d.Overlays)
+            {
+                var c = P(x, y);
+                dc.DrawEllipse(null, Overlay, c, 7, 7);
+                dc.DrawLine(Overlay, c + new Vector(-10, 0), c + new Vector(10, 0));
+                dc.DrawLine(Overlay, c + new Vector(0, -10), c + new Vector(0, 10));
+                Text(dc, name + "  (×" + members + ")", c + new Vector(9, -16), Overlay.Brush);
+            }
             foreach (var (name, box) in d.MeasuredBoxes)
             {
                 if (box == null || box.Length < 4) continue;

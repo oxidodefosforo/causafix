@@ -174,9 +174,11 @@ namespace CausaFix.ProjectSetup.ViewModels
         public SetupMode Mode
         {
             get => _cfg.Mode;
-            set { if (_cfg.Mode == value) return; _cfg.Mode = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsPlaceExisting)); Changed(); }
+            set { if (_cfg.Mode == value) return; _cfg.Mode = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ShowPlacementsList)); Changed(); }
         }
         public bool IsPlaceExisting => _cfg.Mode == SetupMode.PlaceRealignExisting;
+        /// <summary>The list of existing views/sheets is used by Place / Re-align Existing and by Update Titles Only.</summary>
+        public bool ShowPlacementsList => _cfg.Mode == SetupMode.PlaceRealignExisting || _cfg.Mode == SetupMode.UpdateTitlesOnly;
 
         public double ToleranceMm { get => _cfg.ToleranceMm; set { _cfg.ToleranceMm = value <= 0 ? 0.1 : value; OnPropertyChanged(); } }
         public bool AllowRealignPinned { get => _cfg.AllowRealignPinned; set { _cfg.AllowRealignPinned = value; OnPropertyChanged(); } }
@@ -343,7 +345,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             Placements.Clear();
             foreach (var p in _cfg.Placements) Placements.Add(new PlacementItem(p, Changed));
             LoadSheetEditors();
-            OnPropertyChanged(nameof(Mode)); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ToleranceMm)); RebuildGroupKeys();
+            OnPropertyChanged(nameof(Mode)); OnPropertyChanged(nameof(IsPlaceExisting)); OnPropertyChanged(nameof(ShowPlacementsList)); OnPropertyChanged(nameof(ToleranceMm)); RebuildGroupKeys();
             foreach (var n in new[] { nameof(UsableLeft), nameof(UsableBottom), nameof(UsableRight), nameof(UsableTop), nameof(AllowRealignPinned), nameof(ProjectNumber) }) OnPropertyChanged(n);
             _suspend = false;
         }

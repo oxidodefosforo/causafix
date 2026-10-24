@@ -1,0 +1,203 @@
+<UserControl x:Class="CausaFix.Addin.Modules.ProjectSetup.NameBuilderControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Self" FontFamily="Segoe UI" FontSize="12">
+    <!--
+      Build Name: edits one NameRuleItem (View Name, Title on Sheet, Sheet Name or Sheet Number).
+      Components are added from a searchable picker grouped by origin; no tokens or braces to type.
+    -->
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CausaFix.Addin;component/Shared/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <CollectionViewSource x:Key="Options" Source="{Binding PickerOptions}">
+                <CollectionViewSource.GroupDescriptions>
+                    <PropertyGroupDescription PropertyName="Group" />
+                </CollectionViewSource.GroupDescriptions>
+            </CollectionViewSource>
+            <Style TargetType="{x:Type TextBox}" x:Key="Cell">
+                <Setter Property="Margin" Value="1" />
+                <Setter Property="Padding" Value="2,0" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- header -->
+            <DockPanel Grid.Row="0" LastChildFill="False">
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <CheckBox DockPanel.Dock="Right" Content="Advanced pattern" IsChecked="{Binding IsAdvanced}" VerticalAlignment="Center" Margin="12,0,0,0"
+                          ToolTip="Manual token pattern (the format of earlier versions). Revit parameters are available in the builder only." />
+                <ComboBox DockPanel.Dock="Right" Width="80" ItemsSource="{Binding TextCases}" SelectedItem="{Binding Case}" ToolTip="Case of the whole result" />
+                <TextBlock DockPanel.Dock="Right" Text="Case" Margin="12,0,4,0" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="140" ItemsSource="{Binding SameAsChoices}" SelectedItem="{Binding SameAs}"
+                          Visibility="{Binding HasSameAs, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Use same rule: take the value of another name of the same row" />
+                <TextBlock DockPanel.Dock="Right" Text="Use same rule as" Margin="0,0,4,0" VerticalAlignment="Center"
+                           Visibility="{Binding HasSameAs, Converter={StaticResource BoolToVis}}" />
+            </DockPanel>
+            <TextBlock Grid.Row="1" Text="{Binding LegacyNote}" Foreground="#8A5A00" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Visibility="{Binding HasLegacyNote, Converter={StaticResource BoolToVis}}" />
+
+            <!-- components -->
+            <DataGrid Grid.Row="2" Margin="0,6,0,0" ItemsSource="{Binding Components}" SelectedItem="{Binding SelectedComponent}"
+                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False" CanUserReorderColumns="False"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="26" MaxHeight="230"
+                      Visibility="{Binding IsBuilder, Converter={StaticResource BoolToVis}}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="On" Width="32">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><CheckBox IsChecked="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Separator" Width="62">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><TextBox Style="{StaticResource Cell}" FontFamily="Consolas" Text="{Binding Separator, UpdateSourceTrigger=LostFocus}"
+                                                   ToolTip="Written before this component only when something precedes it and this component has a value" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Component" Width="*" MinWidth="170">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SourceDetail}"
+                                               Visibility="{Binding IsText, Converter={StaticResource InverseBoolToVis}}" />
+                                    <TextBox Style="{StaticResource Cell}" Text="{Binding Text, UpdateSourceTrigger=LostFocus}" ToolTip="Fixed text"
+                                             Visibility="{Binding IsText, Converter={StaticResource BoolToVis}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Source" Width="130">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><TextBlock Text="{Binding SourceDetail}" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SourceDetail}" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Required" Width="58">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><CheckBox IsChecked="{Binding Required, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    ToolTip="Required: a missing value is an error. Optional: omitted together with its separator." /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Case" Width="74">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><ComboBox Margin="1" ItemsSource="{Binding DataContext.TextCases, ElementName=Self}" SelectedItem="{Binding Case, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Pad" Width="40">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><TextBox Style="{StaticResource Cell}" Text="{Binding PadDigits, UpdateSourceTrigger=LostFocus}" ToolTip="Zero padding of numeric values (0 = none). Text codes keep their characters." /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Fallback" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><TextBox Style="{StaticResource Cell}" Text="{Binding Fallback, UpdateSourceTrigger=LostFocus}" ToolTip="Explicit value when the source is empty or not known yet (empty = none)" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Map values" Width="130">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate><TextBox Style="{StaticResource Cell}" Text="{Binding MappingsText, UpdateSourceTrigger=LostFocus}" ToolTip="From=To; From=To   e.g. Proposed=P; Demolished=D; Existing=E" /></DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Unit" Width="104">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Visibility="{Binding IsElevation, Converter={StaticResource BoolToVis}}">
+                                    <ComboBox Width="68" Margin="1" ItemsSource="{Binding DataContext.Units, ElementName=Self}" SelectedItem="{Binding Unit, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Width="28" Style="{StaticResource Cell}" Text="{Binding Decimals, UpdateSourceTrigger=LostFocus}" ToolTip="Decimals" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="" Width="104">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="▲" Style="{StaticResource Square}" Width="24" Height="20" ToolTip="Move up" Command="{Binding DataContext.MoveUpCommand, ElementName=Self}" CommandParameter="{Binding}" />
+                                    <Button Content="▼" Style="{StaticResource Square}" Width="24" Height="20" ToolTip="Move down" Command="{Binding DataContext.MoveDownCommand, ElementName=Self}" CommandParameter="{Binding}" />
+                                    <Button Content="⧉" Style="{StaticResource Square}" Width="24" Height="20" ToolTip="Duplicate" Command="{Binding DataContext.DuplicateCommand, ElementName=Self}" CommandParameter="{Binding}" />
+                                    <Button Content="✕" Style="{StaticResource Square}" Width="24" Height="20" ToolTip="Remove" Command="{Binding DataContext.RemoveCommand, ElementName=Self}" CommandParameter="{Binding}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- picker -->
+            <Grid Grid.Row="3" Margin="0,6,0,0" Visibility="{Binding IsBuilder, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Add" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search CausaFix fields, plan values and Revit parameters (Project Information, Level, View, Sheet, Title Block)" />
+                    </DockPanel>
+                    <ListBox x:Name="Picker" Height="118" Margin="0,2,0,0" ItemsSource="{Binding Source={StaticResource Options}}" SelectedItem="{Binding SelectedOption}"
+                             MouseDoubleClick="OnPickerDoubleClick" BorderBrush="{StaticResource Line}" VirtualizingPanel.IsVirtualizing="True">
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Slate}" Margin="2,4,0,1" /></DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Margin="8,0,0,0"><Run Text="{Binding Label, Mode=OneWay}" /><Run Text="   " /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="#6B7680" FontSize="10" /></TextBlock>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+                <StackPanel Grid.Column="1" Margin="6,20,0,0">
+                    <Button Content="Add selected" Command="{Binding AddCommand}" Style="{StaticResource Primary}" ToolTip="Or double-click an entry" />
+                    <Button Content="Add fixed text" Command="{Binding AddTextCommand}" Margin="0,4,0,0" />
+                </StackPanel>
+            </Grid>
+
+            <!-- advanced -->
+            <StackPanel Grid.Row="4" Margin="0,6,0,0" Visibility="{Binding IsAdvanced, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Convert to builder" Command="{Binding ConvertToBuilderCommand}" Margin="6,0,0,0"
+                            ToolTip="Only when the pattern converts without changing its meaning" />
+                    <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}" FontFamily="Consolas" />
+                </DockPanel>
+                <TextBlock Text="{Binding TokenHelp}" Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- preview -->
+            <Border Grid.Row="5" Margin="0,6,0,0" Background="#F7F9FA" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="6,4">
+                <StackPanel>
+                    <TextBlock Text="Preview (rows of the current plan)" Foreground="{StaticResource Muted}" FontSize="10" />
+                    <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Preview}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,1" ToolTip="{Binding Breakdown}">
+                                        <TextBlock><Run Text="{Binding Row, Mode=OneWay}" Foreground="#6B7680" /><Run Text="  →  " /><Run Text="{Binding Result, Mode=OneWay}" FontFamily="Consolas" FontWeight="SemiBold" /></TextBlock>
+                                        <TextBlock Text="{Binding Error}" Foreground="#B00020" TextWrapping="Wrap" Margin="12,0,0,0"
+                                                   Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
