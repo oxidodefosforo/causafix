@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
+    <ProjectReference Include="..\CausaFix.ProjectSetup\CausaFix.ProjectSetup.csproj" SetTargetFramework="TargetFramework=$(CoreTargetFramework)" />
   </ItemGroup>
 
   <!-- Real Revit API (normal builds) -->

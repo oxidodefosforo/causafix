@@ -10,6 +10,7 @@ namespace Autodesk.Revit.Exceptions
     public class ApplicationException : System.Exception { }
     public class InvalidOperationException : ApplicationException { }
     public class ArgumentException : ApplicationException { }
+    public class OperationCanceledException : ApplicationException { }
 }
 
 namespace Autodesk.Revit.ApplicationServices
@@ -56,13 +57,60 @@ namespace Autodesk.Revit.DB
     {
         public static class Boolean { public static ForgeTypeId YesNo => throw X.N(); }
         public static class Int { public static ForgeTypeId Integer => throw X.N(); }
+        public static ForgeTypeId Length => throw X.N();
+    }
+
+    public static class UnitFormatUtils
+    {
+        public static string Format(Units units, ForgeTypeId specTypeId, double value, bool forEditing) => throw X.N();
     }
 
     public enum StorageType { None, Integer, Double, String, ElementId }
+    public enum ViewFamily { Invalid, ThreeDimensional, Walkthrough, ImageView, Schedule, CostReport, LoadsReport, PressureLossReport, Legend, PanelSchedule, GraphicalColumnSchedule, StructuralPlan, AreaPlan, Detail, Section, Elevation, Drafting, Sheet, CeilingPlan, FloorPlan, SystemsAnalysisReport }
+    public enum ViewDuplicateOption { Duplicate, AsDependent, WithDetailing }
+    public enum ViewportRotation { None, Clockwise, Counterclockwise }
+    public enum ElementTypeGroup { ViewportType }
+
+    public class XYZ
+    {
+        public XYZ(double x, double y, double z) { }
+        public double X => throw X_.N(); public double Y => throw X_.N(); public double Z => throw X_.N();
+        public static XYZ Zero => throw X_.N();
+        public static XYZ operator -(XYZ a, XYZ b) => throw X_.N();
+        public static XYZ operator +(XYZ a, XYZ b) => throw X_.N();
+    }
+    internal static class X_ { public static Exception N() => new NotImplementedException(); }
+
+    public class Transform : APIObject
+    {
+        public XYZ Origin => throw X.N(); public XYZ BasisX => throw X.N(); public XYZ BasisY => throw X.N();
+        public XYZ OfPoint(XYZ p) => throw X.N();
+        public Transform Multiply(Transform right) => throw X.N();
+    }
+
+    public class Outline : APIObject
+    {
+        public XYZ MinimumPoint => throw X.N(); public XYZ MaximumPoint => throw X.N();
+    }
+
+    public class CurveLoop { }
+
+    public class Reference { public ElementId ElementId => throw X.N(); }
+
+    public class TransformWithBoundary : IDisposable
+    {
+        public Transform GetModelToProjectionTransform() => throw X.N();
+        public CurveLoop GetBoundary() => throw X.N();
+        public void Dispose() { }
+    }
+
+    public class ViewCropRegionShapeManager : APIObject { public bool ShapeSet => throw X.N(); }
+
+    public class Curve : APIObject { public XYZ GetEndPoint(int i) => throw X.N(); }
     public enum CategoryType { Invalid, Model, Annotation, Internal, AnalyticalModel }
     public enum GraphicsStyleType { Projection, Cut }
-    public enum BuiltInCategory { INVALID = -1, OST_Rooms = -2000160, OST_MEPSpaces = -2003600, OST_Areas = -2003200, OST_Sheets = -2003100, OST_Views = -2000279, OST_Lines = -2000051, OST_ProjectInformation = -2003101 }
-    public enum BuiltInParameter { INVALID = -1, ALL_MODEL_MARK = -1001203, ELEM_TYPE_PARAM = -1002052, ELEM_FAMILY_AND_TYPE_PARAM = -1002051, ELEM_FAMILY_PARAM = -1002053, SYMBOL_ID_PARAM = -1002050 }
+    public enum BuiltInCategory { INVALID = -1, OST_TitleBlocks = -2000280, OST_VolumeOfInterest = -2006000, OST_Viewports = -2000510, OST_Rooms = -2000160, OST_MEPSpaces = -2003600, OST_Areas = -2003200, OST_Sheets = -2003100, OST_Views = -2000279, OST_Lines = -2000051, OST_ProjectInformation = -2003101 }
+    public enum BuiltInParameter { INVALID = -1, VIEW_SCALE_PULLDOWN_METRIC = -1005150, VIEW_SCALE = -1005151, VIEW_DISCIPLINE = -1005152, VIEWER_VOLUME_OF_INTEREST_CROP = -1005153, VIEWER_CROP_REGION = -1005154, SHEET_WIDTH = -1005155, SHEET_HEIGHT = -1005156, VIEW_DESCRIPTION = -1005157, ALL_MODEL_MARK = -1001203, ELEM_TYPE_PARAM = -1002052, ELEM_FAMILY_AND_TYPE_PARAM = -1002051, ELEM_FAMILY_PARAM = -1002053, SYMBOL_ID_PARAM = -1002050 }
     public enum ViewType { Undefined, FloorPlan, CeilingPlan, Elevation, ThreeD, Schedule, DrawingSheet, ProjectBrowser, Report, DraftingView, Legend, SystemBrowser, EngineeringPlan, AreaPlan, Section, Detail, CostReport, LoadsReport, PresureLossReport, ColumnSchedule, PanelSchedule, Walkthrough, Rendering, SystemsAnalysisReport, Internal }
     public enum TemporaryViewMode { RevealHiddenElements, TemporaryHideIsolate, WorksharingDisplay, RevealConstraints, TemporaryViewProperties }
     public enum CheckoutStatus { OwnedByCurrentUser, OwnedByOtherUser, NotOwned }
@@ -169,8 +217,20 @@ namespace Autodesk.Revit.DB
         public Parameter get_Parameter(Guid g) => throw X.N();
         public Parameter get_Parameter(Definition d) => throw X.N();
         public IList<Parameter> GetOrderedParameters() => throw X.N();
+        public bool Pinned { get => throw X.N(); set => throw X.N(); }
+        public ElementId ChangeTypeId(ElementId typeId) => throw X.N();
+        public Autodesk.Revit.DB.ExtensibleStorage.Entity GetEntity(Autodesk.Revit.DB.ExtensibleStorage.Schema schema) => throw X.N();
+        public void SetEntity(Autodesk.Revit.DB.ExtensibleStorage.Entity entity) => throw X.N();
         public void Dispose() { }
     }
+
+    public class Level : Element { public double Elevation => throw X.N(); }
+
+    public class Grid : Element { public Curve Curve => throw X.N(); public bool IsCurved => throw X.N(); }
+
+    public class SketchPlane : Element { }
+
+    public class ViewFamilyType : ElementType { public ViewFamily ViewFamily => throw X.N(); }
 
     public class ElementType : Element
     {
@@ -180,9 +240,11 @@ namespace Autodesk.Revit.DB
     public class FamilySymbol : ElementType
     {
         public Family Family => throw X.N();
+        public bool IsActive => throw X.N();
+        public void Activate() => throw X.N();
     }
 
-    public class Instance : Element { }
+    public class Instance : Element { public Transform GetTransform() => throw X.N(); }
 
     public class FamilyInstance : Instance
     {
@@ -197,7 +259,7 @@ namespace Autodesk.Revit.DB
         public ISet<ElementId> GetFamilySymbolIds() => throw X.N();
     }
 
-    public class ProjectInfo : Element { }
+    public class ProjectInfo : Element { public string Number => throw X.N(); }
     public class LinePatternElement : Element { public static ElementId GetSolidPatternId() => throw X.N(); }
 
     public class ParameterElement : Element
@@ -222,9 +284,46 @@ namespace Autodesk.Revit.DB
         public bool CanUseTemporaryVisibilityModes() => throw X.N();
         public void IsolateElementsTemporary(ICollection<ElementId> ids) => throw X.N();
         public void DisableTemporaryViewMode(TemporaryViewMode mode) => throw X.N();
+        public int Scale { get => throw X.N(); set => throw X.N(); }
+        public ElementId ViewTemplateId { get => throw X.N(); set => throw X.N(); }
+        public bool IsValidViewTemplate(ElementId templateId) => throw X.N();
+        public ICollection<ElementId> GetTemplateParameterIds() => throw X.N();
+        public ICollection<ElementId> GetNonControlledTemplateParameterIds() => throw X.N();
+        public ElementId GetPrimaryViewId() => throw X.N();
+        public bool CanViewBeDuplicated(ViewDuplicateOption o) => throw X.N();
+        public ElementId Duplicate(ViewDuplicateOption o) => throw X.N();
+        public bool CropBoxActive { get => throw X.N(); set => throw X.N(); }
+        public ViewCropRegionShapeManager GetCropRegionShapeManager() => throw X.N();
+        public IList<TransformWithBoundary> GetModelToProjectionTransforms() => throw X.N();
+        public SketchPlane SketchPlane => throw X.N();
     }
 
-    public class ViewSheet : View { }
+    public class ViewPlan : View
+    {
+        public static ViewPlan Create(Document doc, ElementId viewFamilyTypeId, ElementId levelId) => throw X.N();
+        public Level GenLevel => throw X.N();
+    }
+
+    public class ViewSheet : View
+    {
+        public static ViewSheet Create(Document doc, ElementId titleBlockTypeId) => throw X.N();
+        public string SheetNumber { get => throw X.N(); set => throw X.N(); }
+        public bool IsPlaceholder => throw X.N();
+        public ISet<ElementId> GetAllPlacedViews() => throw X.N();
+    }
+
+    public class Viewport : Element
+    {
+        public static Viewport Create(Document doc, ElementId sheetId, ElementId viewId, XYZ point) => throw X.N();
+        public static bool CanAddViewToSheet(Document doc, ElementId sheetId, ElementId viewId) => throw X.N();
+        public ElementId ViewId => throw X.N();
+        public ElementId SheetId => throw X.N();
+        public XYZ GetBoxCenter() => throw X.N();
+        public void SetBoxCenter(XYZ p) => throw X.N();
+        public Outline GetBoxOutline() => throw X.N();
+        public Transform GetProjectionToSheetTransform() => throw X.N();
+        public ViewportRotation Rotation { get => throw X.N(); set => throw X.N(); }
+    }
 
     public class TableSectionData : APIObject
     {
@@ -359,6 +458,8 @@ namespace Autodesk.Revit.DB
         public ModelPath GetCloudModelPath() => throw X.N();
         public ModelPath GetWorksharingCentralModelPath() => throw X.N();
         public Units GetUnits() => throw X.N();
+        public ElementId GetDefaultElementTypeId(ElementTypeGroup g) => throw X.N();
+        public void Regenerate() => throw X.N();
     }
 
     public abstract class ElementFilter : APIObject { }
@@ -374,6 +475,7 @@ namespace Autodesk.Revit.DB
         public FilteredElementCollector WhereElementIsElementType() => throw X.N();
         public FilteredElementCollector WherePasses(ElementFilter f) => throw X.N();
         public FilteredElementCollector OfClass(Type t) => throw X.N();
+        public FilteredElementCollector OfCategory(BuiltInCategory c) => throw X.N();
         public IEnumerator<Element> GetEnumerator() => throw X.N();
         IEnumerator IEnumerable.GetEnumerator() => throw X.N();
     }
@@ -433,11 +535,47 @@ namespace Autodesk.Revit.DB
     }
 }
 
+namespace Autodesk.Revit.DB.ExtensibleStorage
+{
+    using System;
+    public enum AccessLevel { Public, Vendor, Application }
+    public class Schema
+    {
+        public static Schema Lookup(Guid g) => throw new NotImplementedException();
+    }
+    public class FieldBuilder { }
+    public class SchemaBuilder
+    {
+        public SchemaBuilder(Guid g) { }
+        public SchemaBuilder SetSchemaName(string n) => throw new NotImplementedException();
+        public SchemaBuilder SetDocumentation(string d) => throw new NotImplementedException();
+        public SchemaBuilder SetReadAccessLevel(AccessLevel a) => throw new NotImplementedException();
+        public SchemaBuilder SetWriteAccessLevel(AccessLevel a) => throw new NotImplementedException();
+        public FieldBuilder AddSimpleField(string name, Type t) => throw new NotImplementedException();
+        public Schema Finish() => throw new NotImplementedException();
+    }
+    public class Entity
+    {
+        public Entity(Schema s) { }
+        public bool IsValid() => throw new NotImplementedException();
+        public T Get<T>(string field) => throw new NotImplementedException();
+        public void Set<T>(string field, T value) => throw new NotImplementedException();
+    }
+}
+
 namespace Autodesk.Revit.UI.Selection
 {
     using Autodesk.Revit.DB;
+    public enum ObjectType { Nothing, Element, PointOnElement, Edge, Face, LinkedElement, Subelement }
+    public interface ISelectionFilter
+    {
+        bool AllowElement(Element elem);
+        bool AllowReference(Reference reference, XYZ position);
+    }
     public class Selection
     {
+        public Reference PickObject(ObjectType t, ISelectionFilter f, string prompt) => throw new NotImplementedException();
+        public XYZ PickPoint(string prompt) => throw new NotImplementedException();
         public ICollection<ElementId> GetElementIds() => throw new NotImplementedException();
         public void SetElementIds(ICollection<ElementId> ids) => throw new NotImplementedException();
     }
@@ -453,6 +591,8 @@ namespace Autodesk.Revit.UI
         public View ActiveView => throw new NotImplementedException();
         public Selection.Selection Selection => throw new NotImplementedException();
         public void ShowElements(ICollection<ElementId> ids) => throw new NotImplementedException();
+        public void ShowElements(ElementId id) => throw new NotImplementedException();
+        public void RequestViewChange(View v) => throw new NotImplementedException();
     }
 
     public class UIApplication
