@@ -94,41 +94,67 @@ namespace CausaFix.Revit.ProjectSetup
     }
 
     /// <summary>
-    /// ITitleProbe over a real viewport (mm of paper): Viewport.GetBoxOutline / GetLabelOutline, LabelOffset (local frame,
-    /// from the box's lower-left corner with Rotation = None to the start of the title line) and LabelLineLength.
-    /// Every change regenerates before measuring again.
+    /// Read-only measurements of a placed viewport and its title (mm of paper). Never regenerates or modifies the
+    /// document, so it is valid outside a transaction (reference capture from an ExternalEvent). Outside a
+    /// transaction the document is already regenerated, so the outlines are current.
     /// </summary>
-    internal sealed class RevitTitleProbe : ITitleProbe
+    internal static class ViewportTitleReader
     {
-        private readonly Document _doc;
-        private readonly Viewport _vp;
-        public RevitTitleProbe(Document doc, Viewport vp) { _doc = doc; _vp = vp; }
-
         public static Box2 Mm(Outline o) => new Box2(o.MinimumPoint.X * AlignmentMath.MmPerFoot, o.MinimumPoint.Y * AlignmentMath.MmPerFoot,
                                                       o.MaximumPoint.X * AlignmentMath.MmPerFoot, o.MaximumPoint.Y * AlignmentMath.MmPerFoot);
 
-        public Box2 ViewportBox() { _doc.Regenerate(); return Mm(_vp.GetBoxOutline()); }
+        /// <summary>Viewport box on the sheet, excluding the title.</summary>
+        public static Box2 Box(Viewport vp) => Mm(vp.GetBoxOutline());
 
-        public Box2? LabelBox()
+        /// <summary>Title outline on the sheet, or null when the viewport type shows no title.</summary>
+        public static Box2? Label(Viewport vp)
         {
-            _doc.Regenerate();
             Outline o;
-            try { o = _vp.GetLabelOutline(); }
+            try { o = vp.GetLabelOutline(); }
             catch (Autodesk.Revit.Exceptions.ApplicationException) { return null; }
             if (o == null) return null;
             var b = Mm(o);
             return b.Width < 1e-6 && b.Height < 1e-6 ? (Box2?)null : b;
         }
 
+        public static P2 LabelOffset(Viewport vp) { var v = vp.LabelOffset; return new P2(v.X * AlignmentMath.MmPerFoot, v.Y * AlignmentMath.MmPerFoot); }
+
+        public static double LineLength(Viewport vp) => vp.LabelLineLength * AlignmentMath.MmPerFoot;
+    }
+
+    /// <summary>
+    /// ITitleProbe over a real viewport for the executor (mm of paper): changes LabelOffset (local frame, from the box's
+    /// lower-left corner with Rotation = None to the start of the title line) and LabelLineLength, and regenerates before
+    /// every measurement. It modifies the document, so it needs an open transaction; read-only work (capturing a
+    /// reference title) uses <see cref="ViewportTitleReader"/>.
+    /// </summary>
+    internal sealed class RevitTitleProbe : ITitleProbe
+    {
+        private readonly Document _doc;
+        private readonly Viewport _vp;
+
+        public RevitTitleProbe(Document doc, Viewport vp)
+        {
+            if (!doc.IsModifiable)
+                throw new InvalidOperationException("RevitTitleProbe moves and regenerates the title: it must be used inside a transaction. Use ViewportTitleReader to read without modifying.");
+            _doc = doc; _vp = vp;
+        }
+
+        public static Box2 Mm(Outline o) => ViewportTitleReader.Mm(o);
+
+        public Box2 ViewportBox() { _doc.Regenerate(); return ViewportTitleReader.Box(_vp); }
+
+        public Box2? LabelBox() { _doc.Regenerate(); return ViewportTitleReader.Label(_vp); }
+
         public P2 LabelOffset
         {
-            get { var v = _vp.LabelOffset; return new P2(v.X * AlignmentMath.MmPerFoot, v.Y * AlignmentMath.MmPerFoot); }
+            get => ViewportTitleReader.LabelOffset(_vp);
             set { _vp.LabelOffset = new XYZ(AlignmentMath.MmToFeet(value.X), AlignmentMath.MmToFeet(value.Y), 0); _doc.Regenerate(); }
         }
 
         public double LineLength
         {
-            get => _vp.LabelLineLength * AlignmentMath.MmPerFoot;
+            get => ViewportTitleReader.LineLength(_vp);
             set { _vp.LabelLineLength = AlignmentMath.MmToFeet(value); _doc.Regenerate(); }
         }
     }

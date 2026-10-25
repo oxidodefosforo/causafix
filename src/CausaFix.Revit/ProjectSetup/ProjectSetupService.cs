@@ -62,11 +62,11 @@ namespace CausaFix.Revit.ProjectSetup
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new TitlePick { Cancelled = true, Message = "Pick cancelled: nothing changed." }; }
             if (vp == null) return new TitlePick { Message = "The picked element is not a viewport placed on this sheet. Pick the viewport (the drawing on the sheet)." };
             var view = doc.GetElement(vp.ViewId) as View;
-            var probe = new RevitTitleProbe(doc, vp);
-            var label = probe.LabelBox();
+            // Read-only: no transaction is open here, so nothing may regenerate or modify the document.
+            var label = ViewportTitleReader.Label(vp);
             if (label == null)
                 return new TitlePick { Message = "The viewport of '" + view?.Name + "' shows no title (its viewport type hides it). Pick a viewport whose title is visible." };
-            var box = probe.ViewportBox();
+            var box = ViewportTitleReader.Box(vp);
             int q = vp.Rotation == ViewportRotation.Clockwise ? -1 : vp.Rotation == ViewportRotation.Counterclockwise ? 1 : 0;
             var c = box.Center;
             // Relative: anchor corner of the title from the same corner of the viewport box, in the unrotated viewport frame.
@@ -78,7 +78,7 @@ namespace CausaFix.Revit.ProjectSetup
                 Ok = true,
                 RelativeXmm = rel.X, RelativeYmm = rel.Y,
                 SheetXmm = corner.X, SheetYmm = corner.Y,
-                LineLengthMm = probe.LineLength,
+                LineLengthMm = ViewportTitleReader.LineLength(vp),
                 SheetNumber = sheet.SheetNumber,
                 ViewName = view?.Name ?? "",
                 Description = "title of '" + view?.Name + "' on sheet " + sheet.SheetNumber + (string.IsNullOrEmpty(sheet.Name) ? "" : " - " + sheet.Name)

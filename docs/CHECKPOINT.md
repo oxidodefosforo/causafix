@@ -46,6 +46,11 @@ Sobre el commit de referencia 65584df.
 - **Referencia de título:** *Title on Sheet → Take title position from a placed view…* con alcance (perfil/grupo/composición). Usa la misma `TitlePlacement` y el mismo `TitleRunner`. Por defecto la captura es **FixedPosition** si no hay elección previa (`CaptureKindExplicit`, captura anterior o modo Relative). Mensajes concretos con reintento; si se cancela, no cambia nada.
 - `tests/CausaFix.Ui.Tests`: abre la ventana real y hace clic con `SendInput`. Primero reproduce el fallo con la plantilla antigua y después comprueba la nueva (texto, familia, espacio libre, casilla una vez, regla desactivada, edición pendiente, flechas, Refresh). Informe: artefacto `ui-check-report`.
 
+## Corrección: "Modification of the document is forbidden" en Match reference title
+
+- Causa: `ProjectSetupService.PickReferenceTitle` medía con `RevitTitleProbe`, cuyos `ViewportBox()`/`LabelBox()` llaman a `Document.Regenerate()`. La captura corre en un ExternalEvent sin transacción abierta, y ExternalEvent no abre ninguna.
+- Corrección: `ViewportTitleReader` (en `SheetGeometry.cs`) lee `GetBoxOutline`, `GetLabelOutline`, `LabelOffset` y `LabelLineLength` sin regenerar ni modificar el modelo, y es lo que usa la captura. `RevitTitleProbe` conserva sus `Regenerate()` para el paso de títulos de Run Setup / Update Titles Only, que ocurre dentro de su `Transaction`. Ahora exige `Document.IsModifiable` y da un error explícito si se usa fuera de una transacción.
+
 ## Verificado aquí
 
 | Verificación | Resultado |
