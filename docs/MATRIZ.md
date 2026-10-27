@@ -1,4 +1,4 @@
-# Matriz de funciones – CausaFix 0.1.0 (Excel Link + Project Setup)
+# Matriz de funciones – CausaFixIt 0.1.0 (Excel Link + Project Setup)
 
 Estado: **Implementado** · **Restringido** (implementado con un límite deliberado) · **Pendiente** (no incluido en 0.1.0).
 
@@ -13,7 +13,7 @@ Verificación disponible en esta entrega:
 
 | Área | Función | Estado | Verificación | R |
 |---|---|---|---|---|
-| Arranque | Pestaña CausaFix, panel Data → Excel Link, Settings/About | Implementado | C | ☐ |
+| Arranque | Pestaña CausaFixIt, panel Data → Excel Link, Settings/About | Implementado | C | ☐ |
 | Arranque | Registro de módulos (`ModuleRegistry`), ejemplo documentado | Implementado | — | ☐ |
 | Arranque | Disponibilidad solo con documento de proyecto | Implementado | — | ☐ |
 | Compatibilidad | Builds separados 2024 (net48) / 2025-2026 (net8-windows) | Implementado | T, C | ☐ |
@@ -96,7 +96,7 @@ Verificación disponible en esta entrega:
 | Vistas | Copiar recorte simple de una vista de referencia | Pendiente | — | — |
 | Vistas | Áreas, secciones, alzados, 3D | Pendiente (fuera de alcance) | — | — |
 | Nombres | Build Name por destino (View Name, Title on Sheet, Sheet Name, Sheet Number); componentes con orden, Enabled, Required, separador, mayúsculas, relleno, mapeos, fallback; previsualización con filas reales | Implementado | T, F, C | ☐ |
-| Nombres | Fuentes: campos CausaFix, valores del plan y parámetros reales (Project Information, Level, View, Sheet, Title Block tipo/instancia) por GUID / built-in / ParameterElement; homónimos distinguidos; solo lectura válido como fuente | Implementado | T, C | ☐ |
+| Nombres | Fuentes: campos CausaFixIt, valores del plan y parámetros reales (Project Information, Level, View, Sheet, Title Block tipo/instancia) por GUID / built-in / ParameterElement; homónimos distinguidos; solo lectura válido como fuente | Implementado | T, C | ☐ |
 | Nombres | Separadores omitidos con componentes opcionales vacíos; ceros iniciales de códigos conservados; dependencias entre nombres y ciclos detectados | Implementado | T | ☐ |
 | Nombres | Valores de vistas/sheets que aún no existen: desconocidos (fallback u opcional), sin usar valores del template | Implementado | T | ☐ |
 | Nombres | Advanced pattern (tokens) y migración fiel de patrones antiguos; los no convertibles quedan Legacy/Advanced con nota | Implementado | T | ☐ |

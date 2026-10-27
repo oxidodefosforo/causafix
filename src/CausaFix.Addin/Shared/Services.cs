@@ -61,13 +61,33 @@ namespace CausaFix.Addin.Shared
         {
             if (string.IsNullOrEmpty(path)) return;
             try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
-            catch (Exception ex) { MessageBox.Show("Could not open " + path + ":\n" + ex.Message, "CausaFix"); }
+            catch (Exception ex) { MessageBox.Show("Could not open " + path + ":\n" + ex.Message, "CausaFixIt"); }
         }
     }
 
-    /// <summary>Ribbon icons drawn at runtime (no image files to ship): rounded tile + short glyph.</summary>
+    /// <summary>Ribbon icons drawn at runtime (no image files to ship): rounded tile + short glyph. The brand logo is a shipped image.</summary>
     public static class Icons
     {
+        /// <summary>The approved CausaFixIt logo at 16 or 32 px (embedded PNG, transparent), or null if it cannot be read.</summary>
+        public static ImageSource Logo(int size)
+        {
+            try
+            {
+                using (var s = typeof(Icons).Assembly.GetManifestResourceStream(size <= 16 ? "CausaFixIt.Logo16.png" : "CausaFixIt.Logo32.png"))
+                {
+                    if (s == null) return null;
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.StreamSource = s;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    return bmp;
+                }
+            }
+            catch (Exception) { return null; }
+        }
+
         public static ImageSource Create(string glyph, string color, int size)
         {
             var visual = new DrawingVisual();
@@ -97,13 +117,13 @@ namespace CausaFix.Addin.Shared
     public sealed class SuiteModule : ICausaFixModule
     {
         public string Id => "CausaFix.Suite";
-        public string Panel => "CausaFix";
+        public string Panel => "CausaFixIt";
         public System.Collections.Generic.IEnumerable<CommandSpec> Commands => new[]
         {
-            new CommandSpec { Name = "CausaFix.Settings", Text = "Settings", Tooltip = "CausaFix settings (number parsing, apply mode, folders).",
+            new CommandSpec { Name = "CausaFix.Settings", Text = "Settings", Tooltip = "CausaFixIt settings (number parsing, apply mode, folders).",
                               CommandType = typeof(SettingsCommand), AvailabilityType = typeof(AlwaysAvailable), IconGlyph = "S", IconColor = "#4A5A6A", Large = false },
             new CommandSpec { Name = "CausaFix.About", Text = "About", Tooltip = "Version, install folder and logs.",
-                              CommandType = typeof(AboutCommand), AvailabilityType = typeof(AlwaysAvailable), IconGlyph = "i", IconColor = "#4A5A6A", Large = false }
+                              CommandType = typeof(AboutCommand), AvailabilityType = typeof(AlwaysAvailable), IconGlyph = "i", IconColor = "#4A5A6A", Large = false, BrandLogo = true }
         };
     }
 
@@ -114,13 +134,13 @@ namespace CausaFix.Addin.Shared
         {
             var settings = Services.LoadSettings();
             var dialogs = new WpfDialogs(null);
-            int dec = dialogs.Choose("CausaFix settings", "Numbers typed as TEXT in Excel cells (numeric cells are unaffected). Current: " + settings.DecimalMode,
+            int dec = dialogs.Choose("CausaFixIt settings", "Numbers typed as TEXT in Excel cells (numeric cells are unaffected). Current: " + settings.DecimalMode,
                 new[] { "Auto – reject ambiguous input such as 1,234", "Point is decimal (1,234.5)", "Comma is decimal (1.234,5)" });
             if (dec >= 0) settings.DecimalMode = (Core.Values.DecimalSeparatorMode)dec;
-            int mode = dialogs.Choose("CausaFix settings", "Default apply mode. Current: " + settings.DefaultApplyMode,
+            int mode = dialogs.Choose("CausaFixIt settings", "Default apply mode. Current: " + settings.DefaultApplyMode,
                 new[] { "All or nothing (recommended)", "Apply valid changes only" });
             if (mode >= 0) settings.DefaultApplyMode = (Core.Reports.ApplyMode)mode;
-            int open = dialogs.Choose("CausaFix settings", "Open the workbook after exporting? Current: " + (settings.OpenFileAfterExport ? "Yes" : "No"),
+            int open = dialogs.Choose("CausaFixIt settings", "Open the workbook after exporting? Current: " + (settings.OpenFileAfterExport ? "Yes" : "No"),
                 new[] { "Yes", "No" });
             if (open >= 0) settings.OpenFileAfterExport = open == 0;
             Services.SaveSettings(settings);
@@ -133,9 +153,9 @@ namespace CausaFix.Addin.Shared
     {
         public Result Execute(ExternalCommandData commandData, ref string message, Autodesk.Revit.DB.ElementSet elements)
         {
-            var td = new TaskDialog("About CausaFix")
+            var td = new TaskDialog("About CausaFixIt")
             {
-                MainInstruction = "CausaFix " + Services.Build,
+                MainInstruction = "CausaFixIt " + Services.Build,
                 MainContent = "Tools for Revit. Excel Link: exchange element, type, schedule and spatial data with local .xlsx files, with a review step before anything is written.\n\n" +
                               "Install folder: " + Services.InstallFolder + "\nProfiles: " + Services.Paths.ProfilesFolder + "\nReports: " + Services.Paths.ReportsFolder +
                               "\nLogs: " + Services.Paths.LogsFolder,

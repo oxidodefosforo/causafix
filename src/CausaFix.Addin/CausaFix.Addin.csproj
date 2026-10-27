@@ -21,6 +21,13 @@
     <ProjectReference Include="..\CausaFix.Revit\CausaFix.Revit.csproj" />
   </ItemGroup>
 
+  <!-- CausaFixIt logo (approved symbol, transparent). Resource: window icons and headers; embedded: ribbon images. -->
+  <ItemGroup>
+    <Resource Include="Assets\causafixit-*.png" />
+    <EmbeddedResource Include="Assets\causafixit-16.png" LogicalName="CausaFixIt.Logo16.png" />
+    <EmbeddedResource Include="Assets\causafixit-32.png" LogicalName="CausaFixIt.Logo32.png" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(UseRevitNuGet)' != 'true'">
     <Reference Include="RevitAPI">
       <HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>

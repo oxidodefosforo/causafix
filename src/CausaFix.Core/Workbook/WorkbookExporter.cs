@@ -292,7 +292,7 @@ namespace CausaFix.Core.Workbook
                 r++;
             }
 
-            Line("CausaFix Excel Link", null, S.Styles.Title);
+            Line("CausaFixIt Excel Link", null, S.Styles.Title);
             Line("Model", pkg.Document.Title);
             Line("Exported (UTC)", pkg.ExportedUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture));
             Line("Revit / add-in", pkg.RevitVersion + " / " + pkg.AddinVersion);
@@ -313,7 +313,7 @@ namespace CausaFix.Core.Workbook
             Line("Yes/No", "Use Yes or No.");
             Line("Formulas", "Formulas are allowed only if the workbook was saved by Excel with their results. The saved result is imported, never the formula. Formulas without a saved result are blocked.");
             Line("Rows and columns", "Deleting rows does not delete elements. New rows do not create elements. New columns do not create parameters. All of them are ignored and reported.");
-            Line("Review", "Importing never writes directly: CausaFix compares the exported value, your value and the current model value, shows changes and conflicts, and writes only what you approve. Changes made in Revit after export are never overwritten silently.");
+            Line("Review", "Importing never writes directly: CausaFixIt compares the exported value, your value and the current model value, shows changes and conflicts, and writes only what you approve. Changes made in Revit after export are never overwritten silently.");
             Line("Linked models", "Rows from linked models are read-only.");
             r++;
             Line("Sheets", null, S.Styles.Bold);

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Installs CausaFix for the current user (default) or for every user of this PC.
+  Installs CausaFixIt for the current user (default) or for every user of this PC.
 
 .DESCRIPTION
   -Scope User     (default, no administrator rights)
@@ -10,9 +10,9 @@
       binaries  -> %ProgramFiles%\CausaFix\<year>\
       manifest  -> %ProgramData%\Autodesk\Revit\Addins\<year>\CausaFix.addin
 
-  Only CausaFix files are written. Other add-ins and their manifests are never touched.
+  Only CausaFixIt files are written. Other add-ins and their manifests are never touched.
   Re-running updates the installation in place. Installing in one scope removes the current user's
-  CausaFix manifest of the other scope, so Revit never loads CausaFix twice.
+  CausaFixIt manifest of the other scope, so Revit never loads CausaFixIt twice.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\Install.ps1
@@ -61,7 +61,7 @@ function Get-Paths([string] $scope, [string] $year) {
 }
 
 if (Get-Process -Name 'Revit' -ErrorAction SilentlyContinue) {
-    Write-Warning 'Revit is running. Close Revit before installing or updating CausaFix (its files are locked while Revit runs).'
+    Write-Warning 'Revit is running. Close Revit before installing or updating CausaFixIt (its files are locked while Revit runs).'
     exit 1
 }
 
@@ -76,6 +76,11 @@ foreach ($year in $Years) {
         continue
     }
     $paths = Get-Paths $Scope $year
+    # An earlier CausaFix / CausaFixIt installation is updated in place: same manifest file, same AddInId, same folders,
+    # so Revit shows a single CausaFixIt tab. Profiles, settings, reports and logs live outside the bin folder and are kept.
+    if (Test-Path (Join-Path $paths.Addins 'CausaFix.addin')) {
+        Write-Host "Revit $year : updating the existing installation (profiles and settings are kept)." -ForegroundColor DarkCyan
+    }
     New-Item -ItemType Directory -Force -Path $paths.Bin | Out-Null
     New-Item -ItemType Directory -Force -Path $paths.Addins | Out-Null
 
@@ -95,16 +100,16 @@ foreach ($year in $Years) {
     if (Test-Path $otherManifest) {
         try {
             Remove-Item -Force $otherManifest
-            Write-Host "Revit $year : removed the $other installation manifest to avoid loading CausaFix twice." -ForegroundColor Yellow
+            Write-Host "Revit $year : removed the $other installation manifest to avoid loading CausaFixIt twice." -ForegroundColor Yellow
         } catch {
-            Write-Warning "Revit $year : a $other installation also exists ($otherManifest). Uninstall it to avoid loading CausaFix twice."
+            Write-Warning "Revit $year : a $other installation also exists ($otherManifest). Uninstall it to avoid loading CausaFixIt twice."
         }
     }
 
     # Warn about any other manifest that loads CausaFix (would register it twice).
     Get-ChildItem -Path $paths.Addins -Filter '*.addin' | Where-Object { $_.Name -ne 'CausaFix.addin' } | ForEach-Object {
         if ((Get-Content -Raw $_.FullName) -match 'CausaFix\.Addin\.dll') {
-            Write-Warning "Another manifest also loads CausaFix: $($_.FullName). Remove it to avoid a duplicate registration."
+            Write-Warning "Another manifest also loads CausaFixIt: $($_.FullName). Remove it to avoid a duplicate registration."
         }
     }
 
@@ -117,7 +122,7 @@ if ($installed.Count -eq 0) {
     exit 2
 }
 Write-Host ''
-Write-Host "CausaFix installed for Revit $($installed -join ', '). Start Revit and open the 'CausaFix' tab." -ForegroundColor Cyan
+Write-Host "CausaFixIt installed for Revit $($installed -join ', '). Start Revit and open the 'CausaFixIt' tab." -ForegroundColor Cyan
 if ($Scope -eq 'Machine') {
-    Write-Host 'Note: users who also installed CausaFix for themselves should run Uninstall.cmd once, so Revit does not load it twice.' -ForegroundColor DarkYellow
+    Write-Host 'Note: users who also installed CausaFixIt for themselves should run Uninstall.cmd once, so Revit does not load it twice.' -ForegroundColor DarkYellow
 }

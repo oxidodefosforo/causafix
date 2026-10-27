@@ -54,7 +54,7 @@ namespace CausaFix.Revit
             _event = ExternalEvent.Create(this);
         }
 
-        public string GetName() => "CausaFix dispatcher";
+        public string GetName() => "CausaFixIt dispatcher";
 
         public int Pending { get { lock (_lock) return _queue.Count; } }
 

@@ -52,7 +52,7 @@ namespace CausaFix.Core.Workbook
             if (meta == null)
             {
                 result.Fatal = true;
-                result.Issues.Add(new ImportIssue(IssueSeverity.Error, "", "This is not a CausaFix workbook (metadata sheet missing). Only workbooks exported by CausaFix Excel Link can be imported."));
+                result.Issues.Add(new ImportIssue(IssueSeverity.Error, "", "This is not a CausaFixIt workbook (metadata sheet missing). Only workbooks exported by CausaFixIt (or CausaFix) Excel Link can be imported."));
                 return result;
             }
             result.IsCausaFixWorkbook = true;
@@ -209,7 +209,7 @@ namespace CausaFix.Core.Workbook
                 {
                     if (c != keyCol && t.Length == 0 && data.GetText(S.HeaderRow, c).Length > 0 && ColumnHasData(data, c))
                         result.Issues.Add(new ImportIssue(IssueSeverity.Warning, where + " column " + CellRef.ColumnName(c),
-                            "Column '" + data.GetText(S.HeaderRow, c) + "' has no CausaFix key: ignored (new columns do not create parameters)."));
+                            "Column '" + data.GetText(S.HeaderRow, c) + "' has no CausaFixIt key: ignored (new columns do not create parameters)."));
                     continue;
                 }
                 if (!ParamKey.TryParse(t.Substring(S.ColumnMarker.Length), out ParamKey k))
@@ -366,7 +366,7 @@ namespace CausaFix.Core.Workbook
                         {
                             pc.Original = RawValue.Empty;
                             pc.Proposal = Proposal.Invalid("The original value of this cell cannot be recovered from the workbook metadata (" + why +
-                                                           "). Re-export this column from CausaFix and repeat the edit.", cell?.AsText() ?? "", BlockCode.MetadataMismatch);
+                                                           "). Re-export this column from CausaFixIt and repeat the edit.", cell?.AsText() ?? "", BlockCode.MetadataMismatch);
                             result.Cells.Add(pc);
                             continue;
                         }

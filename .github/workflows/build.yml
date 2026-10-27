@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CausaFix-package
+          name: CausaFixIt-package
           path: dist/*.zip
 
       # Real Project Setup window clicked with the real mouse/keyboard (SendInput) on the runner's desktop.

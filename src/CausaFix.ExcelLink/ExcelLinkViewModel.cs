@@ -220,7 +220,7 @@ namespace CausaFix.ExcelLink
             if (ex is OperationCanceledException) { Status = "Cancelled."; return; }
             _log.Error("Excel Link", ex);
             Status = "Error: " + ex.Message;
-            _dialogs.Error("CausaFix Excel Link", ex.Message);
+            _dialogs.Error("CausaFixIt Excel Link", ex.Message);
         }
 
         public void SetStatus(string text) => Status = text;
@@ -455,7 +455,7 @@ namespace CausaFix.ExcelLink
             if (id.RequiresConfirmation)
             {
                 if (!_dialogs.Confirm("Import – confirm the model",
-                        "CausaFix could not fully prove that this workbook belongs to the active model.\n\n• " + reasons +
+                        "CausaFixIt could not fully prove that this workbook belongs to the active model.\n\n• " + reasons +
                         "\n\nRows are matched by UniqueId (never by ElementId). Continue only if this is the intended model."))
                     return null;
                 identityNote = "Model identity confirmed by the user: " + id.Match + ". " + string.Join(" ", id.Reasons);
@@ -605,7 +605,7 @@ namespace CausaFix.ExcelLink
         private void EditSettings()
         {
             int dec = _dialogs.Choose("Settings – numbers typed as text in Excel",
-                "How should CausaFix read numbers typed as TEXT in Excel cells? (Numeric cells are unaffected.)\nCurrent: " + Settings.DecimalMode,
+                "How should CausaFixIt read numbers typed as TEXT in Excel cells? (Numeric cells are unaffected.)\nCurrent: " + Settings.DecimalMode,
                 new[] { "Auto – reject ambiguous input such as 1,234", "Point is decimal (1,234.5)", "Comma is decimal (1.234,5)" });
             if (dec >= 0) Settings.DecimalMode = (DecimalSeparatorMode)dec;
             int mode = _dialogs.Choose("Settings – apply mode", "Default mode when applying changes. Current: " + Settings.DefaultApplyMode,

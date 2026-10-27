@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:shared="clr-namespace:CausaFix.Addin.Shared">
 
-    <!-- CausaFix palette -->
+    <!-- CausaFixIt palette -->
     <Color x:Key="InkColor">#1F2A33</Color>
     <Color x:Key="SlateColor">#23394D</Color>
     <Color x:Key="TealColor">#0E7C86</Color>

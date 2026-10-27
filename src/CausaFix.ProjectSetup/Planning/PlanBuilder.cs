@@ -95,7 +95,7 @@ namespace CausaFix.ProjectSetup.Planning
             if (rules.Count == 0) plan.GlobalErrors.Add("Enable at least one View Set (step View Sets).");
             foreach (var lv in levels)
                 if (cat.Level(lv.LevelUniqueId) == null)
-                    plan.GlobalErrors.Add("Level '" + lv.LevelName + "' is not in this document (host levels only; CausaFix does not create or copy levels). Map it in Levels.");
+                    plan.GlobalErrors.Add("Level '" + lv.LevelName + "' is not in this document (host levels only; CausaFixIt does not create or copy levels). Map it in Levels.");
             CheckCompositions(cfg, cat, plan);
 
             var ctxs = new List<Ctx>();
@@ -644,7 +644,7 @@ namespace CausaFix.ProjectSetup.Planning
                 row.SheetName = ex.Name;
                 // Names of an explicitly chosen sheet are not changed: discard name/number errors of the rules.
                 row.Errors.RemoveAll(e => e.StartsWith("Sheet Number", StringComparison.Ordinal) || e.StartsWith("Sheet Name", StringComparison.Ordinal) || e.StartsWith("Choose a numbering profile", StringComparison.Ordinal));
-                if (ex.IsPlaceholder) row.Errors.Add("Sheet " + ex.Number + " is a placeholder; CausaFix does not convert placeholders.");
+                if (ex.IsPlaceholder) row.Errors.Add("Sheet " + ex.Number + " is a placeholder; CausaFixIt does not convert placeholders.");
                 row.SheetAction = SheetAction.Reuse;
                 return;
             }
@@ -659,7 +659,7 @@ namespace CausaFix.ProjectSetup.Planning
             }
             row.ExistingSheetUniqueId = existing.UniqueId;
             row.CurrentSheetNumber = existing.Number;
-            if (existing.IsPlaceholder) row.Errors.Add("Sheet " + existing.Number + " is a placeholder; CausaFix does not convert placeholders.");
+            if (existing.IsPlaceholder) row.Errors.Add("Sheet " + existing.Number + " is a placeholder; CausaFixIt does not convert placeholders.");
             if (!string.Equals(existing.Number, row.SheetNumber, StringComparison.Ordinal)) row.Updates.Add("sheet:number");
             else if (!string.IsNullOrEmpty(row.ProposedSheetNumber) && !string.Equals(existing.Number, row.ProposedSheetNumber, StringComparison.Ordinal))
             {
@@ -711,7 +711,7 @@ namespace CausaFix.ProjectSetup.Planning
             }
             row.PlaceAction = PlaceAction.Skip;
             row.Errors.Add("View '" + view.Name + "' is already placed on sheet " + view.PlacedOnSheet +
-                           ". A plan view can be on one sheet only: exclude the row, choose another view, or choose 'Place as dependent copy'. CausaFix never removes a view from another sheet.");
+                           ". A plan view can be on one sheet only: exclude the row, choose another view, or choose 'Place as dependent copy'. CausaFixIt never removes a view from another sheet.");
         }
 
         private static void ResolveViewportAndTitle(SetupConfig cfg, SetupCatalog cat, Ctx c)
@@ -792,7 +792,7 @@ namespace CausaFix.ProjectSetup.Planning
                     else if (!string.IsNullOrEmpty(view.PlacedOnSheet))
                     {
                         row.PlaceAction = PlaceAction.Skip;
-                        row.Errors.Add("View is already on sheet " + view.PlacedOnSheet + "; CausaFix never moves views between sheets silently.");
+                        row.Errors.Add("View is already on sheet " + view.PlacedOnSheet + "; CausaFixIt never moves views between sheets silently.");
                     }
                     else row.PlaceAction = PlaceAction.Place;
                     var vp = cat.ViewportOf(view.UniqueId, sheet.UniqueId);

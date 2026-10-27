@@ -29,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 [xml]$props = Get-Content (Join-Path $root 'Directory.Build.props')
 $version = ($props.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
-$dist = Join-Path $root "dist\CausaFix-$version"
+$dist = Join-Path $root "dist\CausaFixIt-$version"
 if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
@@ -71,13 +71,13 @@ Copy-Item (Join-Path $root 'docs\PROJECT_SETUP.md') $dist -Force
 Copy-Item (Join-Path $root 'LICENSE.txt') $dist -Force -ErrorAction SilentlyContinue
 $commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { (& git -C $root rev-parse HEAD 2>$null) }
 Set-Content -Path (Join-Path $dist 'BUILD.txt') -Encoding UTF8 -Value @(
-    "CausaFix $version",
+    "CausaFixIt $version",
     "Commit: $commit",
     "Built (UTC): $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm'))",
     "Revit: $($built -join ', ')",
-    "In Revit: CausaFix > About shows the same version and commit; the log line 'Project Setup: command start' too.")
+    "In Revit: CausaFixIt > About shows the same version and commit; the log lines 'Excel Link: command start' and 'Project Setup: command start' add the DLL path.")
 
-$zip = Join-Path $root "dist\CausaFix-$version.zip"
+$zip = Join-Path $root "dist\CausaFixIt-$version.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $dist '*') -DestinationPath $zip
 

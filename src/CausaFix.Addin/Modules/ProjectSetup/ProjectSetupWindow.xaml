@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:CausaFix.Addin.Modules.ProjectSetup"
         x:Name="Root"
-        Title="CausaFix · Project Setup"
+        Title="CausaFixIt · Project Setup" Icon="/CausaFix.Addin;component/Assets/causafixit-32.png"
         Width="1240" Height="800" MinWidth="960" MinHeight="580"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display"
@@ -95,9 +95,10 @@
         <Border Grid.Row="0" Background="{StaticResource Slate}" Padding="12,8">
             <DockPanel LastChildFill="False">
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#5B4B8A" CornerRadius="4" Padding="7,2" Margin="0,0,10,0">
-                        <TextBlock Text="CausaFix" Foreground="White" FontWeight="Bold" FontSize="14" />
-                    </Border>
+                    <!-- CausaFixIt brand: approved symbol + wordmark -->
+                    <Image Source="/CausaFix.Addin;component/Assets/causafixit-64.png" Width="28" Height="28" Margin="0,0,8,0"
+                           RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" AutomationProperties.Name="CausaFixIt logo" />
+                    <TextBlock Text="CausaFixIt" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <TextBlock Text="Project Setup" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding DocumentTitle}" Foreground="#B9C6D1" Margin="18,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
@@ -138,7 +139,7 @@
                         <Button Content="Sort by elevation" Command="{Binding SortByElevationCommand}" />
                         <Button Content="Suggest empty codes" Command="{Binding SuggestCodesCommand}" />
                         <TextBlock Style="{StaticResource Hint}" Margin="12,0" VerticalAlignment="Center" MaxWidth="640"
-                                   Text="Host levels only. The code (GF, L01, RF…) is used by CausaFix patterns and never renames the Level. Levels in links cannot host views; missing levels are reported, never created or copied." />
+                                   Text="Host levels only. The code (GF, L01, RF…) is used by CausaFixIt patterns and never renames the Level. Levels in links cannot host views; missing levels are reported, never created or copied." />
                     </WrapPanel>
                     <DataGrid ItemsSource="{Binding Levels}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E3E7EA" RowHeight="24">
@@ -235,8 +236,8 @@
                                 <TextBox x:Name="SetNameBox" Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="View Set name" />
                                 <TextBlock Grid.Row="1" Text="Set code / Discipline" Style="{StaticResource Label}" />
                                 <WrapPanel Grid.Row="1" Grid.Column="1">
-                                    <TextBox Width="80" Text="{Binding Code, UpdateSourceTrigger=LostFocus}" ToolTip="View Set code (CausaFix field)" />
-                                    <TextBox Width="50" Margin="8,2,0,2" Text="{Binding DisciplineCode, UpdateSourceTrigger=LostFocus}" ToolTip="Discipline code (CausaFix field)" />
+                                    <TextBox Width="80" Text="{Binding Code, UpdateSourceTrigger=LostFocus}" ToolTip="View Set code (CausaFixIt field)" />
+                                    <TextBox Width="50" Margin="8,2,0,2" Text="{Binding DisciplineCode, UpdateSourceTrigger=LostFocus}" ToolTip="Discipline code (CausaFixIt field)" />
                                     <TextBlock Text="Zone" Style="{StaticResource Label}" Margin="12,0,6,0" />
                                     <TextBox Width="60" Text="{Binding Zone, UpdateSourceTrigger=LostFocus}" ToolTip="Zone when the level has none" />
                                 </WrapPanel>
@@ -500,7 +501,7 @@
                                                 <ComboBox Width="120" ItemsSource="{Binding DataContext.TitleVisibilities, ElementName=Root}" SelectedItem="{Binding TitleVisibility}" ToolTip="OnlyPrimary (default for overlays) · All · PerMember" />
                                                 <TextBlock Text="Hidden-title viewport type" Style="{StaticResource Label}" Margin="12,0,6,0" />
                                                 <ComboBox Width="230" ItemsSource="{Binding DataContext.ViewportTypeChoices, ElementName=Root}" DisplayMemberPath="Name" SelectedValuePath="Key" SelectedValue="{Binding HiddenTitleViewportTypeUniqueId}"
-                                                          ToolTip="A viewport type whose Show Title is No. CausaFix assigns it; it never edits a shared type. Line length 0 is not a way to hide titles." />
+                                                          ToolTip="A viewport type whose Show Title is No. CausaFixIt assigns it; it never edits a shared type. Line length 0 is not a way to hide titles." />
                                             </WrapPanel>
                                             <TextBlock Grid.Row="3" Text="Condition / Prefix / Series" Style="{StaticResource Label}" />
                                             <WrapPanel Grid.Row="3" Grid.Column="1">

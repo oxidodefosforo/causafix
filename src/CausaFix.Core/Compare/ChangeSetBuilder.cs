@@ -120,7 +120,7 @@ namespace CausaFix.Core.Compare
                 if (!cur.ElementExists)
                     Block(e, BlockCode.MissingElement, "The element was not found in the model (deleted, or the workbook belongs to another model). Action: re-export from this model.");
                 else if (cur.Ambiguous)
-                    Block(e, BlockCode.Ambiguous, "Several parameters on this element match the column key (same name and data type). CausaFix cannot tell which one to write.");
+                    Block(e, BlockCode.Ambiguous, "Several parameters on this element match the column key (same name and data type). CausaFixIt cannot tell which one to write.");
                 else if (cur.OwnerMismatch)
                     Block(e, BlockCode.WrongScope, cur.LockReason);
                 else if (!cur.ParameterExists)

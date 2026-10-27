@@ -356,7 +356,7 @@ namespace CausaFix.Core.Xlsx
         private static void WriteCell(XmlWriter w, int r, int c, XCell cell, StyleTable styles, SharedStrings strings)
         {
             if (cell == null) return;
-            if (cell.Formula != null) throw new InvalidOperationException("CausaFix never writes formulas.");
+            if (cell.Formula != null) throw new InvalidOperationException("CausaFixIt never writes formulas.");
             int styleIndex = styles.IndexOf(cell.Style);
             w.WriteStartElement("c", NsMain);
             w.WriteAttributeString("r", CellRef.Ref(r, c));

@@ -183,7 +183,7 @@ namespace CausaFix.Core.Model
 
         public static ParamKey Parse(string text)
         {
-            if (!TryParse(text, out ParamKey k)) throw new FormatException("Invalid CausaFix parameter key: '" + text + "'");
+            if (!TryParse(text, out ParamKey k)) throw new FormatException("Invalid CausaFixIt parameter key: '" + text + "'");
             return k;
         }
 

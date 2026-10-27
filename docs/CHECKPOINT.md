@@ -1,6 +1,6 @@
 # Checkpoint – estado para continuar
 
-Fecha: 2026-10-24 · Versión 0.1.0 · Repositorio https://github.com/oxidodefosforo/causafix (rama `main`)
+Fecha: 2026-10-27 · Versión 0.2.0 · Repositorio https://github.com/oxidodefosforo/causafix (rama `main`)
 
 ## Módulos
 
@@ -16,7 +16,7 @@ Un solo paquete e instalación por año (2024/2025/2026). Los ayudantes MVVM est
 Síntoma: revisión con cero cambios y filas *Blocked* con Original/Proposed "(empty)" y Current "–".
 
 Causas confirmadas en el código (no ejecutado en Revit):
-1. `ParamAccess.LockReason` y `ModelReader.ColumnLock` bloqueaban cuando `Parameter.UserModifiable` era false. Esa bandera describe la edición en la interfaz de Revit, no la API; muchos parámetros compartidos la tienen en false y se pueden escribir. Ahora solo bloquean `IsReadOnly`, grupos, worksharing y vínculos; los casos que CausaFix no soporta se marcan **Unsupported**, no como read-only.
+1. `ParamAccess.LockReason` y `ModelReader.ColumnLock` bloqueaban cuando `Parameter.UserModifiable` era false. Esa bandera describe la edición en la interfaz de Revit, no la API; muchos parámetros compartidos la tienen en false y se pueden escribir. Ahora solo bloquean `IsReadOnly`, grupos, worksharing y vínculos; los casos que CausaFixIt no soporta se marcan **Unsupported**, no como read-only.
 2. La editabilidad de columna se decidía con una muestra de elementos; una columna entera quedaba marcada read-only en los metadatos del libro.
 3. `WorkbookImporter` trataba esas columnas como read-only: generaba `Proposal.Invalid` con `RawValue.Empty` como original **antes** de consultar Revit, de ahí "(empty)" y "–". Ahora el importador nunca bloquea por metadatos; el estado real se lee en Revit por celda.
 
@@ -45,6 +45,26 @@ Sobre el commit de referencia 65584df.
 - **Causa de la selección (confirmada con WPF real en CI):** la plantilla de fila era un `CheckBox` cuyo contenido era el texto, estirado a todo el ancho. `ButtonBase` maneja `MouseLeftButtonDown`, así que un clic en el nombre, la familia o el espacio libre activaba o desactivaba la regla y `ListBoxItem` nunca la seleccionaba. Corrección: casilla separada del texto (View Sets y composiciones). El foco en la casilla selecciona su fila, de forma diferida para que la edición pendiente se confirme en la regla anterior.
 - **Referencia de título:** *Title on Sheet → Take title position from a placed view…* con alcance (perfil/grupo/composición). Usa la misma `TitlePlacement` y el mismo `TitleRunner`. Por defecto la captura es **FixedPosition** si no hay elección previa (`CaptureKindExplicit`, captura anterior o modo Relative). Mensajes concretos con reintento; si se cancela, no cambia nada.
 - `tests/CausaFix.Ui.Tests`: abre la ventana real y hace clic con `SendInput`. Primero reproduce el fallo con la plantilla antigua y después comprueba la nueva (texto, familia, espacio libre, casilla una vez, regla desactivada, edición pendiente, flechas, Refresh). Informe: artefacto `ui-check-report`.
+
+## Excel Link: parámetros compartidos (DR_Tag-1 / EL_Circuit) y marca CausaFixIt (versión 0.2.0)
+
+Base: commit 0c30203 (run 40151407427), que es el build que se estaba probando. Para comprobar qué DLL carga Revit, el log escribe `Excel Link: command start (CausaFixIt <versión> · commit <sha>, built …, loaded from <ruta>)`. Lo mismo aparece en About, `BUILD.txt` y los informes.
+
+- **Causa confirmada en el código:**
+  - `ScheduleReader.PlanData` asignaba ámbito de instancia a todos los campos `ScheduleFieldType.Instance`. La referencia de la API indica que *todos los compartidos usan ese tipo, sean de instancia o de tipo*, así que un compartido de tipo de una tabla se exportaba como columna de instancia y se resolvía y escribía en la instancia.
+  - Además, ningún paso comprobaba el propietario real del `Parameter`.
+- **Corrección:** `ParamOwner` establece el propietario a partir de `Parameter.Element`, de si el tipo resuelve la misma identidad y del binding del proyecto.
+  - Lo usan la exportación (tablas y categorías), la lectura de filas, la revisión (`WrongScope` o la corrección explícita de libros antiguos) y Apply (`WrongTarget`).
+- **Verificación por etapas:** `WriteVerifier` en Core, más una comprobación nueva tras el commit, antes de `Assimilate`. Devuelve los fallos `NotPersisted` y `SetFailed` con los valores leídos.
+- **Diagnóstico ampliado:** en revisión, resultado e informe.
+- **No confirmado (requiere tu modelo):**
+  - Qué devuelve exactamente Revit para DR_Tag-1 en la instancia (proxy de solo lectura o null).
+  - Si EL_Circuit es de instancia o de tipo.
+  - Por qué EL_Circuit volvía vacío. Puede ser el mismo error de propietario, un actualizador de otro add-in o una regla de la familia. La nueva instrumentación lo dirá en la etapa en que falle.
+- **Marca:**
+  - Nombre visible CausaFixIt (pestaña, panel, ventanas, diálogos, Deshacer, selecciones, informes, paquete, instalador, documentación).
+  - El logo aprobado está en `src/CausaFix.Addin/Assets` (16–256 px, transparente; solo se limpiaron 918 píxeles sueltos del archivo) y el original en `docs/brand`. Se usa en el botón About, los iconos y encabezados de ventana.
+  - Se mantienen: `AddInId`, `VendorId`, `CausaFix.addin`, nombres de DLL y namespaces, `SchemaGuid` y esquema de Project Setup, marcadores del libro (`CF_*`) y rutas de AppData.
 
 ## Corrección: "Modification of the document is forbidden" en Match reference title
 

@@ -217,7 +217,7 @@ namespace CausaFix.ProjectSetup.ViewModels
             if (_fieldOptions == null)
             {
                 var list = new List<FieldOption>();
-                foreach (var f in NameFields.ConfigFields) list.Add(new FieldOption { Group = "CausaFix fields", Label = NameFields.Label(f), Detail = "configuration (CausaFix, not a Revit parameter)", Source = ComponentSource.Field, Field = f });
+                foreach (var f in NameFields.ConfigFields) list.Add(new FieldOption { Group = "CausaFixIt fields", Label = NameFields.Label(f), Detail = "configuration (CausaFixIt, not a Revit parameter)", Source = ComponentSource.Field, Field = f });
                 foreach (var f in NameFields.ComputedFields) list.Add(new FieldOption { Group = "Computed by the plan", Label = NameFields.Label(f), Detail = f == NameField.Sequence ? "sequence of the sheet (numbering profile)" : "value known from the plan", Source = ComponentSource.Field, Field = f });
                 var homonyms = new HashSet<string>(_cat.Parameters.GroupBy(p => p.Ref.Scope + "|" + p.Name.ToUpperInvariant()).Where(g => g.Count() > 1).Select(g => g.Key));
                 foreach (var p in _cat.Parameters)

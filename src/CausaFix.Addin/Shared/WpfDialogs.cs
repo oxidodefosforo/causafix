@@ -48,13 +48,13 @@ namespace CausaFix.Addin.Shared
 
         public string PickOpenProfile()
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Title = "Import profile", Filter = "CausaFix profile (*.json)|*.json", CheckFileExists = true };
+            var d = new Microsoft.Win32.OpenFileDialog { Title = "Import profile", Filter = "CausaFixIt profile (*.json)|*.json", CheckFileExists = true };
             return Ask(d) == true ? d.FileName : null;
         }
 
         public string PickSaveProfile(string suggestedName)
         {
-            var d = new Microsoft.Win32.SaveFileDialog { Title = "Export profile", Filter = "CausaFix profile (*.json)|*.json", FileName = suggestedName, DefaultExt = ".json" };
+            var d = new Microsoft.Win32.SaveFileDialog { Title = "Export profile", Filter = "CausaFixIt profile (*.json)|*.json", FileName = suggestedName, DefaultExt = ".json" };
             return Ask(d) == true ? d.FileName : null;
         }
 

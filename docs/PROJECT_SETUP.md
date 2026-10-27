@@ -1,10 +1,10 @@
-# CausaFix · Project Setup — Guía
+# CausaFixIt · Project Setup — Guía
 
 Segunda herramienta de la suite. Reemplaza el proceso de Dynamo para preparar documentación:
 
 **Niveles → conjuntos de vistas → nombres → sheets y composiciones → numeración → colocación/alineación/títulos → revisión → ejecución.**
 
-Se abre desde **CausaFix → Documentation → Project Setup**. Se instala con el mismo paquete que Excel Link (por usuario, sin administrador); no tiene instalación propia. La interfaz está en inglés.
+Se abre desde **CausaFixIt → Documentation → Project Setup**. Se instala con el mismo paquete que Excel Link (por usuario, sin administrador); no tiene instalación propia. La interfaz está en inglés.
 
 ## 1. Pasos de la ventana
 
@@ -12,7 +12,7 @@ Todo es un **borrador** hasta pulsar **Run Setup…**. Elegir opciones o editar 
 
 | Paso | Qué haces |
 |---|---|
-| **1 Levels** | Marcas los niveles del host y les das un código corto (GF, L01, RF…) y, si hace falta, una zona. El código es solo de CausaFix y **no renombra el Level**. |
+| **1 Levels** | Marcas los niveles del host y les das un código corto (GF, L01, RF…) y, si hace falta, una zona. El código es solo de CausaFixIt y **no renombra el Level**. |
 | **2 View Sets** | Cada conjunto (Lighting, Power, RCP…) define familia, tipo de vista, template, escala y recorte. Además lleva códigos de disciplina, View Set, zona, **condición**, **prefijo/propósito** y **serie**. Los nombres **View Name** y **Title on Sheet** se componen con **Build Name** (§2). En la lista, un clic en el nombre, la familia o el espacio libre **selecciona** la regla; solo la casilla activa o desactiva (§1.1). La pestaña *Title on Sheet* incluye **Take title position from a placed view…** (§5.3). |
 | **3 Sheets** | Tres pestañas. **Sheet rules**: por conjunto, el modo de sheet, el title block, el **perfil de numeración**, el tipo y la rotación del viewport, el grupo y el slot. **Sheet Name**: Build Name del nombre del sheet. **Views on Sheet**: composiciones con varias vistas por sheet (§4). |
 | **4 Numbering** | Perfiles de numeración reutilizables, con segmentos opcionales, aprobación de renumeraciones y una vista previa de la renumeración (§3). |
@@ -32,13 +32,13 @@ Modos (arriba a la derecha): **Full Setup**, **Views Only**, **Sheets Only**, **
 Cada destino tiene su propia regla: **View Name**, **Title on Sheet**, **Sheet Name** y **Sheet Number**, este último en el perfil de numeración. Cambiar una no afecta a las demás, salvo que marques **Use same rule as…**.
 
 - **Add**: buscador agrupado por origen.
-  - **CausaFix fields** (configuración): disciplina, nombre/código del View Set, código de nivel, zona, condición, prefijo/propósito y serie.
+  - **CausaFixIt fields** (configuración): disciplina, nombre/código del View Set, código de nivel, zona, condición, prefijo/propósito y serie.
   - **Computed by the plan**: número de proyecto, nombre y elevación del nivel, nombre de template y de tipo, escala, secuencia del sheet, nombre de la composición y el **resultado** de otro nombre (p. ej. un Sheet Name construido con el View Name).
   - **Revit · Project Information / Level / View / Sheet / Title Block (type) / Title Block (instance)**: parámetros reales, incluidos los compartidos y los de proyecto de tu plantilla. Los homónimos se distinguen (GUID, built-in, de proyecto, instancia/tipo). Un parámetro de solo lectura sirve como fuente, porque leer no es escribir.
 - Por componente puedes ajustar: **On**, **Separator**, **Required**, **Case**, **Pad**, **Fallback**, **Map values** (`Proposed=P; Demolished=D; Existing=E`), unidad y decimales de la elevación, y los botones ▲ ▼ ⧉ ✕. **Add fixed text** añade texto fijo.
 - El **separador** de un componente solo se escribe si hay algo antes y el componente tiene valor. Un componente opcional vacío o desactivado desaparece junto con su separador, así que no se producen nombres como `E--L05--POWER`. Los guiones que forman parte de un valor o de un texto fijo se conservan.
 - **Pad** solo rellena valores numéricos. Los códigos de texto como `007` o `L7` no cambian.
-- **Requerido y vacío = error** en la fila, con el origen indicado; nunca un nombre incompleto. Esto incluye el parámetro de una vista que todavía no existe: sus valores solo se conocen después de crearla, y CausaFix no usa los del template como si fueran finales. Pon un *fallback*, márcalo opcional o usa un campo planificado.
+- **Requerido y vacío = error** en la fila, con el origen indicado; nunca un nombre incompleto. Esto incluye el parámetro de una vista que todavía no existe: sus valores solo se conocen después de crearla, y CausaFixIt no usa los del template como si fueran finales. Pon un *fallback*, márcalo opcional o usa un campo planificado.
 - Las **dependencias** entre nombres se resuelven solas. Un ciclo, como un View Name que depende de su propio resultado, es un error comprensible.
 - **Preview**: filas reales del plan (niveles × conjuntos) con el resultado y, en el *tooltip*, cada componente con su valor.
 - **Advanced pattern**: edición manual con tokens como en la versión anterior (`{DisciplineCode}-{LevelCode}…`, `{Sequence:000}`, `:upper`/`:lower`). **Convert to builder** solo convierte si el significado no cambia.
@@ -67,9 +67,9 @@ En **Sheets → Views on Sheet** se definen las **composiciones**. Cada composic
   - Todos usan el mismo grupo y slot, y se alinean con **Model Anchor** (§5.1) para que la misma referencia del edificio caiga en el mismo punto del papel aunque sus recortes difieran.
   - Se exige la misma escala y la misma rotación del viewport. Planta y RCP no se rechazan por tener la vista en sentidos opuestos: se compara el resultado proyectado en el papel. Si hay segunda referencia, también se verifica.
   - El solape **intencional** dentro de una composición Overlay se permite. Dos vistas no relacionadas en el mismo slot siguen siendo un error.
-- **Títulos:** *OnlyPrimary* (por defecto), *All* o *PerMember*. Para ocultar un título, elige **Hidden-title viewport type**, un tipo con *Show Title = No* de tu plantilla. CausaFix lo asigna, pero no edita tipos compartidos ni crea tipos derivados (ver §8). Longitud de línea 0 no es una forma de ocultar el título. Con varios títulos visibles, usa *Title dX/dY* por miembro para que no se solapen.
+- **Títulos:** *OnlyPrimary* (por defecto), *All* o *PerMember*. Para ocultar un título, elige **Hidden-title viewport type**, un tipo con *Show Title = No* de tu plantilla. CausaFixIt lo asigna, pero no edita tipos compartidos ni crea tipos derivados (ver §8). Longitud de línea 0 no es una forma de ocultar el título. Con varios títulos visibles, usa *Title dX/dY* por miembro para que no se solapen.
 - **Reutilización:** se comprueba `CanAddViewToSheet`. Una planta o un RCP colocado en otro sheet no se mueve. Elige otra vista o marca en Review *Place as dependent copy*, que crea una dependiente con nombre propio (`<nombre> - <sheet>`). Quitar un miembro o una composición **no borra** vistas, sheets ni viewports.
-- Los templates de cada miembro son los de su View Set; nunca se editan. La coincidencia geométrica no garantiza que fondos, rellenos o categorías visibles den una composición útil: revísalo en Revit. CausaFix no ofrece un orden delante/detrás de viewports, porque la API no lo expone para viewports.
+- Los templates de cada miembro son los de su View Set; nunca se editan. La coincidencia geométrica no garantiza que fondos, rellenos o categorías visibles den una composición útil: revísalo en Revit. CausaFixIt no ofrece un orden delante/detrás de viewports, porque la API no lo expone para viewports.
 
 ## 5. Placement
 
@@ -86,7 +86,7 @@ Controla la posición del **título del viewport**, no del title block, de forma
   - **KeepExisting**: no se toca.
   - **RelativeToViewport**: la esquina elegida del título (BottomLeft, BottomCenter, BottomRight, TopLeft…) va a la misma esquina del recuadro del viewport más X/Y en mm. En un Overlay, el recuadro puede ser el del viewport o la **envolvente conjunta** (*OverlayEnvelope*).
   - **FixedSheetPosition**: la esquina del título va a un punto X/Y en mm del sheet o del title block del sheet.
-  - **MatchReference**: en Revit eliges un viewport cuyo título está bien colocado y CausaFix captura su posición. Antes eliges *Capture as*: *RelativeOffset* (desplazamiento respecto a su dibujo) o *FixedPosition* (posición en el papel). Las dos no se mezclan.
+  - **MatchReference**: en Revit eliges un viewport cuyo título está bien colocado y CausaFixIt captura su posición. Antes eliges *Capture as*: *RelativeOffset* (desplazamiento respecto a su dibujo) o *FixedPosition* (posición en el papel). Las dos no se mezclan.
 - **Línea del título:** *Keep* o *Set* con longitud en mm; un valor negativo la dirige hacia la izquierda.
 - **Cómo se aplica:**
   1. Después de fijar tipo, rotación y recorte, y de alinear el dibujo, se ajusta `Viewport.LabelLineLength`.
@@ -105,8 +105,8 @@ Accesible desde **View Sets → Title on Sheet → Take title position from a pl
 
 1. **Apply to:** elige el nivel que vas a editar: *Profile default*, el *Group* del View Set o la *Composition* a la que pertenece. Por defecto aparece el que esas vistas usan ahora. El texto inferior indica **qué View Sets lo usan**, qué grupos o composiciones conservan su propia posición y cuántos overrides de viewport (Review) siguen mandando. Para una posición común, usa *Profile default*.
 2. En Revit, **abre el plano** con el título bien colocado (por ejemplo, el de Lighting del Basement) y pulsa el botón. Selecciona su **viewport** (Esc cancela).
-3. CausaFix mide el título con `GetLabelOutline` y guarda la esquina elegida (*Title corner*), la longitud y dirección de la línea, y la vista y el plano usados. **No copia el texto**: cada vista conserva su *Title on Sheet* (nivel incluido). Tampoco duplica la vista ni cambia su template o su nivel.
-4. **Errores:** si el plano activo no es un sheet, si lo elegido no es un viewport o si su título está oculto, aparece el motivo y la opción de **reintentar**. Lo mismo con el marco *TitleBlock* cuando el plano de referencia no tiene exactamente un title block, porque CausaFix no adivina el marco. Cancelar conserva los valores anteriores. Un grupo o composición que heredaba recibe su propia posición **solo tras una captura válida**.
+3. CausaFixIt mide el título con `GetLabelOutline` y guarda la esquina elegida (*Title corner*), la longitud y dirección de la línea, y la vista y el plano usados. **No copia el texto**: cada vista conserva su *Title on Sheet* (nivel incluido). Tampoco duplica la vista ni cambia su template o su nivel.
+4. **Errores:** si el plano activo no es un sheet, si lo elegido no es un viewport o si su título está oculto, aparece el motivo y la opción de **reintentar**. Lo mismo con el marco *TitleBlock* cuando el plano de referencia no tiene exactamente un title block, porque CausaFixIt no adivina el marco. Cancelar conserva los valores anteriores. Un grupo o composición que heredaba recibe su propia posición **solo tras una captura válida**.
 5. **Aplicar:** elegir la referencia solo cambia el borrador.
    - Vistas nuevas: **Run Setup**. El título se coloca después de alinear el dibujo, se verifica con la tolerancia y el dibujo no se mueve.
    - Vistas ya colocadas: modo **Update Titles Only**. Reutiliza los viewports existentes y no crea vistas, planos ni viewports.

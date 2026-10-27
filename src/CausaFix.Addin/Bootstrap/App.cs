@@ -17,7 +17,7 @@ namespace CausaFix.Addin.Bootstrap
         {
             try
             {
-                Services.Log.Info("CausaFix " + Services.Version + " starting in Revit " + app.ControlledApplication.VersionNumber);
+                Services.Log.Info("CausaFixIt " + Services.Version + " starting in Revit " + app.ControlledApplication.VersionNumber);
                 BuildRibbon(app);
                 app.ControlledApplication.DocumentClosing += (s, e) =>
                 {
@@ -29,14 +29,14 @@ namespace CausaFix.Addin.Bootstrap
             catch (Exception ex)
             {
                 Services.Log.Error("Startup failed", ex);
-                TaskDialog.Show("CausaFix", "CausaFix could not start: " + ex.Message + "\n\nLog: " + Services.Log.CurrentFile);
+                TaskDialog.Show("CausaFixIt", "CausaFixIt could not start: " + ex.Message + "\n\nLog: " + Services.Log.CurrentFile);
                 return Result.Failed;
             }
         }
 
         public Result OnShutdown(UIControlledApplication app)
         {
-            Services.Log.Info("CausaFix shutting down");
+            Services.Log.Info("CausaFixIt shutting down");
             return Result.Succeeded;
         }
 
@@ -63,8 +63,8 @@ namespace CausaFix.Addin.Bootstrap
                     {
                         ToolTip = spec.Tooltip,
                         LongDescription = spec.LongDescription,
-                        LargeImage = Icons.Create(spec.IconGlyph, spec.IconColor, 32),
-                        Image = Icons.Create(spec.IconGlyph, spec.IconColor, 16)
+                        LargeImage = (spec.BrandLogo ? Icons.Logo(32) : null) ?? Icons.Create(spec.IconGlyph, spec.IconColor, 32),
+                        Image = (spec.BrandLogo ? Icons.Logo(16) : null) ?? Icons.Create(spec.IconGlyph, spec.IconColor, 16)
                     };
                     if (spec.AvailabilityType != null) data.AvailabilityClassName = spec.AvailabilityType.FullName;
                     if (spec.Large) panel.AddItem(data);

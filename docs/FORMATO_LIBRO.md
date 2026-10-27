@@ -1,4 +1,4 @@
-# Formato del libro CausaFix (esquema 1)
+# Formato del libro CausaFixIt (esquema 1)
 
 | Hoja | Visible | Contenido |
 |---|---|---|

@@ -852,7 +852,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         {
             _log.Error("Project Setup", ex);
             Status = "Error: " + ex.Message;
-            _dialogs.Error("CausaFix Project Setup", ex.Message);
+            _dialogs.Error("CausaFixIt Project Setup", ex.Message);
         }
 
         private void Guard(Action a)

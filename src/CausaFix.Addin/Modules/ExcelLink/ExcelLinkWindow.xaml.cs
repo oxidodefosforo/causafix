@@ -38,13 +38,13 @@ namespace CausaFix.Addin.Modules.ExcelLink
             if (ForceClose || _vm == null) return;
             if (_vm.IsBusy)
             {
-                MessageBox.Show(this, "Excel Link is working. Cancel or wait before closing.", "CausaFix Excel Link");
+                MessageBox.Show(this, "Excel Link is working. Cancel or wait before closing.", "CausaFixIt Excel Link");
                 e.Cancel = true;
                 return;
             }
             int pending = _vm.Preview.PendingCount + _vm.Preview.InvalidCount;
             if (pending > 0 && MessageBox.Show(this, pending + " pending edit(s) in Preview/Edit have not been applied and will be discarded. Close anyway?",
-                    "CausaFix Excel Link", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
+                    "CausaFixIt Excel Link", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
                 e.Cancel = true;
         }
 

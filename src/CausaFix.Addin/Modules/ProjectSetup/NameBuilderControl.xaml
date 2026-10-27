@@ -145,7 +145,7 @@
                 <DockPanel>
                     <DockPanel DockPanel.Dock="Top">
                         <TextBlock Text="Add" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search CausaFix fields, plan values and Revit parameters (Project Information, Level, View, Sheet, Title Block)" />
+                        <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search CausaFixIt fields, plan values and Revit parameters (Project Information, Level, View, Sheet, Title Block)" />
                     </DockPanel>
                     <ListBox x:Name="Picker" Height="118" Margin="0,2,0,0" ItemsSource="{Binding Source={StaticResource Options}}" SelectedItem="{Binding SelectedOption}"
                              MouseDoubleClick="OnPickerDoubleClick" BorderBrush="{StaticResource Line}" VirtualizingPanel.IsVirtualizing="True">

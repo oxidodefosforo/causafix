@@ -25,7 +25,7 @@ namespace CausaFix.Addin.Modules.ProjectSetup
             try
             {
                 MessageBox.Show(this, "Project Setup hit an error and stopped this action (Revit was kept open):\n\n" + e.Exception.Message +
-                                      "\n\nDetails are in the CausaFix log.", "CausaFix Project Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                      "\n\nDetails are in the CausaFixIt log.", "CausaFixIt Project Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception) { }
         }
@@ -46,7 +46,7 @@ namespace CausaFix.Addin.Modules.ProjectSetup
             if (ForceClose || Vm == null) return;
             if (Vm.IsBusy)
             {
-                MessageBox.Show(this, "Project Setup is working. Wait for it to finish.", "CausaFix Project Setup");
+                MessageBox.Show(this, "Project Setup is working. Wait for it to finish.", "CausaFixIt Project Setup");
                 e.Cancel = true;
             }
         }

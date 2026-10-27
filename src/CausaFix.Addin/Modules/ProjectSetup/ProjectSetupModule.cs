@@ -69,7 +69,7 @@ namespace CausaFix.Addin.Modules.ProjectSetup
                     window.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         window.ForceClose = true;
-                        MessageBox.Show(window, "The model '" + closing + "' is closing. Project Setup will close; the unsaved configuration is discarded (save a profile to keep it).", "CausaFix Project Setup");
+                        MessageBox.Show(window, "The model '" + closing + "' is closing. Project Setup will close; the unsaved configuration is discarded (save a profile to keep it).", "CausaFixIt Project Setup");
                         window.Close();
                     }));
                 };

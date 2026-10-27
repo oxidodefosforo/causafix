@@ -67,7 +67,7 @@ namespace CausaFix.Addin.Modules.ExcelLink
                     window.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         window.ForceClose = true;
-                        MessageBox.Show(window, "The model '" + title + "' is closing. Excel Link will close; pending edits that were not applied are discarded.", "CausaFix Excel Link");
+                        MessageBox.Show(window, "The model '" + title + "' is closing. Excel Link will close; pending edits that were not applied are discarded.", "CausaFixIt Excel Link");
                         window.Close();
                     }));
                 };

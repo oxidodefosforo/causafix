@@ -99,7 +99,7 @@ namespace CausaFix.Core.Reports
             Directory.CreateDirectory(folder);
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             string safeTitle = new string((documentTitle ?? "model").Select(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) >= 0 ? '_' : c).ToArray());
-            string path = Path.Combine(folder, "CausaFix-ExcelLink-" + safeTitle + "-" + stamp + ".csv");
+            string path = Path.Combine(folder, "CausaFixIt-ExcelLink-" + safeTitle + "-" + stamp + ".csv");
             File.WriteAllText(path, Build(documentTitle, set, result, units), new UTF8Encoding(true));
             return path;
         }
@@ -153,7 +153,7 @@ namespace CausaFix.Core.Reports
             Directory.CreateDirectory(folder);
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             string safeTitle = new string((documentTitle ?? "model").Select(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) >= 0 ? '_' : c).ToArray());
-            string path = Path.Combine(folder, "CausaFix-ImportDiagnostic-" + safeTitle + "-" + stamp + ".csv");
+            string path = Path.Combine(folder, "CausaFixIt-ImportDiagnostic-" + safeTitle + "-" + stamp + ".csv");
             var sb = new StringBuilder();
             void Row(params string[] cols) => sb.AppendLine(string.Join(",", cols.Select(Csv)));
             Row("CausaFixIt Excel Link – import diagnostic (nothing applied yet)");

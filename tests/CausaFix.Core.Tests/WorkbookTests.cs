@@ -377,7 +377,7 @@ namespace CausaFix.Core.Tests
             string all = string.Join("\n", set.Issues);
             Assert.Contains("without a key", all);
             Assert.Contains("Row key not found", all);
-            Assert.Contains("no CausaFix key", all);
+            Assert.Contains("no CausaFixIt key", all);
             Assert.Contains("visible ElementId was edited", all);
             Assert.Contains("no longer in the sheet", all);
         }

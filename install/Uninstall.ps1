@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Removes CausaFix for the current user (default) or for all users (-Scope Machine, needs administrator).
-  Only CausaFix files are removed. Profiles, settings, reports and logs of the current user are kept
+  Only CausaFixIt files are removed. Profiles, settings, reports and logs of the current user are kept
   unless -RemoveUserData is given.
 #>
 [CmdletBinding()]
@@ -61,4 +61,4 @@ if ($RemoveUserData) {
 } else {
     Write-Host "Profiles and settings kept in $(Join-Path $appData 'CausaFix'); reports and logs in $(Join-Path $localAppData 'CausaFix')."
 }
-Write-Host "CausaFix uninstalled ($Scope)." -ForegroundColor Cyan
+Write-Host "CausaFixIt uninstalled ($Scope)." -ForegroundColor Cyan

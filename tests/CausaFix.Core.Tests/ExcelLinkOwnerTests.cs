@@ -248,3 +248,30 @@ namespace CausaFix.Core.Tests
         }
     }
 }
+
+namespace CausaFix.Core.Tests
+{
+    using CausaFix.Core.Workbook;
+    using CausaFix.Core.Xlsx;
+
+    public static class BrandCompatibilityTests
+    {
+        /// <summary>A workbook exported by CausaFix (before the CausaFixIt name) imports and compares exactly as before.</summary>
+        [Test]
+        public static void WorkbookExportedUnderTheOldName_StillImports()
+        {
+            var pkg = TestData.LightingPackage();
+            var wb = WorkbookExporter.Build(pkg);
+            var meta = wb.Find(WorkbookSchema.MetaSheet);
+            bool patched = false;
+            foreach (var row in meta.Rows.ToList())
+                if (meta.GetText(row.Key, 1) == "tool") { meta.Set(row.Key, 2, XCell.Str("CausaFix Excel Link")); patched = true; }
+            Assert.True(patched, "tool metadata present");
+            wb = TestData.RoundTrip(wb);
+            var imp = WorkbookImporter.Read(wb, new FakeUnits(), new ImportOptions());
+            Assert.False(imp.Fatal, string.Join(" | ", imp.Issues.Select(i => i.Message)));
+            var set = TestData.Import(wb, FakeModel.From(pkg));
+            Assert.Equal(0, set.Entries.Count, "unchanged workbook: nothing to write");
+        }
+    }
+}

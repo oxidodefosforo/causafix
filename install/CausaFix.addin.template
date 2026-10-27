@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  CausaFix manifest. Install.ps1 writes one copy per Revit year to
+  CausaFixIt manifest (file name, AddInId and VendorId kept from CausaFix for in-place updates). Install.ps1 writes one copy per Revit year to
   %AppData%\Autodesk\Revit\Addins\<year>\CausaFix.addin with the absolute path of that year's binaries.
 -->
 <RevitAddIns>
   <AddIn Type="Application">
-    <Name>CausaFix</Name>
+    <Name>CausaFixIt</Name>
     <Assembly>{ASSEMBLY_PATH}</Assembly>
     <FullClassName>CausaFix.Addin.Bootstrap.App</FullClassName>
     <AddInId>6F2C7A54-3B8E-4D1A-9C5F-0CA05AF1C001</AddInId>
     <VendorId>CausaFix</VendorId>
-    <VendorDescription>CausaFix – tools for Revit</VendorDescription>
+    <VendorDescription>CausaFixIt – tools for Revit</VendorDescription>
   </AddIn>
 </RevitAddIns>

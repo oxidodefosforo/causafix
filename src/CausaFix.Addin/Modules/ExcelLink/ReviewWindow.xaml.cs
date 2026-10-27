@@ -23,7 +23,7 @@ namespace CausaFix.Addin.Modules.ExcelLink
         {
             if (Vm != null && Vm.IsBusy)
             {
-                MessageBox.Show(this, "Changes are being applied. Please wait.", "CausaFix");
+                MessageBox.Show(this, "Changes are being applied. Please wait.", "CausaFixIt");
                 e.Cancel = true;
                 return;
             }

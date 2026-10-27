@@ -10,10 +10,10 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <Deterministic>true</Deterministic>
-    <Company>CausaFix</Company>
-    <Product>CausaFix</Product>
-    <Copyright>CausaFix</Copyright>
-    <Version>0.1.0</Version>
+    <Company>CausaFixIt</Company>
+    <Product>CausaFixIt</Product>
+    <Copyright>CausaFixIt</Copyright>
+    <Version>0.2.0</Version>
     <PlatformTarget Condition="'$(PlatformTarget)' == ''">AnyCPU</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;NU1603</NoWarn>

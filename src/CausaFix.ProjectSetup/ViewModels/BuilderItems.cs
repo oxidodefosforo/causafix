@@ -188,7 +188,7 @@ namespace CausaFix.ProjectSetup.ViewModels
         private ComponentItem Wrap(NameComponent c)
         {
             string detail = c.Source == ComponentSource.Text ? "fixed text"
-                          : c.Source == ComponentSource.Field ? (NameFields.IsConfig(c.Field) ? "CausaFix field" : "computed by the plan")
+                          : c.Source == ComponentSource.Field ? (NameFields.IsConfig(c.Field) ? "CausaFixIt field" : "computed by the plan")
                           : "Revit parameter · " + (c.Param == null ? "" : ParamRef.ScopeLabel(c.Param.Scope) + " · " + c.Param.Kind.ToString().ToLowerInvariant());
             return new ComponentItem(c, detail, _changed);
         }

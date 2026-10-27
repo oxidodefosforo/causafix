@@ -51,7 +51,7 @@ namespace CausaFix.Revit
                 return "The active view does not support temporary isolate. Open a plan, section or 3D view.";
             var ids = HostIds(doc, uniqueIds, out int missing);
             if (ids.Count == 0) return "Nothing to isolate.";
-            using (var t = new Transaction(doc, "CausaFix: temporary isolate"))
+            using (var t = new Transaction(doc, "CausaFixIt: temporary isolate"))
             {
                 t.Start();
                 view.IsolateElementsTemporary(ids);
@@ -65,7 +65,7 @@ namespace CausaFix.Revit
         {
             View view = uidoc.ActiveView;
             if (view == null || !view.CanUseTemporaryVisibilityModes()) return "The active view has no temporary isolate.";
-            using (var t = new Transaction(uidoc.Document, "CausaFix: reset temporary isolate"))
+            using (var t = new Transaction(uidoc.Document, "CausaFixIt: reset temporary isolate"))
             {
                 t.Start();
                 view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);

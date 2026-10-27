@@ -22,6 +22,8 @@ namespace CausaFix.Addin.Bootstrap
         /// <summary>Icon drawn by Icons.Create (two or three letters + accent colour).</summary>
         public string IconGlyph { get; set; }
         public string IconColor { get; set; } = "#0E7C86";
+        /// <summary>Use the CausaFixIt logo instead of a drawn glyph (brand buttons such as About; tool buttons keep their own icons).</summary>
+        public bool BrandLogo { get; set; }
         /// <summary>Large (32 px) or small (16 px, stacked) button.</summary>
         public bool Large { get; set; } = true;
     }
@@ -41,7 +43,7 @@ namespace CausaFix.Addin.Bootstrap
 
     public static class ModuleRegistry
     {
-        public const string TabName = "CausaFix";
+        public const string TabName = "CausaFixIt";
 
         /// <summary>Registered modules, in ribbon order. Adding a tool = adding its module here.</summary>
         public static readonly IReadOnlyList<ICausaFixModule> Modules = new ICausaFixModule[]

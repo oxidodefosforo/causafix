@@ -59,15 +59,15 @@ namespace CausaFix.Revit.ProjectSetup
             if (rows.Count == 0) { result.Summary = "Nothing to run."; return result; }
 
             var failures = new Failures();
-            using (var group = new TransactionGroup(_doc, "CausaFix Project Setup (" + rows.Count + " rows)"))
+            using (var group = new TransactionGroup(_doc, "CausaFixIt Project Setup (" + rows.Count + " rows)"))
             {
                 group.Start();
-                bool ok = Step("CausaFix Setup: free names", failures, () => FreeNames(rows))
-                       && Step("CausaFix Setup: views", failures, () => { progress?.Report("Creating/updating views"); DoViews(rows); })
-                       && Step("CausaFix Setup: sheets", failures, () => { progress?.Report("Creating/updating sheets"); DoSheets(rows); })
-                       && Step("CausaFix Setup: viewports", failures, () => { progress?.Report("Placing viewports"); DoViewports(rows); })
-                       && Step("CausaFix Setup: alignment", failures, () => { progress?.Report("Aligning and verifying"); DoAlignment(rows); })
-                       && Step("CausaFix Setup: view titles", failures, () => { progress?.Report("Placing view titles"); DoTitles(rows); });
+                bool ok = Step("CausaFixIt Setup: free names", failures, () => FreeNames(rows))
+                       && Step("CausaFixIt Setup: views", failures, () => { progress?.Report("Creating/updating views"); DoViews(rows); })
+                       && Step("CausaFixIt Setup: sheets", failures, () => { progress?.Report("Creating/updating sheets"); DoSheets(rows); })
+                       && Step("CausaFixIt Setup: viewports", failures, () => { progress?.Report("Placing viewports"); DoViewports(rows); })
+                       && Step("CausaFixIt Setup: alignment", failures, () => { progress?.Report("Aligning and verifying"); DoAlignment(rows); })
+                       && Step("CausaFixIt Setup: view titles", failures, () => { progress?.Report("Placing view titles"); DoTitles(rows); });
 
                 result.RevitMessages.AddRange(failures.Messages);
                 if (ok && _failures.Count == 0)

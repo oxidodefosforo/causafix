@@ -56,7 +56,7 @@ namespace CausaFix.Revit.ProjectSetup
             Viewport vp;
             try
             {
-                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFix: pick the viewport whose title is correctly placed (Esc cancels)");
+                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFixIt: pick the viewport whose title is correctly placed (Esc cancels)");
                 vp = doc.GetElement(r.ElementId) as Viewport;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new TitlePick { Cancelled = true, Message = "Pick cancelled: nothing changed." }; }
@@ -111,8 +111,8 @@ namespace CausaFix.Revit.ProjectSetup
             var uidoc = app.ActiveUIDocument;
             try
             {
-                var r1 = uidoc.Selection.PickObject(ObjectType.Element, new GridFilter(), "CausaFix: pick the FIRST straight grid of the " + (second ? "second " : "") + "anchor");
-                var r2 = uidoc.Selection.PickObject(ObjectType.Element, new GridFilter(), "CausaFix: pick the SECOND straight grid");
+                var r1 = uidoc.Selection.PickObject(ObjectType.Element, new GridFilter(), "CausaFixIt: pick the FIRST straight grid of the " + (second ? "second " : "") + "anchor");
+                var r2 = uidoc.Selection.PickObject(ObjectType.Element, new GridFilter(), "CausaFixIt: pick the SECOND straight grid");
                 var g1 = doc.GetElement(r1.ElementId) as Grid;
                 var g2 = doc.GetElement(r2.ElementId) as Grid;
                 if (g1 == null || g2 == null || g1.Id == g2.Id) return new AnchorPick { Message = "Pick two different straight grids." };
@@ -148,7 +148,7 @@ namespace CausaFix.Revit.ProjectSetup
             if (view.SketchPlane == null) return new AnchorPick { Message = "The active plan has no work plane, so Revit cannot pick a point. Use a grid intersection, or set a work plane in the view first." };
             try
             {
-                XYZ p = uidoc.Selection.PickPoint("CausaFix: pick the " + (second ? "second " : "") + "model anchor point");
+                XYZ p = uidoc.Selection.PickPoint("CausaFixIt: pick the " + (second ? "second " : "") + "model anchor point");
                 return new AnchorPick
                 {
                     Ok = true,
@@ -166,7 +166,7 @@ namespace CausaFix.Revit.ProjectSetup
             Viewport vp;
             try
             {
-                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFix: pick the correctly placed reference viewport");
+                var r = uidoc.Selection.PickObject(ObjectType.Element, new ViewportFilter(), "CausaFixIt: pick the correctly placed reference viewport");
                 vp = doc.GetElement(r.ElementId) as Viewport;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return new ReferencePick { Message = "Pick cancelled." }; }
