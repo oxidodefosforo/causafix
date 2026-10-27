@@ -88,6 +88,29 @@ namespace CausaFix.Core.Compare
                 }
 
                 var cur = StateOf(cell);
+                if (cur.ElementExists && cur.OwnerMismatch && !cell.TargetIsType)
+                {
+                    if (set.RetargetWrongScope && cur.OwnerIsType == true && !string.IsNullOrEmpty(cur.OwnerUniqueId))
+                    {
+                        // Same parameter identity, real owner: the type. Visible in Review as a type target.
+                        var col = cell.Column.Clone();
+                        col.Key = cell.Column.Key.WithScope(ParamScope.Type);
+                        var moved = cell.WithTarget(cur.OwnerUniqueId, true, col);
+                        e = NewEntry(moved);
+                        e.ScopeNote = "Scope corrected: the workbook has this column as an instance parameter, but on '" + cur.TargetLabel +
+                                      "' Revit reports that the parameter belongs to its type '" + cur.OwnerLabel + "'. Compared and written on the type.";
+                        set.ScopeCorrectedCells++;
+                        cur = StateOf(moved);
+                    }
+                    else
+                    {
+                        e.State = cur;
+                        e.Current = cur.Value;
+                        Block(e, BlockCode.WrongScope, string.IsNullOrEmpty(cur.LockReason) ? "The parameter belongs to another element than the workbook's target." : cur.LockReason);
+                        pending.Add(e);
+                        continue;
+                    }
+                }
                 e.State = cur;
                 e.Current = cur.Value;
                 e.CurrentEditable = cur.Editable;
@@ -98,6 +121,8 @@ namespace CausaFix.Core.Compare
                     Block(e, BlockCode.MissingElement, "The element was not found in the model (deleted, or the workbook belongs to another model). Action: re-export from this model.");
                 else if (cur.Ambiguous)
                     Block(e, BlockCode.Ambiguous, "Several parameters on this element match the column key (same name and data type). CausaFix cannot tell which one to write.");
+                else if (cur.OwnerMismatch)
+                    Block(e, BlockCode.WrongScope, cur.LockReason);
                 else if (!cur.ParameterExists)
                     Block(e, BlockCode.MissingParameter, "The parameter was not found on the " + (cell.TargetIsType ? "type" : "element") + " any more (removed or renamed definition).");
                 else if (Matches(cur.Value, e))
@@ -123,11 +148,17 @@ namespace CausaFix.Core.Compare
                 {
                     e.Status = ChangeStatus.Change;
                     e.Include = true;
-                    e.Reason = cell.TargetIsType ? "Ready to write on the type (all its instances change)." : "Ready to write.";
+                    e.Reason = e.TargetIsType ? "Ready to write on the type (all its instances change)." : "Ready to write.";
                 }
+                if (!string.IsNullOrEmpty(e.ScopeNote)) e.Reason = e.Reason + " " + e.ScopeNote;
                 pending.Add(e);
             }
 
+            if (set.ScopeCorrectedCells > 0)
+                set.Issues.Add(new ImportIssue(IssueSeverity.Warning, "",
+                    set.ScopeCorrectedCells + " cell(s) come from columns this workbook exported as instance parameters, but Revit reports them as type parameters. " +
+                    "They are compared and written on the type (one value per type; different values in rows of the same type are a conflict). " +
+                    "Re-export the schedule to get a workbook with the correct scope."));
             Consolidate(set, pending);
             int id = 1;
             foreach (var e in set.Entries)
@@ -333,19 +364,28 @@ namespace CausaFix.Core.Compare
             if (e.Status == ChangeStatus.Blocked) sb.Append(" Code=").Append(e.Code);
             sb.Append(" | Target=").Append(e.TargetIsType ? "Type " : "Instance ").Append(e.TargetUniqueId ?? "(none)")
               .Append(" | Key=").Append(e.Key).Append(" (").Append(e.Key.Source).Append(", ").Append(e.Key.Scope).Append(')')
-              .Append(" | Column kind=").Append(e.Column?.Kind);
+              .Append(" | Column '").Append(e.Column?.Header).Append("' kind=").Append(e.Column?.Kind);
+            if (!string.IsNullOrEmpty(e.ScopeNote)) sb.Append(" | ").Append(e.ScopeNote);
             if (!string.IsNullOrEmpty(e.Column?.UnitTypeId)) sb.Append(" unit=").Append(e.Column.UnitTypeId);
             if (st != null)
             {
                 sb.Append(" | Revit: element=").Append(st.ElementExists ? "found" : "NOT found")
                   .Append(", parameter=").Append(st.Ambiguous ? "ambiguous" : st.ParameterExists ? "found '" + st.ParameterName + "'" : "NOT found");
+                if (!string.IsNullOrEmpty(st.OwnerUniqueId))
+                    sb.Append(", owner=").Append(st.OwnerIsType == true ? "type " : st.OwnerIsType == false ? "element " : "").Append('\'').Append(st.OwnerLabel).Append("' ").Append(st.OwnerUniqueId)
+                      .Append(st.OwnerMismatch ? " (NOT the requested element)" : "");
                 if (st.ParameterExists)
                 {
+                    sb.Append(", Definition.Name='").Append(st.ParameterName).Append('\'')
+                      .Append(", IsShared=").Append(Fmt(st.IsShared));
+                    if (!string.IsNullOrEmpty(st.ParameterGuid)) sb.Append(", GUID=").Append(st.ParameterGuid);
+                    if (!string.IsNullOrEmpty(st.Binding)) sb.Append(", binding=").Append(st.Binding);
                     sb.Append(", StorageType=").Append(st.StorageType)
                       .Append(", HasValue=").Append(Fmt(st.HasValue))
                       .Append(", IsReadOnly=").Append(Fmt(st.IsReadOnly))
                       .Append(", UserModifiable=").Append(Fmt(st.UserModifiable))
                       .Append(", writable=").Append(st.Editable ? "yes" : "no (" + st.LockCode + ": " + st.LockReason + ")");
+                    if (!string.IsNullOrEmpty(st.Evidence)) sb.Append(", checked: ").Append(st.Evidence);
                 }
             }
             else sb.Append(" | Revit state not queried (blocked before resolution)");

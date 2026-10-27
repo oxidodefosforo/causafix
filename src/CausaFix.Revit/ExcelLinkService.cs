@@ -197,7 +197,11 @@ namespace CausaFix.Revit
 
         /// <summary>Three-state comparison against the live model (API context; reads only).</summary>
         public Task<ChangeSet> Compare(IList<ProposedCell> cells, ChangeSet seed) => Run((app, doc) =>
-            ChangeSetBuilder.Build(cells, new CurrentStateReader(doc), seed));
+        {
+            seed = seed ?? new ChangeSet();
+            seed.Environment = "Revit " + app.Application.VersionNumber + " (" + app.Application.VersionBuild + ") · CausaFixIt " + BuildInfo.Text + " · " + BuildInfo.Location;
+            return ChangeSetBuilder.Build(cells, new CurrentStateReader(doc), seed);
+        });
 
         public Task<ApplyResult> Apply(IList<WriteOp> ops, ApplyMode mode, IUnitConverter units) => Run((app, doc) =>
             ApplyEngine.Apply(doc, ops, mode, units));

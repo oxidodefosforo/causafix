@@ -4,6 +4,7 @@ using System.Globalization;
 using Autodesk.Revit.DB;
 using CausaFix.Core.Compare;
 using CausaFix.Core.Model;
+using CausaFix.Core.Reports;
 using CausaFix.Core.Values;
 
 namespace CausaFix.Revit
@@ -294,56 +295,106 @@ namespace CausaFix.Revit
             }
         }
 
-        /// <summary>
-        /// Writes and verifies by reading back. Returns null on success, otherwise the failure reason.
-        /// Must be called inside an open transaction.
-        /// </summary>
-        public static string Write(Parameter p, bool clear, RawValue value)
+    }
+
+    /// <summary>
+    /// One parameter reference inside the apply transaction (see WriteVerifier). Uses the Set overload of the real
+    /// StorageType (text: Set(string), read with AsString; never SetValueString or numeric conversion) and reports
+    /// Revit's return value and exceptions with their full text. Regeneration only happens here, inside the open
+    /// transaction, and is followed by a fresh element + parameter lookup by identity.
+    /// </summary>
+    internal sealed class ParameterWriteTarget : IWriteTarget
+    {
+        private readonly Document _doc;
+        private readonly ParamOwner _owners;
+        private readonly string _uid;
+        private readonly ParamKey _key;
+        private Parameter _p;
+
+        public ParameterWriteTarget(Document doc, ParamOwner owners, string uid, ParamKey key, Parameter p)
         {
-            bool ok;
+            _doc = doc; _owners = owners; _uid = uid; _key = key; _p = p;
+        }
+
+        public RawValue Read() => ValueIO.ReadRaw(_p);
+
+        public bool Set(bool clear, RawValue value)
+        {
+            if (!_doc.IsModifiable) throw new WriteRejectedException(WriteFailure.SetFailed, "Set failed: no transaction is open.", "Document.IsModifiable = false at Set");
             try
             {
                 if (clear)
                 {
-                    if (p.StorageType == StorageType.String) ok = p.Set(string.Empty);
-                    else if (p.StorageType == StorageType.ElementId) ok = p.Set(ElementId.InvalidElementId);
-                    else ok = p.ClearValue();
-                    if (!ok) return "Revit does not allow clearing this parameter.";
-                    var after = ReadRaw(p);
-                    return after.IsEmpty ? null : "Revit kept a value after clearing (" + after + ").";
+                    if (_p.StorageType == StorageType.String) return _p.Set(string.Empty);
+                    if (_p.StorageType == StorageType.ElementId) return _p.Set(ElementId.InvalidElementId);
+                    return _p.ClearValue();
                 }
-                switch (p.StorageType)
+                switch (_p.StorageType)
                 {
                     case StorageType.String:
-                        if (value.Kind != RawKind.Text) return "Text expected.";
-                        ok = p.Set(value.Text);
-                        break;
+                        if (value.Kind != RawKind.Text) throw Invalid("Text expected.");
+                        return _p.Set(value.Text);
                     case StorageType.Integer:
-                        if (value.Kind != RawKind.Integer) return "Integer expected.";
-                        if (value.Integer < int.MinValue || value.Integer > int.MaxValue) return "Integer out of range.";
-                        ok = p.Set((int)value.Integer);
-                        break;
+                        if (value.Kind != RawKind.Integer) throw Invalid("Integer expected.");
+                        if (value.Integer < int.MinValue || value.Integer > int.MaxValue) throw Invalid("Integer out of range.");
+                        return _p.Set((int)value.Integer);
                     case StorageType.Double:
-                        if (value.Kind != RawKind.Double) return "Number expected.";
-                        ok = p.Set(value.Double);
-                        break;
+                        if (value.Kind != RawKind.Double) throw Invalid("Number expected.");
+                        return _p.Set(value.Double);
                     case StorageType.ElementId:
-                        if (value.Kind != RawKind.ElementId) return "Reference expected.";
-                        ok = p.Set(RevitCompat.Id(value.Integer));
-                        break;
+                        if (value.Kind != RawKind.ElementId) throw Invalid("Reference expected.");
+                        return _p.Set(RevitCompat.Id(value.Integer));
                     default:
-                        return "This parameter type cannot be written by CausaFix.";
+                        throw Invalid("This parameter type cannot be written by CausaFixIt.");
                 }
             }
-            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex) { return "Revit refused the change: " + ex.Message; }
-            catch (Autodesk.Revit.Exceptions.ArgumentException ex) { return "Revit refused the value: " + ex.Message; }
-            catch (Autodesk.Revit.Exceptions.ApplicationException ex) { return "Revit error: " + ex.GetType().Name + ": " + ex.Message; }
+            catch (WriteRejectedException) { throw; }
+            catch (Exception ex)
+            {
+                throw new WriteRejectedException(WriteFailure.SetFailed, "Set failed: Revit " + ex.GetType().Name + ": " + ex.Message, Full(ex));
+            }
+        }
 
-            if (!ok) return "Revit refused the change (Parameter.Set returned false).";
-            var back = ReadRaw(p);
-            if (!ValueComparer.AreEqual(back, value))
-                return "Revit stored a different value (" + back + ") – the value may be out of range or constrained.";
-            return null;
+        public RawValue RegenerateAndReadFresh()
+        {
+            try { _doc.Regenerate(); }
+            catch (Exception ex) { throw new WriteRejectedException(WriteFailure.NotPersisted, "Regenerate failed: " + ex.GetType().Name + ": " + ex.Message, Full(ex)); }
+            Element e = _doc.GetElement(_uid);
+            var r = e == null ? null : _owners.Resolve(e, _key);
+            if (r == null || !r.Found)
+                throw new WriteRejectedException(WriteFailure.NotPersisted, "after regenerating, the element/parameter could not be resolved again by its identity", r?.Evidence ?? "element not found");
+            _p = r.Parameter;
+            return ValueIO.ReadRaw(_p);
+        }
+
+        private static WriteRejectedException Invalid(string m) => new WriteRejectedException(WriteFailure.InvalidValue, m, m);
+
+        private static string Full(Exception ex)
+        {
+            string s = ex.GetType().FullName + ": " + ex.Message;
+            for (var i = ex.InnerException; i != null; i = i.InnerException) s += " / inner " + i.GetType().FullName + ": " + i.Message;
+            return s;
+        }
+    }
+
+    /// <summary>Version and commit of this build ("0.2.0 · commit abc1234"), from the assembly's InformationalVersion.</summary>
+    public static class BuildInfo
+    {
+        public static string Text
+        {
+            get
+            {
+                var asm = typeof(BuildInfo).Assembly;
+                var info = (System.Reflection.AssemblyInformationalVersionAttribute)Attribute.GetCustomAttribute(asm, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+                string v = info?.InformationalVersion ?? asm.GetName().Version?.ToString(3) ?? "0.0.0";
+                int plus = v.IndexOf('+');
+                return plus < 0 ? v + " · local build" : v.Substring(0, plus) + " · commit " + v.Substring(plus + 1, Math.Min(7, v.Length - plus - 1));
+            }
+        }
+
+        public static string Location
+        {
+            get { try { return typeof(BuildInfo).Assembly.Location; } catch (Exception) { return string.Empty; } }
         }
     }
 }

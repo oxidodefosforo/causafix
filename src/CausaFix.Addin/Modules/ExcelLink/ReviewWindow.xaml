@@ -146,10 +146,11 @@
                 <Button DockPanel.Dock="Right" Content="Open report" Command="{Binding OpenReportCommand}" VerticalAlignment="Top" />
                 <StackPanel>
                     <TextBlock Text="{Binding ResultSummary}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <DataGrid ItemsSource="{Binding ResultOps}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="150" Margin="0,4,0,0"
+                    <DataGrid ItemsSource="{Binding ResultOps}" SelectedItem="{Binding SelectedResult}" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="150" Margin="0,4,0,0"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="90" />
+                            <DataGridTextColumn Header="Failure" Binding="{Binding Failure}" Width="110" />
                             <DataGridTextColumn Header="Element" Binding="{Binding Label}" Width="220" />
                             <DataGridTextColumn Header="Parameter" Binding="{Binding Parameter}" Width="130" />
                             <DataGridTextColumn Header="Old" Binding="{Binding OldValue}" Width="110" />
@@ -157,6 +158,9 @@
                             <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>
+                    <!-- Full message and stage evidence of the selected result (also in Open report). -->
+                    <TextBox Text="{Binding SelectedResult.Detail, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                             MaxHeight="110" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0" AutomationProperties.Name="Result detail" />
                 </StackPanel>
             </DockPanel>
         </Border>

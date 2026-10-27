@@ -39,6 +39,14 @@ namespace CausaFix.Core.Reports
         public string NewValue { get; set; }
         public OpOutcome Outcome { get; set; }
         public string Message { get; set; } = string.Empty;
+        /// <summary>Kind of failure (None when applied).</summary>
+        public WriteFailure Failure { get; set; }
+        /// <summary>Stage-by-stage evidence (kept when the operation is rolled back).</summary>
+        public WriteTrace Trace { get; set; } = new WriteTrace();
+        public string Diagnostic => Trace?.ToText() ?? string.Empty;
+        /// <summary>Full text for the result panel: outcome, failure kind, message and evidence.</summary>
+        public string Detail => Outcome + (Failure == WriteFailure.None ? "" : " (" + Failure + ")") + ": " + Label + " / " + Parameter +
+                                (string.IsNullOrEmpty(Message) ? "" : Environment.NewLine + Message) + Environment.NewLine + Diagnostic;
     }
 
     public sealed class ApplyResult
@@ -51,6 +59,13 @@ namespace CausaFix.Core.Reports
         public List<OpResult> Ops { get; } = new List<OpResult>();
         /// <summary>Revit warnings/errors reported during commit.</summary>
         public List<string> RevitMessages { get; } = new List<string>();
+        /// <summary>Revit version, add-in build (version · commit) and document of this operation.</summary>
+        public string RevitVersion { get; set; } = string.Empty;
+        public string AddinBuild { get; set; } = string.Empty;
+        public string DocumentTitle { get; set; } = string.Empty;
+        /// <summary>Final status of the transaction and of the TransactionGroup (Committed, RolledBack…).</summary>
+        public string TransactionStatus { get; set; } = string.Empty;
+        public string GroupStatus { get; set; } = string.Empty;
 
         public int Applied => Ops.Count(o => o.Outcome == OpOutcome.Applied);
         public int Failed => Ops.Count(o => o.Outcome == OpOutcome.Failed);
@@ -69,6 +84,7 @@ namespace CausaFix.Core.Reports
                 if (o.Outcome == OpOutcome.Applied)
                 {
                     o.Outcome = OpOutcome.RolledBack;
+                    if (o.Failure == WriteFailure.None) o.Failure = WriteFailure.RolledBack;
                     o.Message = string.IsNullOrEmpty(o.Message) ? reason : o.Message + " " + reason;
                 }
             }
@@ -92,18 +108,20 @@ namespace CausaFix.Core.Reports
         {
             var sb = new StringBuilder();
             void Row(params string[] cols) => sb.AppendLine(string.Join(",", cols.Select(Csv)));
-            Row("CausaFix Excel Link – apply report");
+            Row("CausaFixIt Excel Link – apply report");
             Row("Model", documentTitle);
             Row("Started (UTC)", result.StartedUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
             Row("Mode", result.Mode.ToString());
+            Row("Revit", result.RevitVersion, "Add-in", result.AddinBuild, "Document", result.DocumentTitle);
+            Row("Transaction status", result.TransactionStatus, "Group status", result.GroupStatus);
             Row("Transaction", result.Committed ? "Committed" : "Rolled back / not committed – no change below marked RolledBack or Failed is in the model");
             Row("Applied", result.Applied.ToString(CultureInfo.InvariantCulture), "Failed", result.Failed.ToString(CultureInfo.InvariantCulture),
                 "Skipped", result.Skipped.ToString(CultureInfo.InvariantCulture), "Rolled back", result.RolledBack.ToString(CultureInfo.InvariantCulture));
             if (!string.IsNullOrEmpty(result.Summary)) Row("Summary", result.Summary);
             sb.AppendLine();
-            Row("Outcome", "Element", "UniqueId", "Parameter", "Old value", "New value", "Message");
+            Row("Outcome", "Failure", "Element", "UniqueId", "Parameter", "Old value", "New value", "Message", "Diagnostic (stages)");
             foreach (var o in result.Ops)
-                Row(o.Outcome.ToString(), o.Label, o.TargetUniqueId, o.Parameter, o.OldValue, o.NewValue, o.Message);
+                Row(o.Outcome.ToString(), o.Failure == WriteFailure.None ? "" : o.Failure.ToString(), o.Label, o.TargetUniqueId, o.Parameter, o.OldValue, o.NewValue, o.Message, o.Diagnostic);
 
             if (set != null)
             {
@@ -138,8 +156,9 @@ namespace CausaFix.Core.Reports
             string path = Path.Combine(folder, "CausaFix-ImportDiagnostic-" + safeTitle + "-" + stamp + ".csv");
             var sb = new StringBuilder();
             void Row(params string[] cols) => sb.AppendLine(string.Join(",", cols.Select(Csv)));
-            Row("CausaFix Excel Link – import diagnostic (nothing applied yet)");
+            Row("CausaFixIt Excel Link – import diagnostic (nothing applied yet)");
             Row("Model", documentTitle);
+            if (!string.IsNullOrEmpty(set.Environment)) Row("Environment", set.Environment);
             Row("Unchanged cells", set.UnchangedCells.ToString(CultureInfo.InvariantCulture), "Empty cells ignored", set.EmptyCellsIgnored.ToString(CultureInfo.InvariantCulture));
             sb.AppendLine();
             Row("Id", "Status", "Code", "Element / type", "Parameter", "Original", "Current", "Proposed", "Reason", "Sources", "Diagnostic");

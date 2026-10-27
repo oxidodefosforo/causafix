@@ -18,6 +18,7 @@ namespace Autodesk.Revit.ApplicationServices
     public class Application
     {
         public string VersionNumber => throw new NotImplementedException();
+        public string VersionBuild => throw new NotImplementedException();
     }
 }
 
@@ -140,6 +141,7 @@ namespace Autodesk.Revit.DB
     {
         public BuiltInParameter BuiltInParameter => throw X.N();
         public bool VariesAcrossGroups => throw X.N();
+        public ElementId Id => throw X.N();
     }
 
     public class Parameter : APIObject
@@ -162,7 +164,29 @@ namespace Autodesk.Revit.DB
         public bool Set(double v) => throw X.N();
         public bool Set(ElementId v) => throw X.N();
         public bool ClearValue() => throw X.N();
+        public Element Element => throw X.N();
+        public ElementId GetAssociatedGlobalParameter() => throw X.N();
     }
+
+    public abstract class Binding : APIObject { }
+    public abstract class ElementBinding : Binding { }
+    public class InstanceBinding : ElementBinding { }
+    public class TypeBinding : ElementBinding { }
+
+    public class DefinitionBindingMapIterator : APIObject
+    {
+        public Definition Key => throw X.N();
+        public object Current => throw X.N();
+        public bool MoveNext() => throw X.N();
+        public void Reset() => throw X.N();
+    }
+
+    public class DefinitionBindingMap : APIObject
+    {
+        public DefinitionBindingMapIterator ForwardIterator() => throw X.N();
+    }
+
+    public class BindingMap : DefinitionBindingMap { }
 
     public class ParameterSet : APIObject, IEnumerable
     {
@@ -465,6 +489,8 @@ namespace Autodesk.Revit.DB
         public Units GetUnits() => throw X.N();
         public ElementId GetDefaultElementTypeId(ElementTypeGroup g) => throw X.N();
         public void Regenerate() => throw X.N();
+        public BindingMap ParameterBindings => throw X.N();
+        public Autodesk.Revit.ApplicationServices.Application Application => throw X.N();
     }
 
     public abstract class ElementFilter : APIObject { }
@@ -518,6 +544,7 @@ namespace Autodesk.Revit.DB
         public TransactionStatus RollBack() => throw X.N();
         public FailureHandlingOptions GetFailureHandlingOptions() => throw X.N();
         public void SetFailureHandlingOptions(FailureHandlingOptions o) => throw X.N();
+        public string GetName() => throw X.N();
         public void Dispose() { }
     }
 

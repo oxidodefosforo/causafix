@@ -208,19 +208,21 @@ namespace CausaFix.Revit
             Document doc = DocumentOf(host, plan);
             bool linked = plan.LinkInstanceUniqueId != null;
             var access = new ParamAccess(doc);
+            var owners = new ParamOwner(doc);
             var rows = new List<RowData>(count);
             int end = Math.Min(plan.Ids.Count, start + count);
             for (int i = start; i < end; i++)
             {
                 Element e = doc.GetElement(RevitCompat.Id(plan.Ids[i]));
                 if (e == null) continue; // deleted between stages
-                rows.Add(ReadRow(doc, e, plan, linked, access, units));
+                rows.Add(ReadRow(doc, e, plan, linked, access, units, owners));
             }
             return rows;
         }
 
-        public static RowData ReadRow(Document doc, Element e, SheetPlan plan, bool linked, ParamAccess access, RevitUnits units)
+        public static RowData ReadRow(Document doc, Element e, SheetPlan plan, bool linked, ParamAccess access, RevitUnits units, ParamOwner owners = null)
         {
+            owners = owners ?? new ParamOwner(doc);
             var row = new RowData
             {
                 UniqueId = e.UniqueId,
@@ -257,15 +259,24 @@ namespace CausaFix.Revit
                 }
 
                 Element holder = plan.RowsAreTypes ? e : ParamIdentity.Holder(e, col.Scope);
-                var res = ParamIdentity.Resolve(holder, col.Key, out Parameter p);
-                if (res == ParamIdentity.Resolution.NotFound) { row.Cells[col.Key] = CellValue.NotApplicable(); continue; }
-                if (res == ParamIdentity.Resolution.Ambiguous)
+                var or = owners.Resolve(holder, col.Key);
+                if (or.Resolution == ParamIdentity.Resolution.Ambiguous || or.ScopeAmbiguous)
                 {
                     var amb = CellValue.NotApplicable();
-                    amb.LockReason = "Several parameters with the same name and data type on this element: ambiguous, not editable.";
+                    amb.LockReason = or.ScopeAmbiguous ? "Instance and type both expose this parameter (" + or.Evidence + "): ambiguous, not editable."
+                                                       : "Several parameters with the same name and data type on this element: ambiguous, not editable.";
                     row.Cells[col.Key] = amb;
                     continue;
                 }
+                if (or.Resolution == ParamIdentity.Resolution.NotFound || or.OwnerMismatch)
+                {
+                    // Not owned by this row's holder (e.g. it belongs to the type): N/A here, the other scope's column carries it.
+                    var na = CellValue.NotApplicable();
+                    if (or.OwnerMismatch) na.LockReason = "Owned by another element (" + or.Evidence + ").";
+                    row.Cells[col.Key] = na;
+                    continue;
+                }
+                Parameter p = or.Parameter;
                 var cell = ValueIO.Read(p, col, units, doc);
                 // Writability is decided per cell from the real parameter (never from the column or a sample).
                 var lockInfo = access.Lock(holder, p, linked);

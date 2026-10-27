@@ -51,6 +51,8 @@ namespace CausaFix.Addin.Modules.ExcelLink
                     return Result.Succeeded;
                 }
 
+                Services.Log.Info("Excel Link: command start (" + Services.LoadedBuild + ", Revit " + commandData.Application.Application.VersionNumber +
+                                  " " + commandData.Application.Application.VersionBuild + ")");
                 var dispatcher = new RevitDispatcher();
                 var service = new ExcelLinkService(dispatcher);
                 var window = new ExcelLinkWindow();

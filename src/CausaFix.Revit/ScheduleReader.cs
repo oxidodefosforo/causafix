@@ -147,38 +147,65 @@ namespace CausaFix.Revit
 
             var skipped = new List<string>();
             var seen = new HashSet<ParamKey>();
+            var owners = new ParamOwner(doc);
+            var corrected = new List<string>();
             foreach (ScheduleFieldId fid in def.GetFieldOrder())
             {
                 ScheduleField f = def.GetField(fid);
                 string heading = string.IsNullOrWhiteSpace(f.ColumnHeading) ? f.GetName() : f.ColumnHeading;
                 if (IsCalculated(f)) { skipped.Add(heading + " (calculated)"); continue; }
-                ParamScope scope;
-                if (f.FieldType == ScheduleFieldType.Instance) scope = ParamScope.Instance;
-                else if (f.FieldType == ScheduleFieldType.ElementType) scope = ParamScope.Type;
+                ParamScope fieldScope;
+                if (f.FieldType == ScheduleFieldType.Instance) fieldScope = ParamScope.Instance;
+                else if (f.FieldType == ScheduleFieldType.ElementType) fieldScope = ParamScope.Type;
                 else { skipped.Add(heading + " (" + f.FieldType + " field)"); continue; }
 
-                ParamKey key = KeyFromParameterId(doc, f.ParameterId, scope);
-                if (key == null) { skipped.Add(heading + " (no parameter)"); continue; }
-                if (!seen.Add(key)) continue;
+                ParamKey fieldKey = KeyFromParameterId(doc, f.ParameterId, fieldScope);
+                if (fieldKey == null) { skipped.Add(heading + " (no parameter)"); continue; }
 
-                ParameterInfo pinfo = null;
-                int editable = 0, applies = 0;
-                string reason = null;
+                // ScheduleFieldType.Instance is also used for shared TYPE parameters (API reference), so the field type does not
+                // identify the owner. The real scope is read on the scheduled elements: the element owns it, or its type does.
+                var byScope = new Dictionary<ParamScope, int>();
+                int ambiguous = 0;
                 foreach (var e in samples)
                 {
-                    Element holder = ParamIdentity.Holder(e, scope);
-                    if (ParamIdentity.Resolve(holder, key, out Parameter p) != ParamIdentity.Resolution.Found) continue;
-                    applies++;
-                    if (pinfo == null) pinfo = ParamIdentity.Describe(p, doc, scope);
-                    string r = ModelReader.ColumnLock(p);
-                    if (r == null) editable++; else reason = reason ?? r;
+                    ParamScope? real = fieldScope == ParamScope.Type ? (ParamScope?)ParamScope.Type : owners.RealScope(e, fieldKey);
+                    if (real == null) { if (owners.Resolve(e, fieldKey).ScopeAmbiguous) ambiguous++; continue; }
+                    byScope[real.Value] = byScope.TryGetValue(real.Value, out int n) ? n + 1 : 1;
                 }
-                if (pinfo == null) { skipped.Add(heading + " (not found on scheduled elements)"); continue; }
-                pinfo.Name = heading + (f.IsHidden ? " (hidden in schedule)" : "");
-                pinfo.ReadOnly = editable == 0;
-                pinfo.ReadOnlyReason = reason ?? string.Empty;
-                ds.Columns.Add(pinfo.ToColumn());
+                if (byScope.Count == 0)
+                {
+                    skipped.Add(heading + (ambiguous > 0 ? " (instance and type both expose it: ambiguous)" : " (not found on scheduled elements)"));
+                    continue;
+                }
+                bool both = byScope.Count > 1;
+                foreach (var scope in new[] { ParamScope.Instance, ParamScope.Type })
+                {
+                    if (!byScope.ContainsKey(scope)) continue;
+                    ParamKey key = fieldKey.WithScope(scope);
+                    if (!seen.Add(key)) continue;
+                    if (scope != fieldScope) corrected.Add(heading + (scope == ParamScope.Type ? " → type parameter" : " → instance parameter"));
+
+                    ParameterInfo pinfo = null;
+                    int editable = 0;
+                    string reason = null;
+                    foreach (var e in samples)
+                    {
+                        Element holder = ParamIdentity.Holder(e, scope);
+                        var r = owners.Resolve(holder, key);
+                        if (!r.Found) continue;
+                        if (pinfo == null) pinfo = ParamIdentity.Describe(r.Parameter, doc, scope);
+                        string lockReason = ModelReader.ColumnLock(r.Parameter);
+                        if (lockReason == null) editable++; else reason = reason ?? lockReason;
+                    }
+                    if (pinfo == null) continue;
+                    pinfo.Name = heading + (both ? (scope == ParamScope.Type ? " (type)" : " (instance)") : "") + (f.IsHidden ? " (hidden in schedule)" : "");
+                    pinfo.ReadOnly = editable == 0;
+                    pinfo.ReadOnlyReason = reason ?? string.Empty;
+                    ds.Columns.Add(pinfo.ToColumn());
+                }
             }
+            if (corrected.Count > 0)
+                ds.Notes.Add("Scope read from the elements (schedules report shared type parameters as instance fields): " + string.Join(", ", corrected) + ".");
             if (skipped.Count > 0) ds.Notes.Add("Fields not exported in data mode: " + string.Join(", ", skipped) + ".");
             return plan;
         }

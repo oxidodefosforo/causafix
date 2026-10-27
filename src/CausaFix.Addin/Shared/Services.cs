@@ -22,6 +22,17 @@ namespace CausaFix.Addin.Shared
         public static readonly FileLog Log = new FileLog(Paths.LogsFolder);
 
         public static string Version => typeof(Services).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        /// <summary>"CausaFixIt 0.2.0 · commit abc1234, built 2026-10-27 10:00, loaded from C:\…\CausaFix.Addin.dll" – identifies the DLL Revit really loaded.</summary>
+        public static string LoadedBuild
+        {
+            get
+            {
+                string loc = string.Empty, built = string.Empty;
+                try { loc = typeof(Services).Assembly.Location; built = File.GetLastWriteTime(loc).ToString("yyyy-MM-dd HH:mm"); } catch (Exception) { }
+                return "CausaFixIt " + Build + ", built " + built + ", loaded from " + loc;
+            }
+        }
+
         /// <summary>Version and commit of this build ("0.1.0 · commit 041f2ed"), from the assembly's InformationalVersion.</summary>
         public static string Build
         {

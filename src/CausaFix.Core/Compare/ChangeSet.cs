@@ -40,6 +40,16 @@ namespace CausaFix.Core.Compare
         public RawValue Original { get; set; }
         public Proposal Proposal { get; set; }
 
+        /// <summary>Copy of this cell aimed at another owner (scope correction of older workbooks).</summary>
+        public ProposedCell WithTarget(string targetUniqueId, bool targetIsType, ColumnDef column)
+        {
+            var c = (ProposedCell)MemberwiseClone();
+            c.TargetUniqueId = targetUniqueId;
+            c.TargetIsType = targetIsType;
+            c.Column = column;
+            return c;
+        }
+
         public string Location => ExcelRow > 0 ? "'" + SheetTitle + "' row " + ExcelRow + (string.IsNullOrEmpty(ExcelColumn) ? "" : ", column " + ExcelColumn) : SheetTitle;
     }
 
@@ -65,6 +75,18 @@ namespace CausaFix.Core.Compare
         public bool? UserModifiable { get; set; }
         /// <summary>Human readable current value (e.g. reference name).</summary>
         public string Display { get; set; } = string.Empty;
+        /// <summary>Element that really owns the resolved Parameter (Parameter.Element), and whether it is an element type.</summary>
+        public string OwnerUniqueId { get; set; } = string.Empty;
+        public string OwnerLabel { get; set; } = string.Empty;
+        public bool? OwnerIsType { get; set; }
+        /// <summary>The parameter was found through the requested element but belongs to another one (e.g. its type).</summary>
+        public bool OwnerMismatch { get; set; }
+        public bool? IsShared { get; set; }
+        public string ParameterGuid { get; set; } = string.Empty;
+        /// <summary>Project binding of the definition (InstanceBinding / TypeBinding / none: defined in the family).</summary>
+        public string Binding { get; set; } = string.Empty;
+        /// <summary>Relations checked through the API (global parameter association…), or what could not be checked.</summary>
+        public string Evidence { get; set; } = string.Empty;
 
         public static CurrentState Missing() => new CurrentState { ElementExists = false, Value = RawValue.NotApplicable, LockCode = BlockCode.MissingElement };
     }
@@ -94,7 +116,9 @@ namespace CausaFix.Core.Compare
         /// <summary>One of the edited proposals for this destination is invalid: no write for the group.</summary>
         GroupError,
         /// <summary>Workbook metadata cannot be matched safely.</summary>
-        MetadataMismatch
+        MetadataMismatch,
+        /// <summary>The workbook's scope does not match the real owner of the parameter (e.g. a type parameter exported as instance).</summary>
+        WrongScope
     }
 
     public interface ICurrentStateSource
@@ -147,6 +171,11 @@ namespace CausaFix.Core.Compare
         public List<ProposedCell> Sources { get; } = new List<ProposedCell>();
         /// <summary>For ProposalConflict: the distinct proposals (value, clear) to choose from.</summary>
         public List<Proposal> Alternatives { get; } = new List<Proposal>();
+        /// <summary>
+        /// Set when the workbook's scope was corrected to the parameter's real owner (an older workbook exported a type
+        /// parameter as an instance column): the entry targets the type and is shown and approved as such.
+        /// </summary>
+        public string ScopeNote { get; internal set; } = string.Empty;
 
         public bool CanInclude => (Status == ChangeStatus.Change || Status == ChangeStatus.Conflict) && CurrentEditable;
         public bool WillWrite => Include && CanInclude;
@@ -179,6 +208,17 @@ namespace CausaFix.Core.Compare
         /// <summary>Unique destinations (document + owner + parameter) that will be written.</summary>
         public int WriteTargets => Entries.Count(e => e.WillWrite);
         public int EmptyCellsIgnored { get; internal set; }
+
+        /// <summary>
+        /// Older workbooks may hold a type parameter as an instance column (schedules report shared type parameters
+        /// as instance fields). True: such cells are compared and written on the real owner (the type), visibly, with
+        /// the type rules (one write per type, conflicts between rows). False: they are blocked as WrongScope.
+        /// </summary>
+        public bool RetargetWrongScope { get; set; } = true;
+        /// <summary>Revit version, add-in build and loaded DLL path of the comparison (diagnostics).</summary>
+        public string Environment { get; set; } = string.Empty;
+        /// <summary>Cells whose scope was corrected to the real owner (see <see cref="RetargetWrongScope"/>).</summary>
+        public int ScopeCorrectedCells { get; internal set; }
 
         public int Count(ChangeStatus s) => Entries.Count(e => e.Status == s);
         public IEnumerable<ChangeEntry> ToWrite => Entries.Where(e => e.WillWrite);

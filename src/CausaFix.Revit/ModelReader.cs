@@ -209,6 +209,10 @@ namespace CausaFix.Revit
                 foreach (Parameter p in holder.GetOrderedParameters())
                 {
                     if (p?.Definition == null || p.StorageType == StorageType.None) continue;
+                    // Only parameters the holder really owns: a parameter reported through an element but owned by
+                    // another one (Parameter.Element) is listed with its owner's scope, never as this holder's.
+                    Element owner = ParamOwner.OwnerOf(p);
+                    if (owner != null && !owner.Id.Equals(holder.Id)) continue;
                     var key = ParamIdentity.KeyOf(p, doc, scope);
                     if (key == null) continue;
                     if (!infos.TryGetValue(key, out var info))
