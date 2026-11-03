@@ -82,10 +82,10 @@ namespace CausaFix.ProjectCleanup.Execution
         /// <summary>Binds the active document and reads its documentation (read-only).</summary>
         Task<CleanupCatalog> Analyze();
         /// <summary>
-        /// Re-reads the active document, rebuilds the plan and runs it only when its signature equals
+        /// Re-reads the active document, rebuilds the plan with <c>options</c> and runs it only when its signature equals
         /// <paramref name="approvedSignature"/>; otherwise returns Stale with the new catalog and changes nothing.
         /// </summary>
-        Task<CleanupResult> Execute(string approvedSignature);
+        Task<CleanupResult> Execute(string approvedSignature, CleanupOptions options);
     }
 
     /// <summary>

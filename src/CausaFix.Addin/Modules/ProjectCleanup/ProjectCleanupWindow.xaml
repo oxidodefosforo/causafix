@@ -43,6 +43,22 @@
             <Border Background="#E8F3EA" BorderBrush="#7DB58A" BorderThickness="1" CornerRadius="3" Padding="10,6">
                 <TextBlock Text="{Binding KeptView}" FontSize="15" FontWeight="SemiBold" Foreground="#1E4D2B" TextWrapping="Wrap" AutomationProperties.Name="Vista conservada" />
             </Border>
+            <!-- Optional extras: off by default; each change rebuilds the review (nothing is deleted until the button). -->
+            <WrapPanel Margin="0,8,0,0">
+                <TextBlock Text="Borrar también:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <CheckBox IsChecked="{Binding DeleteCad}" Margin="0,0,16,0" VerticalAlignment="Center"
+                          ToolTip="CAD vinculados e importados (CADLinkType con todas sus instancias). Los archivos DWG/DGN no se tocan.">
+                    <TextBlock><Run Text="CAD (vinculados e importados) " /><Run Text="{Binding CadAvailable, Mode=OneWay}" Foreground="#6B7680" /></TextBlock>
+                </CheckBox>
+                <CheckBox IsChecked="{Binding DeleteRevitLinks}" Margin="0,0,16,0" VerticalAlignment="Center"
+                          ToolTip="Quita los vínculos de Revit (RevitLinkType con sus instancias y vínculos anidados). Los archivos .rvt no se tocan.">
+                    <TextBlock><Run Text="Vínculos de Revit " /><Run Text="{Binding LinksAvailable, Mode=OneWay}" Foreground="#6B7680" /></TextBlock>
+                </CheckBox>
+                <CheckBox IsChecked="{Binding DeleteImages}" VerticalAlignment="Center"
+                          ToolTip="Imágenes raster (ImageType con todas sus instancias en vistas y planos).">
+                    <TextBlock><Run Text="Imágenes " /><Run Text="{Binding ImagesAvailable, Mode=OneWay}" Foreground="#6B7680" /></TextBlock>
+                </CheckBox>
+            </WrapPanel>
             <TextBlock Text="{Binding CountsText}" FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap" />
             <TextBlock Text="{Binding BlockedReason}" Foreground="#B00020" FontWeight="SemiBold" TextWrapping="Wrap"
                        Visibility="{Binding BlockedReason, Converter={StaticResource TextToVis}}" />
@@ -130,7 +146,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap"
-                               Text="No se ejecuta Purge Unused ni se borran niveles, ejes, elementos del modelo, familias, vínculos, paneles, circuitos ni materiales. Las plantillas de vista y de panel schedule se conservan. El borrado es atómico y queda como un solo Deshacer; el modelo no se guarda ni se sincroniza." />
+                               Text="No se ejecuta Purge Unused ni se borran niveles, ejes, elementos del modelo, familias, paneles, circuitos ni materiales. CAD, vínculos de Revit e imágenes solo se eliminan si marcas su opción (sus archivos externos nunca se tocan); los que tienen una instancia en la vista activa o en una vista conservada se mantienen. Las plantillas de vista y de panel schedule se conservan. El borrado es atómico y queda como un solo Deshacer; el modelo no se guarda ni se sincroniza." />
                 </StackPanel>
             </ScrollViewer>
         </Grid>

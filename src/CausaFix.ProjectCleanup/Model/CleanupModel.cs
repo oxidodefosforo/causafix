@@ -16,7 +16,26 @@ namespace CausaFix.ProjectCleanup.Model
         /// <summary>ViewType.Legend.</summary>
         Legend,
         /// <summary>PanelScheduleView (documentation; the panel and its circuits are model elements and stay).</summary>
-        PanelSchedule
+        PanelSchedule,
+        /// <summary>Linked CAD (CADLinkType that is an external file reference) with its ImportInstances. Option.</summary>
+        CadLink,
+        /// <summary>Imported CAD (CADLinkType that is not a link) with its ImportInstances. Option.</summary>
+        CadImport,
+        /// <summary>Revit link (RevitLinkType) with its RevitLinkInstances. Option.</summary>
+        RevitLink,
+        /// <summary>Raster image (ImageType) with its ImageInstances. Option.</summary>
+        Image
+    }
+
+    /// <summary>Optional, explicit extras of the cleanup (off by default).</summary>
+    public sealed class CleanupOptions
+    {
+        public bool DeleteCad { get; set; }
+        public bool DeleteRevitLinks { get; set; }
+        public bool DeleteImages { get; set; }
+        public bool Includes(DocKind k) => k == DocKind.CadLink || k == DocKind.CadImport ? DeleteCad : k == DocKind.RevitLink ? DeleteRevitLinks : k == DocKind.Image ? DeleteImages : true;
+        public static bool IsExternal(DocKind k) => k == DocKind.CadLink || k == DocKind.CadImport || k == DocKind.RevitLink || k == DocKind.Image;
+        public string Key => (DeleteCad ? "C" : "-") + (DeleteRevitLinks ? "L" : "-") + (DeleteImages ? "I" : "-");
     }
 
     /// <summary>One documentation element of the active document (DTO read in API context).</summary>
@@ -52,6 +71,11 @@ namespace CausaFix.ProjectCleanup.Model
         /// <summary>Open in a Revit window (it is closed before deleting).</summary>
         public bool IsOpen { get; set; }
         public bool IsStartingView { get; set; }
+        /// <summary>CAD / links / images: instances deleted with the type, and the views that own them (view-specific placements).</summary>
+        public List<long> InstanceIds { get; set; } = new List<long>();
+        public List<long> InstanceOwnerViewIds { get; set; } = new List<long>();
+        /// <summary>Links: file path or "not loaded" (information).</summary>
+        public string Detail { get; set; } = string.Empty;
 
         public string Display => (Kind == DocKind.Sheet && !string.IsNullOrEmpty(SheetNumber) ? SheetNumber + " - " : "") + Name;
     }

@@ -245,11 +245,11 @@ namespace CausaFix.Core.Tests
             public int Executions, Analyses;
             public string LastSignature;
             public Task<CleanupCatalog> Analyze() { Analyses++; return Task.FromResult(Catalog); }
-            public Task<CleanupResult> Execute(string sig)
+            public Task<CleanupResult> Execute(string sig, CleanupOptions options)
             {
                 Executions++; LastSignature = sig;
                 var live = Next ?? Catalog;
-                var plan = CleanupPlanner.Build(live);
+                var plan = CleanupPlanner.Build(live, options);
                 if (plan.Signature != sig) { Catalog = live; return Task.FromResult(new CleanupResult { Stale = true, NewCatalog = live }); }
                 var res = new CleanupResult { DocumentTitle = live.DocumentTitle, KeptView = live.ActiveName };
                 var run = CleanupRunner.Run(plan, HostFor(plan), null, Documentary, res);
@@ -308,6 +308,92 @@ namespace CausaFix.Core.Tests
                 Assert.False(vm.DeleteCommand.CanExecute(null));
             }
             finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
+    }
+}
+
+namespace CausaFix.Core.Tests
+{
+    using System.Linq;
+    using CausaFix.ProjectCleanup.Execution;
+    using CausaFix.ProjectCleanup.Model;
+    using CausaFix.ProjectCleanup.Planning;
+
+    /// <summary>Optional deletion of CAD (linked/imported), Revit links and images.</summary>
+    public static class ProjectCleanupExternalTests
+    {
+        private static CleanupCatalog Doc()
+        {
+            var c = new CleanupCatalog { DocumentKey = "d", ActiveViewId = 1, ActiveUniqueId = "u1", ActiveName = "3D" };
+            c.Items.Add(new DocItem { Id = 1, UniqueId = "u1", Name = "3D", Kind = DocKind.View });
+            c.Items.Add(new DocItem { Id = 2, UniqueId = "u2", Name = "L01", Kind = DocKind.View });
+            c.Items.Add(new DocItem { Id = 60, UniqueId = "u60", Name = "Base.dwg", Kind = DocKind.CadLink, InstanceIds = { 61, 62 }, InstanceOwnerViewIds = { 2 } });
+            c.Items.Add(new DocItem { Id = 63, UniqueId = "u63", Name = "Detalle.dwg", Kind = DocKind.CadImport, InstanceIds = { 64 }, InstanceOwnerViewIds = { 1 } });   // in the active view
+            c.Items.Add(new DocItem { Id = 70, UniqueId = "u70", Name = "ARQ.rvt", Kind = DocKind.RevitLink, InstanceIds = { 71, 72, 73 } });                            // 72 = nested type, 73 its instance
+            c.Items.Add(new DocItem { Id = 80, UniqueId = "u80", Name = "Logo.png", Kind = DocKind.Image, InstanceIds = { 81 }, InstanceOwnerViewIds = { 2 } });
+            return c;
+        }
+
+        [Test]
+        public static void OffByDefault_NotTouched_AndReported()
+        {
+            var p = CleanupPlanner.Build(Doc());
+            Assert.False(p.Entries.Any(e => CleanupOptions.IsExternal(e.Item.Kind)), "CAD, links and images are not in the review unless asked");
+            Assert.Equal(1, p.DeleteCount);
+            Assert.True(p.Notes.Any(n => n.Contains("vínculo(s) de Revit no se tocan")));
+            Assert.True(p.Notes.Any(n => n.Contains("imagen(es) no se tocan")));
+        }
+
+        [Test]
+        public static void Options_AddThemToTheReview_InstanceInKeptViewProtects_SignatureChanges()
+        {
+            var off = CleanupPlanner.Build(Doc());
+            var on = CleanupPlanner.Build(Doc(), new CleanupOptions { DeleteCad = true, DeleteRevitLinks = true, DeleteImages = true });
+            Assert.False(off.Signature == on.Signature, "options are part of the reviewed scope");
+            Assert.Equal(PlanAction.Delete, on.Entries.Single(e => e.Item.Id == 60).Action);
+            Assert.Equal(PlanAction.Protected, on.Entries.Single(e => e.Item.Id == 63).Action, "imported CAD placed in the active view stays");
+            Assert.Contains("vista activa", on.Entries.Single(e => e.Item.Id == 63).Reason);
+            Assert.Equal(PlanAction.Delete, on.Entries.Single(e => e.Item.Id == 70).Action);
+            Assert.Equal(PlanAction.Delete, on.Entries.Single(e => e.Item.Id == 80).Action);
+            var order = on.ToDelete.Select(e => e.Item.Id).ToList();
+            Assert.True(order.IndexOf(2) < order.IndexOf(80) && order.IndexOf(80) < order.IndexOf(60) && order.IndexOf(60) < order.IndexOf(70), "views first, then images, CAD, links");
+            Assert.True(on.Consequences.Any(c => c.Contains("instancia(s) de CAD, vínculos o imágenes")));
+            Assert.True(on.Consequences.Any(c => c.Contains("Copy/Monitor")));
+            var only = CleanupPlanner.Build(Doc(), new CleanupOptions { DeleteImages = true });
+            Assert.True(only.Entries.Any(e => e.Item.Kind == DocKind.Image) && !only.Entries.Any(e => e.Item.Kind == DocKind.RevitLink || e.Item.Kind == DocKind.CadLink), "each option is independent");
+        }
+
+        [Test]
+        public static void ViewModel_TogglingAnOption_RebuildsTheReview_AndExecuteUsesIt()
+        {
+            var gw = new Gw();
+            var vm = new CausaFix.ProjectCleanup.ViewModels.ProjectCleanupViewModel(gw, new NoDialogs(), System.IO.Path.GetTempPath());
+            vm.InitializeAsync().GetAwaiter().GetResult();
+            Assert.Contains("Se eliminarán: 1 vista(s)", vm.CountsText);
+            vm.DeleteRevitLinks = true;
+            Assert.Contains("1 vínculo(s) de Revit", vm.CountsText);
+            Assert.Equal("(1 en el modelo)", vm.LinksAvailable);
+            vm.DeleteCommand.ExecuteAsync().GetAwaiter().GetResult();
+            Assert.True(gw.LastOptions != null && gw.LastOptions.DeleteRevitLinks && !gw.LastOptions.DeleteCad, "the reviewed options reach Revit");
+            Assert.Equal(CleanupPlanner.Build(Doc(), gw.LastOptions).Signature, gw.LastSignature);
+        }
+
+        private sealed class Gw : ICleanupGateway
+        {
+            public CleanupOptions LastOptions; public string LastSignature;
+            public System.Threading.Tasks.Task<CleanupCatalog> Analyze() => System.Threading.Tasks.Task.FromResult(Doc());
+            public System.Threading.Tasks.Task<CleanupResult> Execute(string sig, CleanupOptions o)
+            {
+                LastOptions = o; LastSignature = sig;
+                return System.Threading.Tasks.Task.FromResult(new CleanupResult { Committed = true, Summary = "ok" });
+            }
+        }
+
+        private sealed class NoDialogs : CausaFix.ProjectCleanup.ViewModels.ICleanupDialogs
+        {
+            public void Info(string t, string m) { }
+            public void Error(string t, string m) { }
+            public void OpenWithShell(string p) { }
         }
     }
 }

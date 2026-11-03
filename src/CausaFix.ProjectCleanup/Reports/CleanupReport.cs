@@ -31,6 +31,10 @@ namespace CausaFix.ProjectCleanup.Reports
                 case DocKind.Schedule: return "Schedule";
                 case DocKind.Legend: return "Leyenda";
                 case DocKind.PanelSchedule: return "Panel schedule";
+                case DocKind.CadLink: return "CAD vinculado";
+                case DocKind.CadImport: return "CAD importado";
+                case DocKind.RevitLink: return "Vínculo Revit";
+                case DocKind.Image: return "Imagen";
                 default: return "Vista";
             }
         }
@@ -63,7 +67,10 @@ namespace CausaFix.ProjectCleanup.Reports
             sb.AppendLine();
             Row("Eliminado", "Vistas", r.Deleted(DocKind.View).ToString(CultureInfo.InvariantCulture), "Planos", r.Deleted(DocKind.Sheet).ToString(CultureInfo.InvariantCulture),
                 "Schedules", r.Deleted(DocKind.Schedule).ToString(CultureInfo.InvariantCulture), "Leyendas", r.Deleted(DocKind.Legend).ToString(CultureInfo.InvariantCulture),
-                "Panel schedules", r.Deleted(DocKind.PanelSchedule).ToString(CultureInfo.InvariantCulture));
+                "Panel schedules", r.Deleted(DocKind.PanelSchedule).ToString(CultureInfo.InvariantCulture),
+                "CAD", (r.Deleted(DocKind.CadLink) + r.Deleted(DocKind.CadImport)).ToString(CultureInfo.InvariantCulture),
+                "Vínculos Revit", r.Deleted(DocKind.RevitLink).ToString(CultureInfo.InvariantCulture), "Imágenes", r.Deleted(DocKind.Image).ToString(CultureInfo.InvariantCulture));
+            if (plan != null) Row("Opciones", "CAD " + (plan.Options.DeleteCad ? "sí" : "no"), "Vínculos Revit " + (plan.Options.DeleteRevitLinks ? "sí" : "no"), "Imágenes " + (plan.Options.DeleteImages ? "sí" : "no"));
             foreach (var d in r.Dependents.OrderByDescending(x => x.Value)) Row("Dependiente eliminado", d.Key, d.Value.ToString(CultureInfo.InvariantCulture));
             foreach (var c in r.ClosedViews) Row("Ventana cerrada", c);
             sb.AppendLine();

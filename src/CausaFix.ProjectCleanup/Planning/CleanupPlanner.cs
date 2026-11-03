@@ -30,6 +30,7 @@ namespace CausaFix.ProjectCleanup.Planning
     public sealed class CleanupPlan
     {
         public CleanupCatalog Catalog { get; set; }
+        public CleanupOptions Options { get; set; } = new CleanupOptions();
         public List<PlanEntry> Entries { get; } = new List<PlanEntry>();
         public List<string> Consequences { get; } = new List<string>();
         public List<string> Notes { get; } = new List<string>();
@@ -62,13 +63,16 @@ namespace CausaFix.ProjectCleanup.Planning
     {
         public const string SingleViewTip = "Para una limpieza que deje una sola vista de usuario, ejecuta la herramienta desde una vista independiente (por ejemplo, una vista 3D).";
 
-        public static CleanupPlan Build(CleanupCatalog cat)
+        public static CleanupPlan Build(CleanupCatalog cat, CleanupOptions options = null)
         {
-            var plan = new CleanupPlan { Catalog = cat };
+            options = options ?? new CleanupOptions();
+            var plan = new CleanupPlan { Catalog = cat, Options = options };
             if (cat.IsFamilyDocument) plan.BlockedReason = "Project Cleanup trabaja en documentos de proyecto, no en familias.";
             else if (cat.IsReadOnly) plan.BlockedReason = "El documento es de solo lectura: no se puede eliminar nada.";
 
-            var byId = cat.Items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
+            // CAD, links and images take part only when their option is on (otherwise they are not touched at all).
+            var items = cat.Items.Where(i => options.Includes(i.Kind)).ToList();
+            var byId = items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
             var reasons = new Dictionary<long, (PlanAction action, string reason)>();
             void Mark(long id, PlanAction a, string why)
             {
@@ -88,7 +92,7 @@ namespace CausaFix.ProjectCleanup.Planning
             }
 
             // 2. Elements Revit or worksharing does not let us delete.
-            foreach (var i in cat.Items)
+            foreach (var i in items)
             {
                 if (reasons.ContainsKey(i.Id)) continue;
                 if (!string.IsNullOrEmpty(i.LockReason)) Mark(i.Id, PlanAction.Kept, "Worksharing: " + i.LockReason);
@@ -97,7 +101,7 @@ namespace CausaFix.ProjectCleanup.Planning
 
             // A sheet that cannot be edited (worksharing) keeps what is placed on it: deleting a placed view or schedule
             // would remove its viewport/placement from that sheet, which needs the sheet to be editable.
-            foreach (var s in cat.Items.Where(i => i.Kind == DocKind.Sheet && !string.IsNullOrEmpty(i.LockReason)).ToList())
+            foreach (var s in items.Where(i => i.Kind == DocKind.Sheet && !string.IsNullOrEmpty(i.LockReason)).ToList())
                 foreach (long v in s.PlacedViewIds.Concat(s.PlacedScheduleIds).Concat(s.PlacedPanelScheduleIds))
                     if (!reasons.ContainsKey(v)) Mark(v, PlanAction.Kept, "Colocada en el plano " + s.Display + ", que no se puede editar (worksharing).");
 
@@ -119,10 +123,21 @@ namespace CausaFix.ProjectCleanup.Planning
                 }
             }
 
-            // 4. Entries and delete order.
+            // CAD / images placed in a preserved view (view-specific instance) stay: the preserved view keeps its content.
+            var preservedViews = new HashSet<long>(reasons.Keys) { cat.ActiveViewId };
+            foreach (var i in items.Where(i => CleanupOptions.IsExternal(i.Kind)))
+            {
+                if (reasons.ContainsKey(i.Id)) continue;
+                long owner = i.InstanceOwnerViewIds.FirstOrDefault(preservedViews.Contains);
+                if (owner != 0)
+                    Mark(i.Id, PlanAction.Protected, "Tiene una instancia colocada en " + (owner == cat.ActiveViewId ? "la vista activa" : "'" + (byId.TryGetValue(owner, out var ov) ? ov.Display : owner.ToString(CultureInfo.InvariantCulture)) + "', que se conserva") + ".");
+            }
+
+            // 4. Entries and delete order (CAD, links and images last: view-specific ones may already be gone with their views).
             int order = 0;
-            int Rank(DocItem i) => i.Kind == DocKind.Sheet ? 0 : i.Kind == DocKind.View && i.PrimaryViewId != 0 ? 1 : i.Kind == DocKind.View ? 2 : i.Kind == DocKind.Legend ? 3 : i.Kind == DocKind.Schedule ? 4 : 5;
-            foreach (var i in cat.Items.OrderBy(Rank).ThenBy(i => i.Kind == DocKind.Sheet ? i.SheetNumber : i.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(i => i.Id))
+            int Rank(DocItem i) => i.Kind == DocKind.Sheet ? 0 : i.Kind == DocKind.View && i.PrimaryViewId != 0 ? 1 : i.Kind == DocKind.View ? 2 : i.Kind == DocKind.Legend ? 3 : i.Kind == DocKind.Schedule ? 4
+                                 : i.Kind == DocKind.PanelSchedule ? 5 : i.Kind == DocKind.Image ? 6 : i.Kind == DocKind.CadImport ? 7 : i.Kind == DocKind.CadLink ? 8 : 9;
+            foreach (var i in items.OrderBy(Rank).ThenBy(i => i.Kind == DocKind.Sheet ? i.SheetNumber : i.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(i => i.Id))
             {
                 if (reasons.TryGetValue(i.Id, out var r)) plan.Entries.Add(new PlanEntry { Item = i, Action = r.action, Reason = r.reason });
                 else plan.Entries.Add(new PlanEntry { Item = i, Action = PlanAction.Delete, Reason = DeleteReason(i), Order = ++order });
@@ -141,6 +156,10 @@ namespace CausaFix.ProjectCleanup.Planning
                 case DocKind.Sheet: return "Se elimina el plano" + (i.ViewportCount + i.ScheduleInstanceCount > 0 ? " con sus colocaciones (" + (i.ViewportCount + i.ScheduleInstanceCount) + "); las vistas colocadas se tratan por separado." : ".");
                 case DocKind.Schedule: return "Se elimina la tabla y todas sus colocaciones en planos.";
                 case DocKind.PanelSchedule: return "Se elimina el panel schedule (documentación); el panel y sus circuitos no se tocan.";
+                case DocKind.CadLink: return "Se quita el CAD vinculado y sus " + i.InstanceIds.Count + " instancia(s); el archivo de origen no se toca.";
+                case DocKind.CadImport: return "Se elimina el CAD importado y sus " + i.InstanceIds.Count + " instancia(s).";
+                case DocKind.RevitLink: return "Se quita el vínculo de Revit y sus " + i.InstanceIds.Count + " instancia(s) (y sus vínculos anidados); el archivo .rvt no se toca.";
+                case DocKind.Image: return "Se elimina la imagen y sus " + i.InstanceIds.Count + " instancia(s).";
                 default: return i.PrimaryViewId != 0 ? "Se elimina (vista dependiente)." : "Se elimina.";
             }
         }
@@ -169,7 +188,12 @@ namespace CausaFix.ProjectCleanup.Planning
             if (dependentsWithPrimary > 0) plan.Consequences.Add(dependentsWithPrimary + " vista(s) dependiente(s) se eliminan junto con su primaria (no se borran dos veces).");
             if (deleted.Any(i => i.IsOpen)) plan.Consequences.Add(deleted.Count(i => i.IsOpen) + " vista(s) abiertas en Revit se cerrarán antes de eliminarlas (la vista activa sigue abierta).");
             if (deleted.Any(i => i.IsStartingView)) plan.Consequences.Add("Se elimina la vista de inicio del proyecto (Starting View): Revit usará su opción por defecto.");
-            plan.Consequences.Add("Pueden desaparecer marcadores de sección, alzado y llamada, y referencias a las vistas eliminadas; no se eliminan niveles, ejes, elementos del modelo, familias, vínculos, paneles ni circuitos.");
+            var ext = deleted.Where(i => CleanupOptions.IsExternal(i.Kind)).ToList();
+            if (ext.Count > 0) plan.Consequences.Add(ext.Sum(i => i.InstanceIds.Count) + " instancia(s) de CAD, vínculos o imágenes se eliminan con sus tipos. Los archivos externos no se tocan.");
+            if (deleted.Any(i => i.Kind == DocKind.RevitLink))
+                plan.Consequences.Add("Al quitar un vínculo de Revit se pierden sus elementos copiados/monitorizados (Copy/Monitor), anotaciones y cotas que lo referencian; Revit puede pedir confirmación si hay elementos dependientes.");
+            plan.Consequences.Add("Pueden desaparecer marcadores de sección, alzado y llamada, y referencias a las vistas eliminadas; no se eliminan niveles, ejes, elementos del modelo, familias, paneles ni circuitos" +
+                                  (plan.Options.DeleteRevitLinks || plan.Options.DeleteCad ? "." : ", ni CAD, vínculos o imágenes (opciones desactivadas)."));
         }
 
         private static void Notes(CleanupPlan plan, DocItem active)
@@ -177,6 +201,9 @@ namespace CausaFix.ProjectCleanup.Planning
             var cat = plan.Catalog;
             if (cat.TemplateCount > 0) plan.Notes.Add(cat.TemplateCount + " plantilla(s) de vista (view templates): no se tocan.");
             if (cat.PanelScheduleTemplateCount > 0) plan.Notes.Add(cat.PanelScheduleTemplateCount + " plantilla(s) de panel schedule: no se tocan.");
+            foreach (var g in cat.Items.Where(i => CleanupOptions.IsExternal(i.Kind) && !plan.Options.Includes(i.Kind)).GroupBy(i => i.Kind))
+                plan.Notes.Add(g.Count() + " " + (g.Key == DocKind.RevitLink ? "vínculo(s) de Revit" : g.Key == DocKind.Image ? "imagen(es)" : g.Key == DocKind.CadLink ? "CAD vinculado(s)" : "CAD importado(s)") +
+                               " no se tocan: activa la opción correspondiente para eliminarlos.");
             if (cat.Excluded.Count > 0) plan.Notes.Add(cat.Excluded.Count + " vista(s) internas o de sistema no son documentación eliminable: se listan y no se tocan.");
             bool extraProtected = plan.Entries.Any(e => e.Action == PlanAction.Protected && e.Item.Id != cat.ActiveViewId);
             if (active != null && active.PrimaryViewId != 0) plan.Notes.Add("La vista activa es dependiente: se conserva también su vista primaria. " + SingleViewTip);
@@ -187,7 +214,8 @@ namespace CausaFix.ProjectCleanup.Planning
         public static string Sign(CleanupPlan plan)
         {
             var sb = new StringBuilder();
-            sb.Append(plan.Catalog.DocumentKey).Append('|').Append(plan.Catalog.ActiveUniqueId).Append('|').Append(plan.Catalog.ActiveViewId.ToString(CultureInfo.InvariantCulture));
+            sb.Append(plan.Catalog.DocumentKey).Append('|').Append(plan.Catalog.ActiveUniqueId).Append('|').Append(plan.Catalog.ActiveViewId.ToString(CultureInfo.InvariantCulture))
+              .Append('|').Append(plan.Options?.Key ?? "---");
             foreach (var e in plan.Entries.OrderBy(e => e.Item.UniqueId, StringComparer.Ordinal))
                 sb.Append('|').Append(e.Item.UniqueId).Append(':').Append((int)e.Action);
             // Short, stable fingerprint (FNV-1a 64) of the review.

@@ -1,4 +1,4 @@
-# Matriz de funciones – CausaFixIt 0.3.0 (Excel Link + Project Setup + Project Cleanup)
+# Matriz de funciones – CausaFixIt 0.3.1 (Excel Link + Project Setup + Project Cleanup)
 
 Estado: **Implementado** · **Restringido** (implementado con un límite deliberado) · **Pendiente** (no incluido en 0.1.0).
 
@@ -155,4 +155,4 @@ C = cubierto por pruebas automáticas (núcleo, Revit simulado) · W = comprobac
 | Revisión obsoleta | Firma de la revisión; si cambia la vista o el documento, nuevo análisis y nueva confirmación | Implementado | C | ☐ |
 | Atómico y Deshacer | TransactionGroup + Transaction; un solo Deshacer; estado real comprobado | Implementado | — (Revit) | ☐ |
 | Informe | CSV en Reports; resultado por clase, dependientes, conservados, errores | Implementado | C | ☐ |
-
+| CAD, vínculos e imágenes (opciones) | CADLinkType/ImportInstance, RevitLinkType (+anidados)/RevitLinkInstance, ImageType/ImageInstance; desactivadas por defecto; protegidos si están en una vista conservada | Implementado | C | ☐ |

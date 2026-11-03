@@ -13,7 +13,7 @@
     <Company>CausaFixIt</Company>
     <Product>CausaFixIt</Product>
     <Copyright>CausaFixIt</Copyright>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <PlatformTarget Condition="'$(PlatformTarget)' == ''">AnyCPU</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;NU1603</NoWarn>

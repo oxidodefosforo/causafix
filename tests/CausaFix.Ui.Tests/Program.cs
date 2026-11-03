@@ -226,7 +226,7 @@ namespace CausaFix.Ui.Tests
                 c.Items.Add(new DocItem { Id = 3, UniqueId = "u3", Name = "E-101", Kind = DocKind.Sheet, TypeLabel = "Plano", SheetNumber = "E-101" });
                 return Task.FromResult(c);
             }
-            public Task<CleanupResult> Execute(string s) { Executions++; return Task.FromResult(new CleanupResult { Stale = true }); }
+            public Task<CleanupResult> Execute(string s, CleanupOptions o) { Executions++; return Task.FromResult(new CleanupResult { Stale = true }); }
         }
 
         private sealed class CleanupDialogs : ICleanupDialogs

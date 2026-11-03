@@ -129,7 +129,81 @@ namespace CausaFix.Revit.ProjectCleanup
                 item.LockReason = access.ElementLock(v) ?? string.Empty;
                 cat.Items.Add(item);
             }
+            ReadExternals(doc, cat, access);
             return cat;
+        }
+
+        /// <summary>
+        /// CAD (linked and imported: CADLinkType + ImportInstance), Revit links (RevitLinkType + RevitLinkInstance; nested
+        /// links go with their root) and raster images (ImageType + ImageInstance). Deleted only when their option is on.
+        /// </summary>
+        private static void ReadExternals(Document doc, CleanupCatalog cat, ParamAccess access)
+        {
+            DocItem Item(Element t, DocKind kind, string label, IEnumerable<Element> instances)
+            {
+                var list = instances.ToList();
+                var it = new DocItem { Id = RevitCompat.Value(t.Id), UniqueId = t.UniqueId, Name = t.Name, Kind = kind, TypeLabel = label };
+                it.InstanceIds = list.Select(i => RevitCompat.Value(i.Id)).ToList();
+                foreach (var i in list)
+                {
+                    try { if (RevitCompat.IsValid(i.OwnerViewId)) it.InstanceOwnerViewIds.Add(RevitCompat.Value(i.OwnerViewId)); } catch (Exception) { }
+                }
+                try
+                {
+                    if (!DocumentValidation.CanDeleteElement(doc, t.Id)) { it.CanDelete = false; it.CannotDeleteReason = "DocumentValidation.CanDeleteElement = false"; }
+                }
+                catch (Exception ex) { it.CanDelete = false; it.CannotDeleteReason = ex.GetType().Name + ": " + ex.Message; }
+                it.LockReason = access.ElementLock(t) ?? list.Select(access.ElementLock).FirstOrDefault(r => r != null) ?? string.Empty;
+                return it;
+            }
+
+            try
+            {
+                var imports = new FilteredElementCollector(doc).OfClass(typeof(ImportInstance)).ToElements().ToList();
+                foreach (Element t in new FilteredElementCollector(doc).OfClass(typeof(CADLinkType)).ToElements().ToList())
+                {
+                    bool linked = false;
+                    try { linked = t.IsExternalFileReference(); } catch (Exception) { }
+                    cat.Items.Add(Item(t, linked ? DocKind.CadLink : DocKind.CadImport, linked ? "CAD vinculado" : "CAD importado", imports.Where(i => i.GetTypeId().Equals(t.Id))));
+                }
+            }
+            catch (Exception ex) { cat.Excluded.Add(new ExcludedItem { Name = "CAD", TypeLabel = "CAD", Reason = "No se pudieron leer los CAD: " + ex.Message }); }
+
+            try
+            {
+                var linkInstances = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).ToElements().ToList();
+                var types = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).Cast<RevitLinkType>().ToList();
+                foreach (var t in types)
+                {
+                    if (t.IsNestedLink)
+                    {
+                        cat.Excluded.Add(new ExcludedItem { Id = RevitCompat.Value(t.Id), Name = t.Name, TypeLabel = "Vínculo Revit anidado", Reason = "Vínculo anidado: solo se quita con su vínculo principal." });
+                        continue;
+                    }
+                    var it = Item(t, DocKind.RevitLink, "Vínculo Revit", linkInstances.Where(i => i.GetTypeId().Equals(t.Id)));
+                    // Nested links of this root are removed with it: their types and instances are expected dependents.
+                    foreach (var n in types.Where(n => n.IsNestedLink && SafeRoot(n).Equals(t.Id)))
+                    {
+                        it.InstanceIds.Add(RevitCompat.Value(n.Id));
+                        it.InstanceIds.AddRange(linkInstances.Where(i => i.GetTypeId().Equals(n.Id)).Select(i => RevitCompat.Value(i.Id)));
+                    }
+                    cat.Items.Add(it);
+                }
+            }
+            catch (Exception ex) { cat.Excluded.Add(new ExcludedItem { Name = "Vínculos", TypeLabel = "Vínculo Revit", Reason = "No se pudieron leer los vínculos: " + ex.Message }); }
+
+            try
+            {
+                var images = new FilteredElementCollector(doc).OfClass(typeof(ImageInstance)).ToElements().ToList();
+                foreach (Element t in new FilteredElementCollector(doc).OfClass(typeof(ImageType)).ToElements().ToList())
+                    cat.Items.Add(Item(t, DocKind.Image, "Imagen", images.Where(i => i.GetTypeId().Equals(t.Id))));
+            }
+            catch (Exception ex) { cat.Excluded.Add(new ExcludedItem { Name = "Imágenes", TypeLabel = "Imagen", Reason = "No se pudieron leer las imágenes: " + ex.Message }); }
+        }
+
+        private static ElementId SafeRoot(RevitLinkType t)
+        {
+            try { return t.GetRootId(); } catch (Exception) { return ElementId.InvalidElementId; }
         }
 
         public static DocKind KindOf(View v)

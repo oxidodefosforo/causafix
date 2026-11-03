@@ -245,6 +245,7 @@ namespace Autodesk.Revit.DB
         public bool Pinned { get => throw X.N(); set => throw X.N(); }
         public ElementId OwnerViewId => throw X.N();
         public ElementId LevelId => throw X.N();
+        public bool IsExternalFileReference() => throw X.N();
         public ElementId ChangeTypeId(ElementId typeId) => throw X.N();
         public Autodesk.Revit.DB.ExtensibleStorage.Entity GetEntity(Autodesk.Revit.DB.ExtensibleStorage.Schema schema) => throw X.N();
         public void SetEntity(Autodesk.Revit.DB.ExtensibleStorage.Entity entity) => throw X.N();
@@ -308,7 +309,15 @@ namespace Autodesk.Revit.DB
     public class Area : SpatialElement { public AreaScheme AreaScheme => throw X.N(); }
     public class ElevationMarker : Element { }
     public class ReferencePlane : Element { }
-    public class RevitLinkType : ElementType { }
+    public class RevitLinkType : ElementType
+    {
+        public bool IsNestedLink => throw X.N();
+        public ElementId GetRootId() => throw X.N();
+    }
+    public class CADLinkType : ElementType { }
+    public class ImportInstance : Instance { public bool IsLinked => throw X.N(); }
+    public class ImageType : ElementType { }
+    public class ImageInstance : Element { }
 
     public static class DocumentValidation
     {
@@ -531,6 +540,7 @@ namespace Autodesk.Revit.DB
         public IEnumerator<Element> GetEnumerator() => throw X.N();
         IEnumerator IEnumerable.GetEnumerator() => throw X.N();
         public int GetElementCount() => throw X.N();
+        public IList<Element> ToElements() => throw X.N();
     }
 
     public class FailureMessageAccessor : IDisposable

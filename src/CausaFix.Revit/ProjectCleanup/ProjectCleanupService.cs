@@ -35,7 +35,7 @@ namespace CausaFix.Revit.ProjectCleanup
             return CleanupCatalogReader.Read(uidoc);
         });
 
-        public Task<CleanupResult> Execute(string approvedSignature) => _dispatcher.InvokeAsync(app =>
+        public Task<CleanupResult> Execute(string approvedSignature, CleanupOptions options) => _dispatcher.InvokeAsync(app =>
         {
             UIDocument uidoc = app.ActiveUIDocument;
             if (uidoc?.Document == null) throw new DocumentChangedException("No hay ningún documento abierto en Revit.");
@@ -44,7 +44,7 @@ namespace CausaFix.Revit.ProjectCleanup
 
             // Never trust an old review: rebuild it from the live document and compare.
             var cat = CleanupCatalogReader.Read(uidoc);
-            var plan = CleanupPlanner.Build(cat);
+            var plan = CleanupPlanner.Build(cat, options);
             if (!sameDocument || plan.Signature != approvedSignature)
             {
                 _session.Bind(doc);
@@ -69,7 +69,10 @@ namespace CausaFix.Revit.ProjectCleanup
 
             var toDelete = new HashSet<long>(plan.ToDelete.Select(e => e.Item.Id));
             CloseOpenViews(uidoc, toDelete, cat.ActiveViewId, result);
+            // CAD, links and images approved for deletion (types, instances, nested links) are in scope; everything else stays guarded.
+            var allowed = new HashSet<long>(plan.ToDelete.Where(e => CleanupOptions.IsExternal(e.Item.Kind)).SelectMany(e => e.Item.InstanceIds.Concat(new[] { e.Item.Id })));
             var outOfScope = OutOfScope(doc);
+            foreach (long id in allowed) outOfScope.Remove(id);
             var documentary = Documentary(doc);
             Trace?.Invoke("Project Cleanup: run " + plan.Signature + " – " + toDelete.Count + " to delete, " + outOfScope.Count + " model elements guarded");
 
@@ -125,6 +128,9 @@ namespace CausaFix.Revit.ProjectCleanup
             result.Summary = result.Committed
                 ? "Eliminado: " + result.Deleted(DocKind.View) + " vista(s), " + result.Deleted(DocKind.Sheet) + " plano(s), " + result.Deleted(DocKind.Schedule) + " schedule(s), " +
                   result.Deleted(DocKind.Legend) + " leyenda(s)" + (result.Deleted(DocKind.PanelSchedule) > 0 ? ", " + result.Deleted(DocKind.PanelSchedule) + " panel schedule(s)" : "") +
+                  (result.Deleted(DocKind.CadLink) + result.Deleted(DocKind.CadImport) > 0 ? ", " + (result.Deleted(DocKind.CadLink) + result.Deleted(DocKind.CadImport)) + " CAD" : "") +
+                  (result.Deleted(DocKind.RevitLink) > 0 ? ", " + result.Deleted(DocKind.RevitLink) + " vínculo(s) de Revit" : "") +
+                  (result.Deleted(DocKind.Image) > 0 ? ", " + result.Deleted(DocKind.Image) + " imagen(es)" : "") +
                   " y " + result.DependentTotal + " elemento(s) dependientes. Se conservó " + result.KeptView +
                   (kept.Count == 0 ? "." : " y " + kept.Count + " elemento(s) más: " + string.Join(", ", kept.Take(8).Select(k => k.Name)) + (kept.Count > 8 ? "…" : "") + ".") +
                   " Un solo Deshacer en Revit lo revierte. El modelo no se ha guardado."
@@ -198,6 +204,9 @@ namespace CausaFix.Revit.ProjectCleanup
             {
                 string kind = null;
                 if (e is Viewport) kind = "Viewports";
+                else if (e is ImportInstance) kind = "Instancias de CAD";
+                else if (e is RevitLinkInstance) kind = "Instancias de vínculos Revit";
+                else if (e is ImageInstance) kind = "Instancias de imagen";
                 else if (e is ScheduleSheetInstance) kind = "Colocaciones de schedules";
                 else if (e is PanelScheduleSheetInstance) kind = "Colocaciones de panel schedules";
                 else if (e is ElevationMarker) kind = "Marcadores de alzado";
@@ -217,6 +226,7 @@ namespace CausaFix.Revit.ProjectCleanup
                 }
                 if (kind != null) d[RevitCompat.Value(e.Id)] = kind;
             }
+            foreach (Element e in new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType))) d[RevitCompat.Value(e.Id)] = "Vínculos Revit anidados";
             return d;
         }
 
