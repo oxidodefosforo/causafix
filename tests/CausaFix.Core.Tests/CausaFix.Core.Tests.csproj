@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\CausaFix.Core\CausaFix.Core.csproj" />
     <ProjectReference Include="..\..\src\CausaFix.ExcelLink\CausaFix.ExcelLink.csproj" />
     <ProjectReference Include="..\..\src\CausaFix.ProjectSetup\CausaFix.ProjectSetup.csproj" />
+    <ProjectReference Include="..\..\src\CausaFix.ProjectCleanup\CausaFix.ProjectCleanup.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.IO.Compression" />

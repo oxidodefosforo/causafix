@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
@@ -15,6 +16,10 @@ using CausaFix.Addin.Modules.ProjectSetup;
 using CausaFix.Core.Tests;
 using CausaFix.ProjectSetup.Model;
 using CausaFix.ProjectSetup.ViewModels;
+using CausaFix.Addin.Modules.ProjectCleanup;
+using CausaFix.ProjectCleanup.Execution;
+using CausaFix.ProjectCleanup.Model;
+using CausaFix.ProjectCleanup.ViewModels;
 
 namespace CausaFix.Ui.Tests
 {
@@ -36,6 +41,7 @@ namespace CausaFix.Ui.Tests
             {
                 if (!OldTemplateConfirmsCause()) { Print(); Console.WriteLine("NOT EXECUTABLE: the mouse input did not reach the window (no interactive desktop)."); return 2; }
                 ProjectSetupWindowRuleList();
+                ProjectCleanupWindowOpensAndCancels();
             }
             catch (Exception ex) { Fail("exception: " + ex); }
             Print();
@@ -205,6 +211,50 @@ namespace CausaFix.Ui.Tests
                 win.ForceClose = true; win.Close(); Pump(100);
                 try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch (IOException) { }
             }
+        }
+
+        // ------------------------------------------------------------------ Project Cleanup window
+
+        private sealed class CleanupGw : ICleanupGateway
+        {
+            public int Executions;
+            public Task<CleanupCatalog> Analyze()
+            {
+                var c = new CleanupCatalog { DocumentTitle = "UI test", DocumentKey = "d", ActiveViewId = 1, ActiveUniqueId = "u1", ActiveName = "3D trabajo", ActiveTypeLabel = "Vista 3D" };
+                c.Items.Add(new DocItem { Id = 1, UniqueId = "u1", Name = "3D trabajo", Kind = DocKind.View, TypeLabel = "Vista 3D" });
+                c.Items.Add(new DocItem { Id = 2, UniqueId = "u2", Name = "L01", Kind = DocKind.View, TypeLabel = "Planta" });
+                c.Items.Add(new DocItem { Id = 3, UniqueId = "u3", Name = "E-101", Kind = DocKind.Sheet, TypeLabel = "Plano", SheetNumber = "E-101" });
+                return Task.FromResult(c);
+            }
+            public Task<CleanupResult> Execute(string s) { Executions++; return Task.FromResult(new CleanupResult { Stale = true }); }
+        }
+
+        private sealed class CleanupDialogs : ICleanupDialogs
+        {
+            public void Info(string t, string m) { }
+            public void Error(string t, string m) { Console.WriteLine("dialog error: " + m); }
+            public void OpenWithShell(string p) { }
+        }
+
+        private static void ProjectCleanupWindowOpensAndCancels()
+        {
+            var gw = new CleanupGw();
+            var vm = new ProjectCleanupViewModel(gw, new CleanupDialogs(), Path.Combine(Path.GetTempPath(), "cf-ui-pc"));
+            var win = new ProjectCleanupWindow { DataContext = vm, WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0, Topmost = true };
+            bool closed = false;
+            win.Closed += (s, e) => closed = true;
+            win.Show(); win.Activate(); win.Initialize(); Pump(1000);
+            try
+            {
+                Check(vm.KeptView == "Se conservará: 3D trabajo — Vista 3D", "Project Cleanup shows the kept view (" + vm.KeptView + ")");
+                Check(vm.Rows.Count == 3 && vm.CountsText.StartsWith("Se eliminarán: 1 vista(s), 1 plano(s)", StringComparison.Ordinal), "review rows and counts (" + vm.CountsText + ")");
+                var cancel = Find<Button>(win, b => (b.Content as string) == "Cancelar");
+                Check(cancel != null, "Cancelar button present");
+                if (cancel != null) Click(cancel);
+                Pump(300);
+                Check(closed && gw.Executions == 0, "Cancelar closes the window without deleting anything");
+            }
+            finally { if (!closed) { win.ForceClose = true; win.Close(); Pump(100); } }
         }
 
         // ------------------------------------------------------------------ helpers

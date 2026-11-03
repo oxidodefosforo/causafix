@@ -1,6 +1,6 @@
 # Checkpoint – estado para continuar
 
-Fecha: 2026-10-27 · Versión 0.2.0 · Repositorio https://github.com/oxidodefosforo/causafix (rama `main`)
+Fecha: 2026-11-03 · Versión 0.3.0 · Repositorio https://github.com/oxidodefosforo/causafix (rama `main`)
 
 ## Módulos
 
@@ -45,6 +45,14 @@ Sobre el commit de referencia 65584df.
 - **Causa de la selección (confirmada con WPF real en CI):** la plantilla de fila era un `CheckBox` cuyo contenido era el texto, estirado a todo el ancho. `ButtonBase` maneja `MouseLeftButtonDown`, así que un clic en el nombre, la familia o el espacio libre activaba o desactivaba la regla y `ListBoxItem` nunca la seleccionaba. Corrección: casilla separada del texto (View Sets y composiciones). El foco en la casilla selecciona su fila, de forma diferida para que la edición pendiente se confirme en la regla anterior.
 - **Referencia de título:** *Title on Sheet → Take title position from a placed view…* con alcance (perfil/grupo/composición). Usa la misma `TitlePlacement` y el mismo `TitleRunner`. Por defecto la captura es **FixedPosition** si no hay elección previa (`CaptureKindExplicit`, captura anterior o modo Relative). Mensajes concretos con reintento; si se cancela, no cambia nada.
 - `tests/CausaFix.Ui.Tests`: abre la ventana real y hace clic con `SendInput`. Primero reproduce el fallo con la plantilla antigua y después comprueba la nueva (texto, familia, espacio libre, casilla una vez, regla desactivada, edición pendiente, flechas, Refresh). Informe: artefacto `ui-check-report`.
+
+## Project Cleanup (versión 0.3.0)
+
+Tercera herramienta («Eliminar documentación conservando la vista activa»). Proyecto de lógica `CausaFix.ProjectCleanup`, adaptador en `CausaFix.Revit/ProjectCleanup` y ventana no modal en `CausaFix.Addin/Modules/ProjectCleanup`, registrada en `ModuleRegistry` después de Project Setup. Excel Link y Project Setup no cambian. Guía: `docs/PROJECT_CLEANUP.md`.
+- Ejecutado aquí:
+  - 11 pruebas de núcleo: clasificación, protecciones (activa, dependiente, plano activo, worksharing), orden, firma, ejecución atómica con cascadas simuladas, rollback y flujo de la ventana;
+  - comprobación WPF en CI (ventana real, vista conservada, recuentos, «Cancelar» sin cambios).
+- Pendiente en Revit (§5 de la guía): cascadas reales, colocaciones de schedules segmentados y panel schedules, cierre de vistas abiertas, rollback con un error real y el Deshacer.
 
 ## Excel Link: parámetros compartidos (DR_Tag-1 / EL_Circuit) y marca CausaFixIt (versión 0.2.0)
 

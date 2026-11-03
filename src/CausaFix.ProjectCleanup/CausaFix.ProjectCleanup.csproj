@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Project Cleanup module logic: catalog of documentation views, classification, protection of the active
+    view and its dependencies, delete order, the atomic run over a delete host, the report and the view model.
+    No WPF and no Revit API (tested on any machine). Revit access goes through ICleanupGateway
+    (implemented in CausaFix.Revit); the window lives in CausaFix.Addin.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>CausaFix.ProjectCleanup</RootNamespace>
+    <AssemblyName>CausaFix.ProjectCleanup</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" />
+  </ItemGroup>
+</Project>

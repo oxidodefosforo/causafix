@@ -68,6 +68,7 @@ foreach ($year in $Years) {
 Copy-Item (Join-Path $root 'install\*') $dist -Force
 Copy-Item (Join-Path $root 'docs\GUIA.md') $dist -Force
 Copy-Item (Join-Path $root 'docs\PROJECT_SETUP.md') $dist -Force
+Copy-Item (Join-Path $root 'docs\PROJECT_CLEANUP.md') $dist -Force
 Copy-Item (Join-Path $root 'LICENSE.txt') $dist -Force -ErrorAction SilentlyContinue
 $commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { (& git -C $root rev-parse HEAD 2>$null) }
 Set-Content -Path (Join-Path $dist 'BUILD.txt') -Encoding UTF8 -Value @(

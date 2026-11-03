@@ -244,6 +244,7 @@ namespace Autodesk.Revit.DB
         public IList<Parameter> GetOrderedParameters() => throw X.N();
         public bool Pinned { get => throw X.N(); set => throw X.N(); }
         public ElementId OwnerViewId => throw X.N();
+        public ElementId LevelId => throw X.N();
         public ElementId ChangeTypeId(ElementId typeId) => throw X.N();
         public Autodesk.Revit.DB.ExtensibleStorage.Entity GetEntity(Autodesk.Revit.DB.ExtensibleStorage.Schema schema) => throw X.N();
         public void SetEntity(Autodesk.Revit.DB.ExtensibleStorage.Entity entity) => throw X.N();
@@ -303,6 +304,23 @@ namespace Autodesk.Revit.DB
         public double Area => throw X.N();
     }
 
+    public class AreaScheme : Element { }
+    public class Area : SpatialElement { public AreaScheme AreaScheme => throw X.N(); }
+    public class ElevationMarker : Element { }
+    public class ReferencePlane : Element { }
+    public class RevitLinkType : ElementType { }
+
+    public static class DocumentValidation
+    {
+        public static bool CanDeleteElement(Document document, ElementId elementId) => throw X.N();
+    }
+
+    public class StartingViewSettings : Element
+    {
+        public static StartingViewSettings GetStartingViewSettings(Document doc) => throw X.N();
+        public ElementId ViewId { get => throw X.N(); set => throw X.N(); }
+    }
+
     public class View : Element
     {
         public ViewType ViewType => throw X.N();
@@ -328,6 +346,7 @@ namespace Autodesk.Revit.DB
     {
         public static ViewPlan Create(Document doc, ElementId viewFamilyTypeId, ElementId levelId) => throw X.N();
         public Level GenLevel => throw X.N();
+        public AreaScheme AreaScheme => throw X.N();
     }
 
     public class ViewSheet : View
@@ -336,6 +355,7 @@ namespace Autodesk.Revit.DB
         public string SheetNumber { get => throw X.N(); set => throw X.N(); }
         public bool IsPlaceholder => throw X.N();
         public ISet<ElementId> GetAllPlacedViews() => throw X.N();
+        public ISet<ElementId> GetAllViewports() => throw X.N();
     }
 
     public class Viewport : Element
@@ -490,6 +510,7 @@ namespace Autodesk.Revit.DB
         public ElementId GetDefaultElementTypeId(ElementTypeGroup g) => throw X.N();
         public void Regenerate() => throw X.N();
         public BindingMap ParameterBindings => throw X.N();
+        public ICollection<ElementId> Delete(ElementId id) => throw X.N();
         public Autodesk.Revit.ApplicationServices.Application Application => throw X.N();
     }
 
@@ -509,6 +530,7 @@ namespace Autodesk.Revit.DB
         public FilteredElementCollector OfCategory(BuiltInCategory c) => throw X.N();
         public IEnumerator<Element> GetEnumerator() => throw X.N();
         IEnumerator IEnumerable.GetEnumerator() => throw X.N();
+        public int GetElementCount() => throw X.N();
     }
 
     public class FailureMessageAccessor : IDisposable
@@ -625,6 +647,14 @@ namespace Autodesk.Revit.UI
         public void ShowElements(ICollection<ElementId> ids) => throw new NotImplementedException();
         public void ShowElements(ElementId id) => throw new NotImplementedException();
         public void RequestViewChange(View v) => throw new NotImplementedException();
+        public IList<UIView> GetOpenUIViews() => throw new NotImplementedException();
+    }
+
+    public class UIView : IDisposable
+    {
+        public ElementId ViewId => throw new NotImplementedException();
+        public void Close() => throw new NotImplementedException();
+        public void Dispose() { }
     }
 
     public class UIApplication
@@ -648,4 +678,14 @@ namespace Autodesk.Revit.UI
         public bool IsPending => throw new NotImplementedException();
         public void Dispose() { }
     }
+}
+
+
+namespace Autodesk.Revit.DB.Electrical
+{
+    using Autodesk.Revit.DB;
+    public class PanelScheduleView : TableView { }
+    public class PanelScheduleTemplate : Element { }
+    public class PanelScheduleSheetInstance : Element { public ElementId ScheduleId => throw new System.NotImplementedException(); }
+    public class ElectricalSystem : Element { }
 }

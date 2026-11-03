@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CausaFix.Addin.Modules.ExcelLink;
+using CausaFix.Addin.Modules.ProjectCleanup;
 using CausaFix.Addin.Modules.ProjectSetup;
 using CausaFix.Addin.Shared;
 
@@ -50,6 +51,7 @@ namespace CausaFix.Addin.Bootstrap
         {
             new ExcelLinkModule(),
             new ProjectSetupModule(),
+            new ProjectCleanupModule(),
             new SuiteModule()
         };
     }

@@ -1,4 +1,4 @@
-# Matriz de funciones – CausaFixIt 0.1.0 (Excel Link + Project Setup)
+# Matriz de funciones – CausaFixIt 0.3.0 (Excel Link + Project Setup + Project Cleanup)
 
 Estado: **Implementado** · **Restringido** (implementado con un límite deliberado) · **Pendiente** (no incluido en 0.1.0).
 
@@ -137,3 +137,22 @@ Verificación disponible en esta entrega:
 | Perfiles | Portabilidad: parámetros de proyecto, tipos de viewport y vistas miembro de otro documento se informan para remapear | Implementado | T | ☐ |
 | Rendimiento | Plan de 10 niveles × 4 conjuntos con 2000 vistas/500 sheets: ~10 ms (núcleo) | Medido sin Revit | T | ☐ |
 | Rendimiento | Run Setup de 10 × 4 en Revit | Pendiente de medir en Revit | — | — |
+
+## Project Cleanup
+
+C = cubierto por pruebas automáticas (núcleo, Revit simulado) · W = comprobación WPF real en CI · R = verificado en Revit (columna a rellenar)
+
+| Función | Detalle | Estado | Prueba | R |
+|---|---|---|---|---|
+| Arranque | Documentation → Project Cleanup, tercera herramienta (módulo registrado tras Project Setup) | Implementado | W | ☐ |
+| Clasificación | Clase/ViewType de Revit; plantillas, plantillas de panel schedule, tablas de revisiones del cajetín, vistas de sistema/informe excluidas | Implementado | C | ☐ |
+| Vista activa independiente | Se conserva sola; el resto se elimina | Implementado | C | ☐ |
+| Vista activa dependiente | Primaria protegida con motivo y consejo | Implementado | C | ☐ |
+| Plano activo | Plano, vistas/leyendas colocadas, schedules (segmentos) y panel schedules + primarias protegidos | Implementado | C | ☐ |
+| Worksharing / CanDeleteElement | Conservados con motivo; sin cascadas hacia conservados | Implementado | C | ☐ |
+| Orden y cascadas | Planos → dependientes → primarias → resto; sin dobles borrados; IDs devueltos revisados | Implementado | C | ☐ |
+| Protección en ejecución | Rollback si un borrado alcanza un protegido o un elemento del modelo; verificación tras commit | Implementado | C | ☐ |
+| Revisión obsoleta | Firma de la revisión; si cambia la vista o el documento, nuevo análisis y nueva confirmación | Implementado | C | ☐ |
+| Atómico y Deshacer | TransactionGroup + Transaction; un solo Deshacer; estado real comprobado | Implementado | — (Revit) | ☐ |
+| Informe | CSV en Reports; resultado por clase, dependientes, conservados, errores | Implementado | C | ☐ |
+
