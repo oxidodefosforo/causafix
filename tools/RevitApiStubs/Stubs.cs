@@ -17,6 +17,7 @@ namespace Autodesk.Revit.ApplicationServices
 {
     public class Application
     {
+        public event EventHandler<Autodesk.Revit.DB.Events.DocumentChangedEventArgs> DocumentChanged { add { } remove { } }
         public string VersionNumber => throw new NotImplementedException();
         public string VersionBuild => throw new NotImplementedException();
     }
@@ -111,8 +112,8 @@ namespace Autodesk.Revit.DB
     public class Curve : APIObject { public XYZ GetEndPoint(int i) => throw X.N(); }
     public enum CategoryType { Invalid, Model, Annotation, Internal, AnalyticalModel }
     public enum GraphicsStyleType { Projection, Cut }
-    public enum BuiltInCategory { INVALID = -1, OST_TitleBlocks = -2000280, OST_VolumeOfInterest = -2006000, OST_Viewports = -2000510, OST_Rooms = -2000160, OST_MEPSpaces = -2003600, OST_Areas = -2003200, OST_Sheets = -2003100, OST_Views = -2000279, OST_Lines = -2000051, OST_ProjectInformation = -2003101 }
-    public enum BuiltInParameter { INVALID = -1, VIEW_SCALE_PULLDOWN_METRIC = -1005150, VIEW_SCALE = -1005151, VIEW_DISCIPLINE = -1005152, VIEWER_VOLUME_OF_INTEREST_CROP = -1005153, VIEWER_CROP_REGION = -1005154, SHEET_WIDTH = -1005155, SHEET_HEIGHT = -1005156, VIEW_DESCRIPTION = -1005157, ALL_MODEL_MARK = -1001203, ELEM_TYPE_PARAM = -1002052, ELEM_FAMILY_AND_TYPE_PARAM = -1002051, ELEM_FAMILY_PARAM = -1002053, SYMBOL_ID_PARAM = -1002050 }
+    public enum BuiltInCategory { INVALID = -1, OST_TitleBlocks = -2000280, OST_VolumeOfInterest = -2006000, OST_Viewports = -2000510, OST_Rooms = -2000160, OST_MEPSpaces = -2003600, OST_Areas = -2003200, OST_Sheets = -2003100, OST_Views = -2000279, OST_Lines = -2000051, OST_ProjectInformation = -2003101, OST_KeynoteTags = -2005004, OST_Materials = -2000700 }
+    public enum BuiltInParameter { INVALID = -1, VIEW_SCALE_PULLDOWN_METRIC = -1005150, VIEW_SCALE = -1005151, VIEW_DISCIPLINE = -1005152, VIEWER_VOLUME_OF_INTEREST_CROP = -1005153, VIEWER_CROP_REGION = -1005154, SHEET_WIDTH = -1005155, SHEET_HEIGHT = -1005156, VIEW_DESCRIPTION = -1005157, ALL_MODEL_MARK = -1001203, ELEM_TYPE_PARAM = -1002052, ELEM_FAMILY_AND_TYPE_PARAM = -1002051, ELEM_FAMILY_PARAM = -1002053, SYMBOL_ID_PARAM = -1002050, KEY_VALUE = -1010106, KEY_SOURCE_PARAM = -1010107, KEYNOTE_PARAM = -1002002 }
     public enum ViewType { Undefined, FloorPlan, CeilingPlan, Elevation, ThreeD, Schedule, DrawingSheet, ProjectBrowser, Report, DraftingView, Legend, SystemBrowser, EngineeringPlan, AreaPlan, Section, Detail, CostReport, LoadsReport, PresureLossReport, ColumnSchedule, PanelSchedule, Walkthrough, Rendering, SystemsAnalysisReport, Internal }
     public enum TemporaryViewMode { RevealHiddenElements, TemporaryHideIsolate, WorksharingDisplay, RevealConstraints, TemporaryViewProperties }
     public enum CheckoutStatus { OwnedByCurrentUser, OwnedByOtherUser, NotOwned }
@@ -459,6 +460,7 @@ namespace Autodesk.Revit.DB
     public static class ModelPathUtils
     {
         public static string ConvertModelPathToUserVisiblePath(ModelPath p) => throw X.N();
+        public static ModelPath ConvertUserVisiblePathToModelPath(string p) => throw X.N();
     }
 
     public class FormatOptions : APIObject
@@ -521,6 +523,27 @@ namespace Autodesk.Revit.DB
         public BindingMap ParameterBindings => throw X.N();
         public ICollection<ElementId> Delete(ElementId id) => throw X.N();
         public Autodesk.Revit.ApplicationServices.Application Application => throw X.N();
+        public ElementId GetDefaultFamilyTypeId(ElementId categoryId) => throw X.N();
+    }
+
+    public enum ExternalResourceLoadStatus { Uninitialized, Failure, Success, ResourceAlreadyCurrent }
+    public class KeyBasedTreeEntriesLoadResults : APIObject
+    {
+        public KeyBasedTreeEntriesLoadResults() { }
+        public IList<string> GetFailureMessages() => throw X.N();
+    }
+    public class KeyBasedTreeEntryTable : Element
+    {
+        public ExternalResourceLoadStatus Reload(KeyBasedTreeEntriesLoadResults r) => throw X.N();
+    }
+    public class KeynoteTable : KeyBasedTreeEntryTable
+    {
+        public static KeynoteTable GetKeynoteTable(Document doc) => throw X.N();
+    }
+    public class IndependentTag : Element
+    {
+        public bool IsMaterialTag => throw X.N();
+        public ICollection<ElementId> GetTaggedLocalElementIds() => throw X.N();
     }
 
     public abstract class ElementFilter : APIObject { }
@@ -667,8 +690,18 @@ namespace Autodesk.Revit.UI
         public void Dispose() { }
     }
 
+    public enum PostableCommand { UserKeynote, ElementKeynote, MaterialKeynote }
+    public class RevitCommandId
+    {
+        public static RevitCommandId LookupPostableCommandId(PostableCommand c) => throw new NotImplementedException();
+    }
+
     public class UIApplication
     {
+        public event EventHandler<Autodesk.Revit.UI.Events.IdlingEventArgs> Idling { add { } remove { } }
+        public event EventHandler<Autodesk.Revit.UI.Events.DialogBoxShowingEventArgs> DialogBoxShowing { add { } remove { } }
+        public void PostCommand(RevitCommandId id) => throw new NotImplementedException();
+        public bool CanPostCommand(RevitCommandId id) => throw new NotImplementedException();
         public UIDocument ActiveUIDocument => throw new NotImplementedException();
         public Autodesk.Revit.ApplicationServices.Application Application => throw new NotImplementedException();
     }
@@ -698,4 +731,29 @@ namespace Autodesk.Revit.DB.Electrical
     public class PanelScheduleTemplate : Element { }
     public class PanelScheduleSheetInstance : Element { public ElementId ScheduleId => throw new System.NotImplementedException(); }
     public class ElectricalSystem : Element { }
+}
+
+namespace Autodesk.Revit.DB.Events
+{
+    using System;
+    using System.Collections.Generic;
+    using Autodesk.Revit.DB;
+    public class DocumentChangedEventArgs : EventArgs
+    {
+        public Document GetDocument() => throw new NotImplementedException();
+        public ICollection<ElementId> GetAddedElementIds() => throw new NotImplementedException();
+    }
+}
+
+namespace Autodesk.Revit.UI.Events
+{
+    using System;
+    public class IdlingEventArgs : EventArgs { }
+    public class DialogBoxShowingEventArgs : EventArgs
+    {
+        public string DialogId => throw new NotImplementedException();
+        public bool Cancellable => throw new NotImplementedException();
+        public void Cancel() => throw new NotImplementedException();
+        public bool OverrideResult(int result) => throw new NotImplementedException();
+    }
 }

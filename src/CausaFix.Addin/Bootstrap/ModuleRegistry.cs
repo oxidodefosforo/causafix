@@ -52,6 +52,7 @@ namespace CausaFix.Addin.Bootstrap
             new ExcelLinkModule(),
             new ProjectSetupModule(),
             new ProjectCleanupModule(),
+            new CausaFix.Addin.Modules.Keynotes.KeynoteManagerModule(),
             new SuiteModule()
         };
     }

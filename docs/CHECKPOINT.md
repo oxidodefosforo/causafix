@@ -54,6 +54,14 @@ Tercera herramienta («Eliminar documentación conservando la vista activa»). P
   - comprobación WPF en CI (ventana real, vista conservada, recuentos, «Cancelar» sin cambios).
 - Pendiente en Revit (§5 de la guía): cascadas reales, colocaciones de schedules segmentados y panel schedules, cierre de vistas abiertas, rollback con un error real y el Deshacer.
 
+## Keynote Manager (versión 0.4.0)
+
+Cuarta herramienta. Proyecto de lógica `CausaFix.Keynotes` (formato, codificaciones, modelo, edición, combinación, archivos, view model), adaptador `CausaFix.Revit/Keynotes/KeynoteService.cs` y ventana no modal en `CausaFix.Addin/Modules/Keynotes`, registrada en `ModuleRegistry` después de Project Cleanup. Las otras herramientas no cambian. Guía: `docs/KEYNOTE_MANAGER.md`.
+- Ejecutado aquí: 30 pruebas nuevas (166 en total) en .NET 8 y Mono/.NET Framework 4.8, incluido el E2E de autoría con Revit simulado; compilación del adaptador con stubs 2024/2026.
+- En CI: compilación contra la API real y comprobación WPF de la ventana.
+- Pendiente en Revit (§9 de la guía): E2E real con leyenda, notas de elemento/material, `DialogId` del diálogo de keynotes, re-key con Deshacer, recarga inválida, red/ACC, modelo compartido, pyRevit, rendimiento.
+- API leída por reflexión (cambia entre años): `GetKeyBasedTreeEntries`, `GetExternalResourceReferences`, `GetExternalFileReference`, `LoadFrom`, `ExternalResourceReference.CreateLocalResource`, mensajes de `KeyBasedTreeEntriesLoadResults`.
+
 ## Excel Link: parámetros compartidos (DR_Tag-1 / EL_Circuit) y marca CausaFixIt (versión 0.2.0)
 
 Base: commit 0c30203 (run 40151407427), que es el build que se estaba probando. Para comprobar qué DLL carga Revit, el log escribe `Excel Link: command start (CausaFixIt <versión> · commit <sha>, built …, loaded from <ruta>)`. Lo mismo aparece en About, `BUILD.txt` y los informes.

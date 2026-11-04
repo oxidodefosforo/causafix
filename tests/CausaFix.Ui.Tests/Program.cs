@@ -20,6 +20,9 @@ using CausaFix.Addin.Modules.ProjectCleanup;
 using CausaFix.ProjectCleanup.Execution;
 using CausaFix.ProjectCleanup.Model;
 using CausaFix.ProjectCleanup.ViewModels;
+using CausaFix.Addin.Modules.Keynotes;
+using CausaFix.Keynotes.Execution;
+using CausaFix.Keynotes.ViewModels;
 
 namespace CausaFix.Ui.Tests
 {
@@ -42,6 +45,7 @@ namespace CausaFix.Ui.Tests
                 if (!OldTemplateConfirmsCause()) { Print(); Console.WriteLine("NOT EXECUTABLE: the mouse input did not reach the window (no interactive desktop)."); return 2; }
                 ProjectSetupWindowRuleList();
                 ProjectCleanupWindowOpensAndCancels();
+                KeynoteManagerWindowRows();
             }
             catch (Exception ex) { Fail("exception: " + ex); }
             Print();
@@ -255,6 +259,61 @@ namespace CausaFix.Ui.Tests
                 Check(closed && gw.Executions == 0, "Cancelar closes the window without deleting anything");
             }
             finally { if (!closed) { win.ForceClose = true; win.Close(); Pump(100); } }
+        }
+
+        // ------------------------------------------------------------------ Keynote Manager window
+
+        private static void KeynoteManagerWindowRows()
+        {
+            var s = new KeynoteSandbox();
+            string path = s.Write("kn.txt", "E\tELECTRICAL\r\nE-LTG\tLIGHTING\tE\r\nE-LTG-001\tONE\tE-LTG\r\nE-LTG-002\tTWO\tE-LTG\r\n");
+            s.Gw.TablePath = path;
+            s.Gw.Reload(new List<CausaFix.Keynotes.Editing.KeyRename>()).GetAwaiter().GetResult();
+            var vm = new KeynoteManagerViewModel(s.Gw, s.Dlg, s.Store);
+            var win = new KeynoteManagerWindow { DataContext = vm, WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0, Topmost = true };
+            bool closed = false;
+            win.Closed += (o, e) => closed = true;
+            win.Show(); win.Activate(); win.Initialize(); Pump(1200);
+            try
+            {
+                var tree = (ListBox)win.FindName("Tree");
+                Check(tree != null && vm.Rows.Count == 4, "Keynote Manager shows the tree (" + vm.Rows.Count + " rows)");
+                ListBoxItem Row(string key) => (ListBoxItem)tree.ItemContainerGenerator.ContainerFromItem(vm.Rows.First(r => r.Key == key));
+                TextBlock TextOf(string key) => Find<TextBlock>(Row(key), t => t.Text == vm.Rows.First(r => r.Key == key).Text);
+
+                Click(TextOf("E-LTG-002"));
+                Check(vm.SelectedRow?.Key == "E-LTG-002" && Row("E-LTG-002").IsSelected, "click on the text selects E-LTG-002");
+                var r1 = Row("E-LTG-001");
+                Click(r1, new Point(r1.ActualWidth - 30, r1.ActualHeight / 2));
+                Check(vm.SelectedRow?.Key == "E-LTG-001", "click on the free space selects E-LTG-001");
+
+                var toggle = Find<Button>(Row("E-LTG"), b => (b.Content as string) == "▾");
+                Check(toggle != null, "expander of E-LTG present");
+                if (toggle != null) Click(toggle);
+                Pump(200);
+                Check(vm.Rows.Count == 2 && vm.SelectedRow?.Key == "E-LTG", "expander collapses E-LTG and selects it (" + vm.Rows.Count + " rows)");
+                vm.Expand("E-LTG", true); Pump(200);
+
+                vm.Select("E-LTG-001"); Pump(200);
+                Row("E-LTG-001").Focus(); Pump(100);
+                s.Dlg.Forms.Enqueue(FakeKeynoteDialogs.Answer(null, "ONE EDITED"));
+                Key(0x71);                                                     // F2
+                Check(vm.Draft.Current.Find("E-LTG-001").Text == "ONE EDITED" && vm.Rows.First(r => r.Key == "E-LTG-001").State == "Modificada", "F2 edits the selected keynote");
+
+                var search = (TextBox)win.FindName("SearchBox");
+                Click(search);
+                Key(0x2E);                                                     // Delete while typing in the search box
+                Check(vm.Draft.Current.Records.Count == 4, "Delete in the search box does not delete a keynote");
+                search.Text = "TWO"; Pump(600);
+                Check(vm.Rows.Select(r => r.Key).SequenceEqual(new[] { "E", "E-LTG", "E-LTG-002" }), "search (debounced) keeps the parents as context");
+                search.Text = ""; Pump(600);
+
+                s.Dlg.CloseAnswer = CloseChoice.Discard;
+                win.Close(); Pump(400);
+                Check(closed, "closing with pending changes asks and closes on Discard");
+                Check(s.Gw.ReloadCount == 1, "no reload or model change while editing and closing");
+            }
+            finally { if (!closed) { win.ForceClose = true; win.Close(); Pump(100); } s.Dispose(); }
         }
 
         // ------------------------------------------------------------------ helpers

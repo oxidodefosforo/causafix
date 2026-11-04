@@ -1,4 +1,4 @@
-# Matriz de funciones – CausaFixIt 0.3.1 (Excel Link + Project Setup + Project Cleanup)
+# Matriz de funciones – CausaFixIt 0.4.0 (Excel Link + Project Setup + Project Cleanup + Keynote Manager)
 
 Estado: **Implementado** · **Restringido** (implementado con un límite deliberado) · **Pendiente** (no incluido en 0.1.0).
 
@@ -156,3 +156,30 @@ C = cubierto por pruebas automáticas (núcleo, Revit simulado) · W = comprobac
 | Atómico y Deshacer | TransactionGroup + Transaction; un solo Deshacer; estado real comprobado | Implementado | — (Revit) | ☐ |
 | Informe | CSV en Reports; resultado por clase, dependientes, conservados, errores | Implementado | C | ☐ |
 | CAD, vínculos e imágenes (opciones) | CADLinkType/ImportInstance, RevitLinkType (+anidados)/RevitLinkInstance, ImageType/ImageInstance; desactivadas por defecto; protegidos si están en una vista conservada | Implementado | C | ☐ |
+
+## Keynote Manager
+
+C = cubierto por pruebas automáticas (núcleo, Revit simulado, archivos reales) · W = comprobación WPF real en CI · R = verificado en Revit (columna a rellenar). Guía: `KEYNOTE_MANAGER.md`.
+
+| Función | Detalle | Estado | Prueba | R |
+|---|---|---|---|---|
+| Arranque | Documentation → Keynote Manager, cuarta herramienta; ventana ligada al documento | Implementado | W | ☐ |
+| Tabla del modelo | Ruta (recurso externo / referencia de archivo), estado de carga, entradas cargadas, solo lectura, tipo de etiqueta, vista activa | Implementado | — (Revit) | ☐ |
+| Archivo | Nuevo (UTF-16 LE BOM), abrir, vincular (LoadFrom), guardar, guardar como, abrir carpeta, releer | Implementado | C | ☐ |
+| Formato | Clave TAB Texto [TAB Padre]; claves como texto; comentarios y líneas mal formadas conservadas | Implementado | C | ☐ |
+| Codificaciones | UTF-16 LE/BE, UTF-8 ±BOM, ANSI 1252; ANSI → UTF-16 si no cabe | Implementado | C | ☐ |
+| Validación | Duplicadas, vacías, padre inexistente, auto-padre, ciclos, tab/saltos | Implementado | C | ☐ |
+| Grupos / subgrupos / notas | Nuevo grupo, subgrupo, nota; editar (F2/doble clic); duplicar; transformaciones; plantillas | Implementado | C, W | ☐ |
+| Texto pegado | Varias líneas → una, con vista previa | Implementado | C | ☐ |
+| Organizar | Arrastrar, Tab/Mayús+Tab, sin cambiar claves; expansión conservada | Implementado | C, W | ☐ |
+| Re-key | Explícito; hijas y referencias del modelo (etiquetas de usuario, tipos, materiales) en un Deshacer; bloqueos | Implementado | C | ☐ |
+| Eliminar | Revisión con uso; rama completa | Implementado | C | ☐ |
+| Importar / exportar | TXT Revit y pyRevit; nuevas/iguales/conflicto sin sobrescritura silenciosa; exportar filtradas con padres | Implementado | C | ☐ |
+| pyRevit DeffrelDB | Detectado, solo lectura, copia estándar, bloqueos intactos | Implementado | C | ☐ |
+| Buscar y filtrar | Búsqueda con retardo, uso, origen, rama, regex validadas | Implementado | C, W | ☐ |
+| Uso | Etiquetas (usuario/elemento/material, vistas) y asignaciones; fallo = desconocido | Implementado | C | ☐ |
+| Guardar seguro | Hash, combinación a 3 bandas con elección, copia de seguridad, temporal + Replace, verificación | Implementado | C | ☐ |
+| Guardar y recargar | Reload con resultados en TransactionGroup, verificación de lo cargado, restaurar solo si no cambió | Implementado | C (simulado) | ☐ |
+| Colocar | Usuario / elemento / material con PostCommand + DocumentChanged + Idling; eventos liberados | Implementado | C (simulado) | ☐ |
+| Borrador y cierre | Autoguardado local, recuperación, guardar/descartar/cancelar | Implementado | C, W | ☐ |
+| Red / ACC | Avisos, marcador sin descargar, conflicto por sincronización | Implementado | C (parcial) | ☐ |

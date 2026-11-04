@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Keynote Manager logic: native Revit keynote TXT format (parser/writer, encodings, pyRevit DeffrelDB detection),
+    library model and validation, editing operations, import/merge, controlled file storage and the view model.
+    No WPF and no Revit API (tested on any machine). Revit access goes through IKeynoteGateway (CausaFix.Revit).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>CausaFix.Keynotes</RootNamespace>
+    <AssemblyName>CausaFix.Keynotes</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CausaFix.Core\CausaFix.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>
