@@ -305,7 +305,8 @@ namespace CausaFix.Keynotes.ViewModels
             _draft = new KeynoteDraft(snap.Document.Library);
             _draft.Changed += OnDraftChanged;
             _expanded.Clear();
-            foreach (var r in _draft.Current.Records.Where(r => r.IsRoot)) _expanded.Add(r.Key);
+            // Small libraries open fully expanded; large ones show the groups only.
+            foreach (var r in _draft.Current.Records.Where(r => r.IsRoot || _draft.Current.Records.Count <= 300)) _expanded.Add(r.Key);
             var issues = snap.Document.Issues;
             FileStatus = "Archivo: " + Path.GetFileName(_path) + " · " + snap.Document.Library.Records.Count + " registros · " + KeynoteFormat.Describe(_encoding)
                 + (issues.Count > 0 ? " · " + issues.Count + " problema(s) en el archivo" : " · válido")
