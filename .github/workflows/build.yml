@@ -42,7 +42,8 @@ jobs:
 
       # Real Project Setup window clicked with the real mouse/keyboard (SendInput) on the runner's desktop.
       # Exit code 2 = input could not reach the window here: reported as a warning, not as passed.
-      - name: WPF interaction checks (Project Setup rule list, Project Cleanup window)
+      - name: WPF interaction checks (Project Setup rule list, Project Cleanup window, Keynote Manager)
+        timeout-minutes: 10
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null

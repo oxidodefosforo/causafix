@@ -34,10 +34,11 @@ namespace CausaFix.Addin.Modules.Keynotes
         public bool ForceClose { get; set; }
         public KeynoteManagerViewModel Vm => DataContext as KeynoteManagerViewModel;
 
-        private void OnCloseRequested(object sender, EventArgs e) { _closingChecked = true; Close(); }
+        private void OnCloseRequested(object sender, EventArgs e) { _closingChecked = true; Dispatcher.BeginInvoke(new Action(Close)); }
 
         private void OnDispatcherException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            if (e.Handled) return;
             string trace = e.Exception?.ToString() ?? string.Empty;
             if (trace.IndexOf("CausaFix", StringComparison.Ordinal) < 0) return;
             e.Handled = true;
@@ -56,14 +57,16 @@ namespace CausaFix.Addin.Modules.Keynotes
         {
             base.OnClosing(e);
             if (ForceClose || _closingChecked || Vm == null) return;
+            if (Vm.IsBusy) { e.Cancel = true; MessageBox.Show(this, "Keynote Manager está trabajando. Espera a que termine.", "CausaFixIt Keynote Manager"); return; }
+            if (!Vm.IsDirty) { _ = Vm.ConfirmCloseAsync(); return; }       // nothing to ask: closes now (ends a placement)
+            // Pending changes: keep the window open, ask, and close afterwards (Close cannot be called while closing).
             e.Cancel = true;
-            if (Vm.IsBusy) { MessageBox.Show(this, "Keynote Manager está trabajando. Espera a que termine.", "CausaFixIt Keynote Manager"); return; }
             bool ok;
             try { ok = await Vm.ConfirmCloseAsync(); }
-            catch (Exception ex) { Shared.Services.Log.Error("Keynote Manager: close", ex); ok = true; }
+            catch (Exception ex) { Shared.Services.Log.Error("Keynote Manager: close", ex); ok = false; }
             if (!ok) return;
             _closingChecked = true;
-            Close();
+            await Dispatcher.BeginInvoke(new Action(Close), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

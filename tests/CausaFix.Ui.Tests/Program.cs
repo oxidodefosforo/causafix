@@ -33,6 +33,7 @@ namespace CausaFix.Ui.Tests
     public static class Program
     {
         private static int _fails, _passes;
+        private static volatile string _step = "";
         private static readonly List<string> Report = new List<string>();
 
         [STAThread]
@@ -40,6 +41,14 @@ namespace CausaFix.Ui.Tests
         {
             AppDomain.CurrentDomain.UnhandledException += (s, e) => { Console.WriteLine("UNHANDLED " + e.ExceptionObject); Environment.Exit(1); };
             Dispatcher.CurrentDispatcher.UnhandledException += (s, e) => { Console.WriteLine("UI EXCEPTION " + e.Exception); _fails++; e.Handled = true; };
+            // Watchdog: a modal dialog or a hang must not block CI; report what ran and fail.
+            var watchdog = new Thread(() =>
+            {
+                Thread.Sleep(TimeSpan.FromMinutes(4));
+                lock (Report) { Fail("watchdog: the checks did not finish in 4 minutes (modal dialog or hang). Last step: " + _step); Print(); }
+                Environment.Exit(1);
+            }) { IsBackground = true };
+            watchdog.Start();
             try
             {
                 if (!OldTemplateConfirmsCause()) { Print(); Console.WriteLine("NOT EXECUTABLE: the mouse input did not reach the window (no interactive desktop)."); return 2; }
@@ -273,6 +282,7 @@ namespace CausaFix.Ui.Tests
             var win = new KeynoteManagerWindow { DataContext = vm, WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0, Topmost = true };
             bool closed = false;
             win.Closed += (o, e) => closed = true;
+            Step("keynote: open");
             win.Show(); win.Activate(); win.Initialize(); Pump(1200);
             try
             {
@@ -281,12 +291,14 @@ namespace CausaFix.Ui.Tests
                 ListBoxItem Row(string key) => (ListBoxItem)tree.ItemContainerGenerator.ContainerFromItem(vm.Rows.First(r => r.Key == key));
                 TextBlock TextOf(string key) => Find<TextBlock>(Row(key), t => t.Text == vm.Rows.First(r => r.Key == key).Text);
 
+                Step("keynote: click text");
                 Click(TextOf("E-LTG-002"));
                 Check(vm.SelectedRow?.Key == "E-LTG-002" && Row("E-LTG-002").IsSelected, "click on the text selects E-LTG-002");
                 var r1 = Row("E-LTG-001");
                 Click(r1, new Point(r1.ActualWidth - 30, r1.ActualHeight / 2));
                 Check(vm.SelectedRow?.Key == "E-LTG-001", "click on the free space selects E-LTG-001");
 
+                Step("keynote: expander");
                 var toggle = Find<Button>(Row("E-LTG"), b => (b.Content as string) == "▾");
                 Check(toggle != null, "expander of E-LTG present");
                 if (toggle != null) Click(toggle);
@@ -294,12 +306,14 @@ namespace CausaFix.Ui.Tests
                 Check(vm.Rows.Count == 2 && vm.SelectedRow?.Key == "E-LTG", "expander collapses E-LTG and selects it (" + vm.Rows.Count + " rows)");
                 vm.Expand("E-LTG", true); Pump(200);
 
+                Step("keynote: F2");
                 vm.Select("E-LTG-001"); Pump(200);
                 Row("E-LTG-001").Focus(); Pump(100);
                 s.Dlg.Forms.Enqueue(FakeKeynoteDialogs.Answer(null, "ONE EDITED"));
                 Key(0x71);                                                     // F2
                 Check(vm.Draft.Current.Find("E-LTG-001").Text == "ONE EDITED" && vm.Rows.First(r => r.Key == "E-LTG-001").State == "Modificada", "F2 edits the selected keynote");
 
+                Step("keynote: search");
                 var search = (TextBox)win.FindName("SearchBox");
                 Click(search);
                 Key(0x2E);                                                     // Delete while typing in the search box
@@ -308,6 +322,7 @@ namespace CausaFix.Ui.Tests
                 Check(vm.Rows.Select(r => r.Key).SequenceEqual(new[] { "E", "E-LTG", "E-LTG-002" }), "search (debounced) keeps the parents as context");
                 search.Text = ""; Pump(600);
 
+                Step("keynote: close");
                 s.Dlg.CloseAnswer = CloseChoice.Discard;
                 win.Close(); Pump(400);
                 Check(closed, "closing with pending changes asks and closes on Discard");
@@ -320,6 +335,7 @@ namespace CausaFix.Ui.Tests
 
         private static bool SameBrush(Brush a, Brush b) => a is SolidColorBrush x && b is SolidColorBrush y ? x.Color == y.Color : ReferenceEquals(a, b);
 
+        private static void Step(string s) { _step = s; Console.WriteLine("step: " + s); }
         private static void Check(bool ok, string what) { if (ok) { _passes++; Report.Add("  PASS  " + what); } else Fail(what); }
         private static void Fail(string what) { _fails++; Report.Add("  FAIL  " + what); }
         private static void Print()
