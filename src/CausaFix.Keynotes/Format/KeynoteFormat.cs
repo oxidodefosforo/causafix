@@ -97,9 +97,9 @@ namespace CausaFix.Keynotes.Format
                 }
                 if (f.Length < 2 || f.Length > 3)
                 {
-                    string reason = f.Length < 2 ? "sin tabulador entre clave y texto" : "con " + (f.Length - 1) + " tabuladores (se esperan 1 o 2)";
+                    string reason = f.Length < 2 ? "no tab between key and text" : (f.Length - 1) + " tabs (1 or 2 expected)";
                     doc.Unparsed.Add(new UnparsedLine { Line = n, Raw = line, Reason = reason });
-                    doc.Issues.Add(new LibraryIssue { Kind = IssueKind.Malformed, Line = n, Message = "Registro mal formado (" + reason + "): '" + Short(line) + "'." });
+                    doc.Issues.Add(new LibraryIssue { Kind = IssueKind.Malformed, Line = n, Message = "Malformed record (" + reason + "): '" + Short(line) + "'." });
                     continue;
                 }
                 doc.Library.Records.Add(new KeynoteRecord { Key = f[0], Text = f[1], ParentKey = f.Length == 3 ? f[2] : "" });
@@ -186,10 +186,10 @@ namespace CausaFix.Keynotes.Format
         {
             switch (e)
             {
-                case KeynoteEncoding.Utf16LeBom: return "Unicode (UTF-16 LE con BOM)";
-                case KeynoteEncoding.Utf16BeBom: return "Unicode big endian (UTF-16 BE con BOM)";
-                case KeynoteEncoding.Utf8Bom: return "UTF-8 con BOM";
-                case KeynoteEncoding.Utf8: return "UTF-8 sin BOM";
+                case KeynoteEncoding.Utf16LeBom: return "Unicode (UTF-16 LE with BOM)";
+                case KeynoteEncoding.Utf16BeBom: return "Unicode big endian (UTF-16 BE with BOM)";
+                case KeynoteEncoding.Utf8Bom: return "UTF-8 with BOM";
+                case KeynoteEncoding.Utf8: return "UTF-8 without BOM";
                 default: return "ANSI (Windows-1252)";
             }
         }

@@ -54,6 +54,13 @@ Tercera herramienta («Eliminar documentación conservando la vista activa»). P
   - comprobación WPF en CI (ventana real, vista conservada, recuentos, «Cancelar» sin cambios).
 - Pendiente en Revit (§5 de la guía): cascadas reales, colocaciones de schedules segmentados y panel schedules, cierre de vistas abiertas, rollback con un error real y el Deshacer.
 
+## Keynote Manager: interfaz en inglés y barra simplificada (versión 0.4.1)
+
+- Toda la interfaz de Keynote Manager (botones, menús, diálogos, tooltips, estados y errores) está en inglés. Los nombres de proyecto, rutas, claves y textos de las notas no se traducen.
+- Se quitó de la ventana la sección «Place in active view» (botones User / Element / Material y sus textos de ayuda). Se mantienen los detalles de la selección y «Select tags in Revit». La lógica de colocación sigue en el código, pero no está en la interfaz.
+- Change key…, Delete (Del), Outdent (Shift+Tab) e Indent (Tab) pasaron al menú More, al principio y con los mismos atajos. La barra conserva New group, New subgroup, New keynote, Edit y Duplicate, más Revert y More a la derecha.
+- La comprobación WPF de CI verifica la barra, el menú More, la ausencia de la sección de colocación y los atajos Tab y Supr.
+
 ## Keynote Manager (versión 0.4.0)
 
 Cuarta herramienta. Proyecto de lógica `CausaFix.Keynotes` (formato, codificaciones, modelo, edición, combinación, archivos, view model), adaptador `CausaFix.Revit/Keynotes/KeynoteService.cs` y ventana no modal en `CausaFix.Addin/Modules/Keynotes`, registrada en `ModuleRegistry` después de Project Cleanup. Las otras herramientas no cambian. Guía: `docs/KEYNOTE_MANAGER.md`.

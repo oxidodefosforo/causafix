@@ -56,7 +56,7 @@ namespace CausaFix.Keynotes.ViewModels
     /// </summary>
     public sealed class KeynoteManagerViewModel : ObservableObject
     {
-        public const string FileFilter = "Archivos de keynotes (*.txt)|*.txt|Todos los archivos (*.*)|*.*";
+        public const string FileFilter = "Keynote files (*.txt)|*.txt|All files (*.*)|*.*";
 
         private readonly IKeynoteGateway _gw;
         private readonly IKeynoteDialogs _dlg;
@@ -179,11 +179,11 @@ namespace CausaFix.Keynotes.ViewModels
         public bool IsLinked => HasFile && _table != null && SamePath(_table.Path, _path);
         public bool IsDirty => _draft.IsDirty;
         public int ChangeCount => _draft.Changes().Count;
-        public string DirtyText => IsDirty ? ChangeCount + " cambio(s) sin guardar" : HasFile ? "Sin cambios pendientes" : "";
+        public string DirtyText => IsDirty ? ChangeCount + " unsaved change(s)" : HasFile ? "No pending changes" : "";
         /// <summary>Editing allowed: a writable, standard (non-DeffrelDB) file.</summary>
         public bool CanEdit => HasFile && _access.CanWrite && !_deffrel;
         public bool IsReadOnly => HasFile && !CanEdit;
-        public string ReadOnlyReason => !HasFile ? "" : _deffrel ? "Archivo administrado por pyRevit (DeffrelDB): solo lectura. Usa «Guardar como…» para crear una copia en formato estándar de Revit (el original no se toca)." : _access.CanWrite ? "" : "Solo lectura: " + _access.ReadOnlyReason;
+        public string ReadOnlyReason => !HasFile ? "" : _deffrel ? "File managed by pyRevit (DeffrelDB): read-only. Use \"Save as…\" to create a copy in Revit's standard format (the original is not touched)." : _access.CanWrite ? "" : "Read-only: " + _access.ReadOnlyReason;
         public string AccessNotes => string.Join(" ", _access.Notes);
         public string FileStatus { get => _fileStatus; private set => Set(ref _fileStatus, value); }
         public string RevitStatus { get => _revitStatus; private set => Set(ref _revitStatus, value); }
@@ -191,7 +191,7 @@ namespace CausaFix.Keynotes.ViewModels
         public string IssuesText { get => _issuesText; private set => Set(ref _issuesText, value); }
         public bool IsBusy { get => _busy; private set { if (Set(ref _busy, value)) RefreshCommands(); } }
         public string BusyText { get => _busyText; private set => Set(ref _busyText, value); }
-        public string Summary => HasFile ? _draft.Current.Records.Count + " registros · " + Rows.Count + " visibles" : "";
+        public string Summary => HasFile ? _draft.Current.Records.Count + " records · " + Rows.Count + " visible" : "";
         public List<TextTemplate> Templates => _templates ?? (_templates = _store.LoadTemplates());
 
         public KeynoteRow SelectedRow
@@ -215,12 +215,12 @@ namespace CausaFix.Keynotes.ViewModels
             get
             {
                 if (SelectedRow == null) return "";
-                if (_usage == null) return "Uso: sin leer.";
-                if (!_usage.Succeeded) return "Uso: desconocido (la consulta falló: " + _usage.Error + ").";
+                if (_usage == null) return "Usage: not read yet.";
+                if (!_usage.Succeeded) return "Usage: unknown (the query failed: " + _usage.Error + ").";
                 var u = _usage.Of(SelectedRow.Key);
-                if (u == null || !u.IsUsed) return "Sin etiquetas ni asignaciones en este proyecto (otros proyectos que compartan el archivo no se ven desde aquí).";
-                return u.Tags + " etiqueta(s) [" + u.UserTags + " usuario, " + u.ElementTags + " elemento, " + u.MaterialTags + " material] en " + u.Views.Count + " vista(s); "
-                     + u.ElementAssignments + " tipo(s)/elemento(s) y " + u.MaterialAssignments + " material(es) con esta clave. Solo este proyecto.";
+                if (u == null || !u.IsUsed) return "No tags or assignments in this project (projects sharing this file are not visible from here).";
+                return u.Tags + " tag(s) [" + u.UserTags + " user, " + u.ElementTags + " element, " + u.MaterialTags + " material] in " + u.Views.Count + " view(s); "
+                     + u.ElementAssignments + " type(s)/element(s) and " + u.MaterialAssignments + " material(s) with this key. This project only.";
             }
         }
 
@@ -234,7 +234,7 @@ namespace CausaFix.Keynotes.ViewModels
         public UsageFilter UsageFilter { get => _usageFilter; set { if (Set(ref _usageFilter, value)) Rebuild(); } }
         public SourceFilter SourceFilter { get => _sourceFilter; set { if (Set(ref _sourceFilter, value)) Rebuild(); } }
         public string BranchKey { get => _branchKey; set { if (Set(ref _branchKey, value ?? "")) { OnPropertyChanged(nameof(BranchText)); Rebuild(); } } }
-        public string BranchText => string.IsNullOrEmpty(_branchKey) ? "" : "Solo la rama " + _branchKey;
+        public string BranchText => string.IsNullOrEmpty(_branchKey) ? "" : "Branch only: " + _branchKey;
         public bool IsFiltering => _search.Trim().Length > 0 || _regexInclude.Length > 0 || _regexExclude.Length > 0 || _usageFilter != UsageFilter.All || _sourceFilter != SourceFilter.Any || _branchKey.Length > 0;
 
         private void ClearFilters()
@@ -249,21 +249,22 @@ namespace CausaFix.Keynotes.ViewModels
 
         public async Task InitializeAsync()
         {
-            await Busy("Leyendo la tabla de keynotes del modelo", async () =>
+            await Busy("Reading the model's keynote table", async () =>
             {
                 _table = await _gw.ReadTable();
                 if (_table.IsServerResource)
                 {
-                    FileStatus = "La tabla del modelo viene de un servidor (" + _table.ServerName + "): no es un archivo editable desde aquí. Abre o crea un TXT local y vincúlalo.";
+                    FileStatus = "The model's keynote table comes from a server (" + _table.ServerName + "): it is not a file that can be edited here. Open or create a local TXT and link it.";
                 }
                 else if (!string.IsNullOrEmpty(_table.Path))
                 {
                     if (File.Exists(_table.Path)) OpenPath(_table.Path);
-                    else FileStatus = "El archivo configurado no se encuentra: " + _table.Path + ". Puede estar en una unidad no conectada o sin sincronizar.";
+                    else FileStatus = "The configured file cannot be found: " + _table.Path + ". It may be on a disconnected drive or not synced.";
                 }
-                else FileStatus = "El modelo no tiene archivo de keynotes configurado. Crea uno nuevo o abre uno existente y vincúlalo.";
+                else FileStatus = "The model has no keynote file configured. Create a new one or open an existing one and link it.";
                 await ReadUsageAsync();
                 UpdateRevitStatus();
+                if (string.IsNullOrEmpty(Status)) Status = "Ready. Select a keynote to view or edit its details.";
             });
         }
 
@@ -271,20 +272,20 @@ namespace CausaFix.Keynotes.ViewModels
         {
             FileSnapshot snap;
             try { snap = _store.Read(path); }
-            catch (Exception ex) { _dlg.Error("Abrir archivo", "No se pudo leer '" + path + "': " + ex.Message); return; }
+            catch (Exception ex) { _dlg.Error("Open file", "Could not read '" + path + "': " + ex.Message); return; }
             Load(snap);
             var st = _store.LoadDraft(path);
             if (st != null && CanEdit)
             {
                 var recovered = new KeynoteLibrary(st.Current);
                 bool differs = recovered.Records.Count != snap.Document.Library.Records.Count || recovered.Records.Zip(snap.Document.Library.Records, (a, b) => a.SameAs(b)).Any(x => !x);
-                if (differs && _dlg.Confirm("Cambios sin guardar", "Hay cambios sin guardar de una sesión anterior en este archivo (" + st.SavedUtc.ToLocalTime().ToString("g") + ")." +
-                        (st.BaseHash != snap.Hash ? " El archivo cambió desde entonces: al guardar se combinarán con los cambios del archivo y se te pedirá resolver los conflictos." : "") + "\n\n¿Recuperarlos?"))
+                if (differs && _dlg.Confirm("Unsaved changes", "There are unsaved changes to this file from a previous session (" + st.SavedUtc.ToLocalTime().ToString("g") + ")." +
+                        (st.BaseHash != snap.Hash ? " The file has changed since then: on save they will be merged with the file's changes and you will be asked to resolve any conflicts." : "") + "\n\nRecover them?"))
                 {
                     _draft.ResetTo(new KeynoteLibrary(st.Base));
                     _draft.Replace(recovered, st.Renames.Select(r => new KeyRename { From = r.From, To = r.To }));
                     _baseHash = st.BaseHash;
-                    Status = "Cambios recuperados: " + ChangeCount + ".";
+                    Status = "Changes recovered: " + ChangeCount + ".";
                 }
                 else _store.DeleteDraft(path);
             }
@@ -308,10 +309,10 @@ namespace CausaFix.Keynotes.ViewModels
             // Small libraries open fully expanded; large ones show the groups only.
             foreach (var r in _draft.Current.Records.Where(r => r.IsRoot || _draft.Current.Records.Count <= 300)) _expanded.Add(r.Key);
             var issues = snap.Document.Issues;
-            FileStatus = "Archivo: " + Path.GetFileName(_path) + " · " + snap.Document.Library.Records.Count + " registros · " + KeynoteFormat.Describe(_encoding)
-                + (issues.Count > 0 ? " · " + issues.Count + " problema(s) en el archivo" : " · válido")
-                + (_deffrel ? " · formato pyRevit (DeffrelDB)" : "");
-            IssuesText = string.Join("\n", issues.Take(50).Select(i => i.ToString())) + (issues.Count > 50 ? "\n… y " + (issues.Count - 50) + " más." : "");
+            FileStatus = "File: " + Path.GetFileName(_path) + " · " + snap.Document.Library.Records.Count + " records · " + KeynoteFormat.Describe(_encoding)
+                + (issues.Count > 0 ? " · " + issues.Count + " issue(s) in the file" : " · valid")
+                + (_deffrel ? " · pyRevit format (DeffrelDB)" : "");
+            IssuesText = string.Join("\n", issues.Take(50).Select(i => i.ToString())) + (issues.Count > 50 ? "\n… and " + (issues.Count - 50) + " more." : "");
             NotifyFile();
         }
 
@@ -330,41 +331,41 @@ namespace CausaFix.Keynotes.ViewModels
         private bool ConfirmLeaveDraft()
         {
             if (!_draft.IsDirty) return true;
-            return _dlg.Confirm("Cambios sin guardar", "Hay " + ChangeCount + " cambio(s) sin guardar en " + Path.GetFileName(_path) + ". ¿Descartarlos?");
+            return _dlg.Confirm("Unsaved changes", "There are " + ChangeCount + " unsaved change(s) in " + Path.GetFileName(_path) + ". Discard them?");
         }
 
         private async Task OpenFileAsync()
         {
             if (!ConfirmLeaveDraft()) return;
-            string p = _dlg.PickOpenFile("Abrir archivo de keynotes", FileFilter, _path);
+            string p = _dlg.PickOpenFile("Open keynote file", FileFilter, _path);
             if (string.IsNullOrEmpty(p)) return;
             if (HasFile) _store.DeleteDraft(_path);
             OpenPath(p);
             UpdateRevitStatus();
             if (!IsLinked && HasFile && !_deffrel && _table != null && !_table.DocumentReadOnly
-                && _dlg.Confirm("Vincular al modelo", "¿Vincular '" + Path.GetFileName(p) + "' como archivo de keynotes del modelo?\n\nRevit cargará este archivo en lugar de " + (string.IsNullOrEmpty(_table.Path) ? "ninguno" : "'" + _table.Path + "'") + "."))
+                && _dlg.Confirm("Link to model", "Link '" + Path.GetFileName(p) + "' as the model's keynote file?\n\nRevit will load this file instead of " + (string.IsNullOrEmpty(_table.Path) ? "none" : "'" + _table.Path + "'") + "."))
                 await LinkAsync();
         }
 
         private async Task NewFileAsync()
         {
             if (!ConfirmLeaveDraft()) return;
-            string p = _dlg.PickSaveFile("Nueva biblioteca de keynotes", FileFilter, string.IsNullOrEmpty(_path) ? "Keynotes.txt" : Path.Combine(Path.GetDirectoryName(_path) ?? "", "Keynotes.txt"));
+            string p = _dlg.PickSaveFile("New keynote library", FileFilter, string.IsNullOrEmpty(_path) ? "Keynotes.txt" : Path.Combine(Path.GetDirectoryName(_path) ?? "", "Keynotes.txt"));
             if (string.IsNullOrEmpty(p)) return;
             var res = _store.CreateNew(p, new KeynoteLibrary());
-            if (res.Outcome != SaveOutcome.Saved) { _dlg.Error("Nuevo archivo", res.Message); return; }
+            if (res.Outcome != SaveOutcome.Saved) { _dlg.Error("New file", res.Message); return; }
             if (HasFile) _store.DeleteDraft(_path);
             OpenPath(p);
-            Status = "Archivo nuevo creado (UTF-16 LE con BOM). Añade un grupo con «Nuevo grupo».";
+            Status = "New file created (UTF-16 LE with BOM). Add a group with \"New group\".";
             UpdateRevitStatus();
-            if (_table != null && !_table.DocumentReadOnly && _dlg.Confirm("Vincular al modelo", "¿Vincular el archivo nuevo como archivo de keynotes del modelo?"))
+            if (_table != null && !_table.DocumentReadOnly && _dlg.Confirm("Link to model", "Link the new file as the model's keynote file?"))
                 await LinkAsync();
         }
 
         private async Task LinkAsync()
         {
-            if (_draft.IsDirty) { _dlg.Info("Vincular", "Guarda los cambios antes de vincular el archivo."); return; }
-            await Busy("Vinculando el archivo al modelo", async () =>
+            if (_draft.IsDirty) { _dlg.Info("Link to model", "Save your changes before linking the file."); return; }
+            await Busy("Linking the file to the model", async () =>
             {
                 var res = await _gw.LinkFile(_path, new List<KeyRename>());
                 AfterReload(res, _draft.Current, null);
@@ -376,7 +377,7 @@ namespace CausaFix.Keynotes.ViewModels
 
         private async Task RefreshAsync()
         {
-            await Busy("Releyendo archivo y modelo", async () =>
+            await Busy("Reloading file and model", async () =>
             {
                 _table = await _gw.ReadTable();
                 if (HasFile && File.Exists(_path))
@@ -384,8 +385,8 @@ namespace CausaFix.Keynotes.ViewModels
                     string now = _store.CurrentHash(_path);
                     if (now != _baseHash)
                     {
-                        if (!_draft.IsDirty) { OpenPath(_path); Status = "El archivo cambió en disco: releído."; }
-                        else Status = "El archivo cambió en disco. Tus cambios se combinarán con los del archivo al guardar.";
+                        if (!_draft.IsDirty) { OpenPath(_path); Status = "The file changed on disk: reloaded."; }
+                        else Status = "The file changed on disk. Your changes will be merged with the file's changes on save.";
                     }
                     else _access = _store.Probe(_path);
                 }
@@ -406,14 +407,14 @@ namespace CausaFix.Keynotes.ViewModels
 
         private void UpdateRevitStatus()
         {
-            if (_table == null) { RevitStatus = "Revit: sin leer."; return; }
-            string loaded = _table.IsLoaded ? _table.LoadedEntries.Count + " notas cargadas" : "tabla no cargada";
-            string where = string.IsNullOrEmpty(_table.Path) ? "sin archivo configurado" : "configurado: " + _table.Path;
+            if (_table == null) { RevitStatus = "Revit: not read yet."; return; }
+            string loaded = _table.IsLoaded ? _table.LoadedEntries.Count + " notes loaded" : "table not loaded";
+            string where = string.IsNullOrEmpty(_table.Path) ? "no file configured" : "configured: " + _table.Path;
             string sync = "";
             if (IsLinked && _table.IsLoaded)
-                sync = SameContent(_table.LoadedEntries, _draft.Base) ? " · coincide con el archivo" : " · distinto del archivo (usa «Guardar y recargar»)";
-            else if (HasFile && !IsLinked) sync = " · el archivo abierto NO es el del modelo";
-            RevitStatus = "Revit: " + where + " · " + _table.LoadStatus + " · " + loaded + sync + (_table.DocumentReadOnly ? " · documento de solo lectura: " + _table.DocumentReadOnlyReason : "");
+                sync = SameContent(_table.LoadedEntries, _draft.Base) ? " · Matches file" : " · Differs from file (use \"Save & Reload\")";
+            else if (HasFile && !IsLinked) sync = " · the open file is NOT the model's file";
+            RevitStatus = "Revit: " + where + " · " + _table.LoadStatus + " · " + loaded + sync + (_table.DocumentReadOnly ? " · read-only document: " + _table.DocumentReadOnlyReason : "");
             OnPropertyChanged(nameof(IsLinked));
         }
 
@@ -474,7 +475,7 @@ namespace CausaFix.Keynotes.ViewModels
             var lib = _draft.Current;
             var inc = Compile(_regexInclude, out string e1);
             var exc = Compile(_regexExclude, out string e2);
-            RegexError = e1 != null ? "Regex incluir no válida: " + e1 : e2 != null ? "Regex excluir no válida: " + e2 : "";
+            RegexError = e1 != null ? "Invalid include regex: " + e1 : e2 != null ? "Invalid exclude regex: " + e2 : "";
             var issues = lib.Validate().Where(i => !string.IsNullOrEmpty(i.Key)).GroupBy(i => i.Key).ToDictionary(g => g.Key, g => string.Join(" ", g.Select(i => i.Message)), StringComparer.Ordinal);
             var changes = _draft.Changes().ToDictionary(c => c.Key, c => c, StringComparer.Ordinal);
             var children = lib.Records.Where(r => !r.IsRoot).GroupBy(r => r.ParentKey).ToDictionary(g => g.Key, g => g.OrderBy(x => x.Key, NaturalComparer.Instance).ToList(), StringComparer.Ordinal);
@@ -536,11 +537,11 @@ namespace CausaFix.Keynotes.ViewModels
             };
             if (changes.TryGetValue(r.Key, out var ch))
             {
-                row.State = ch.Kind == ChangeKind.Added ? "Nueva" : ch.Kind == ChangeKind.Rekeyed ? "Re-key" : "Modificada";
+                row.State = ch.Kind == ChangeKind.Added ? "New" : ch.Kind == ChangeKind.Rekeyed ? "Re-key" : "Modified";
                 row.StateTip = ch.Describe();
             }
-            if (_usage == null) { row.Usage = ""; row.UsageTip = "Uso sin leer."; }
-            else if (!_usage.Succeeded) { row.Usage = "?"; row.UsageTip = "Uso desconocido: la consulta falló (" + _usage.Error + ")."; }
+            if (_usage == null) { row.Usage = ""; row.UsageTip = "Usage not read yet."; }
+            else if (!_usage.Succeeded) { row.Usage = "?"; row.UsageTip = "Usage unknown: the query failed (" + _usage.Error + ")."; }
             else
             {
                 string orig = _draft.OriginalKeyOf(r.Key);
@@ -549,11 +550,11 @@ namespace CausaFix.Keynotes.ViewModels
                 {
                     row.IsUsed = true;
                     var parts = new List<string>();
-                    if (u.Tags > 0) parts.Add(u.Tags + " etiq.");
-                    if (u.Views.Count > 0) parts.Add(u.Views.Count + " vista" + (u.Views.Count == 1 ? "" : "s"));
-                    if (u.Assignments > 0) parts.Add(u.Assignments + " asig.");
+                    if (u.Tags > 0) parts.Add(u.Tags + (u.Tags == 1 ? " tag" : " tags"));
+                    if (u.Views.Count > 0) parts.Add(u.Views.Count + " view" + (u.Views.Count == 1 ? "" : "s"));
+                    if (u.Assignments > 0) parts.Add(u.Assignments + " assign.");
                     row.Usage = string.Join(" · ", parts);
-                    row.UsageTip = u.UserTags + " etiqueta(s) de usuario, " + u.ElementTags + " de elemento, " + u.MaterialTags + " de material; " + u.ElementAssignments + " tipo(s)/elemento(s) y " + u.MaterialAssignments + " material(es) con esta clave (este proyecto)." + (orig != r.Key ? " Uso de la clave original '" + orig + "'." : "");
+                    row.UsageTip = u.UserTags + " user tag(s), " + u.ElementTags + " element, " + u.MaterialTags + " material; " + u.ElementAssignments + " type(s)/element(s) and " + u.MaterialAssignments + " material(s) with this key (this project)." + (orig != r.Key ? " Usage of the original key '" + orig + "'." : "");
                 }
             }
             return row;
@@ -570,7 +571,7 @@ namespace CausaFix.Keynotes.ViewModels
         private List<KeynoteRecord> ParentChoices(string excludeBranchOf = null)
         {
             var excluded = excludeBranchOf == null ? new HashSet<string>() : new HashSet<string>(_draft.Current.Branch(excludeBranchOf).Select(r => r.Key), StringComparer.Ordinal);
-            var list = new List<KeynoteRecord> { new KeynoteRecord { Key = "", Text = "(primer nivel: grupo)" } };
+            var list = new List<KeynoteRecord> { new KeynoteRecord { Key = "", Text = "(top level: group)" } };
             list.AddRange(Ordered().Where(r => !excluded.Contains(r.Key)));
             return list;
         }
@@ -606,8 +607,8 @@ namespace CausaFix.Keynotes.ViewModels
 
         private void NewGroup()
         {
-            var f = Form("Nuevo grupo", "", true, "", "", false, "Un grupo es una nota de primer nivel (categoría en el diálogo de Revit). Ejemplo: clave E, texto ELECTRICAL.",
-                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "El texto no puede estar vacío." : null));
+            var f = Form("New group", "", true, "", "", false, "A group is a top-level keynote (a category in Revit's dialog). Example: key E, text ELECTRICAL.",
+                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "The text cannot be empty." : null));
             if (f == null) return;
             if (_draft.Add(f.Key, f.Text, "") is string e) { Op(e); return; }
             _containers.Add(f.Key.Trim());
@@ -617,8 +618,8 @@ namespace CausaFix.Keynotes.ViewModels
         private void NewSubgroup()
         {
             string parent = SelectedRow.Key;
-            var f = Form("Nuevo subgrupo dentro de " + parent, SuggestChildKey(parent), true, "", parent, true, "Un subgrupo es una nota con padre que contendrá otras notas. Ejemplo: clave E-LTG, texto LIGHTING, padre E.",
-                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "El texto no puede estar vacío." : null));
+            var f = Form("New subgroup in " + parent, SuggestChildKey(parent), true, "", parent, true, "A subgroup is a keynote with a parent that will contain other keynotes. Example: key E-LTG, text LIGHTING, parent E.",
+                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "The text cannot be empty." : null));
             if (f == null) return;
             if (_draft.Add(f.Key, f.Text, f.ParentKey) is string e) { Op(e); return; }
             _containers.Add(f.Key.Trim());
@@ -632,11 +633,11 @@ namespace CausaFix.Keynotes.ViewModels
             if (SelectedRow != null) parent = IsContainer(SelectedRow) ? SelectedRow.Key : SelectedRow.ParentKey;
             if (string.IsNullOrEmpty(parent) && !_draft.Current.Records.Any())
             {
-                _dlg.Info("Nueva nota", "La biblioteca está vacía: crea primero un grupo (por ejemplo E – ELECTRICAL).");
+                _dlg.Info("New keynote", "The library is empty: create a group first (for example E – ELECTRICAL).");
                 return;
             }
-            var f = Form("Nueva nota", SuggestChildKey(parent), true, "", parent, true, "Pega texto de varias líneas: se convertirá en una sola línea (vista previa abajo).",
-                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "El texto no puede estar vacío." : null) ?? (string.IsNullOrEmpty(p) ? null : _draft.Current.Contains(p) ? null : "El padre no existe."));
+            var f = Form("New keynote", SuggestChildKey(parent), true, "", parent, true, "Multi-line pasted text is converted to a single line (preview below).",
+                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "The text cannot be empty." : null) ?? (string.IsNullOrEmpty(p) ? null : _draft.Current.Contains(p) ? null : "The parent does not exist."));
             if (f == null) return;
             Op(_draft.Add(f.Key, f.Text, f.ParentKey));
             if (!string.IsNullOrEmpty(f.ParentKey)) _expanded.Add(f.ParentKey);
@@ -647,8 +648,8 @@ namespace CausaFix.Keynotes.ViewModels
         {
             var r = _draft.Current.Find(SelectedRow.Key);
             if (r == null) return;
-            var f = Form("Editar " + r.Key, r.Key, false, r.Text, r.ParentKey, true, "La clave no cambia al editar (para cambiarla usa «Cambiar clave…»). Las etiquetas existentes mostrarán el texto nuevo tras «Guardar y recargar».",
-                (k, t, p) => KeynoteText.Normalize(t).Length == 0 ? "El texto no puede estar vacío." : null, r.Key);
+            var f = Form("Edit " + r.Key, r.Key, false, r.Text, r.ParentKey, true, "Editing does not change the key (use \"Change key…\" for that). Existing tags show the new text after \"Save & Reload\".",
+                (k, t, p) => KeynoteText.Normalize(t).Length == 0 ? "The text cannot be empty." : null, r.Key);
             if (f == null) return;
             Op(_draft.Edit(r.Key, f.Text, f.ParentKey));
             Select(r.Key);
@@ -658,8 +659,8 @@ namespace CausaFix.Keynotes.ViewModels
         {
             var r = _draft.Current.Find(SelectedRow.Key);
             if (r == null) return;
-            var f = Form("Duplicar " + r.Key, _draft.SuggestKey(r.Key), true, r.Text, r.ParentKey, true, "Copia una sola nota (sin sus hijas). Para copiar una rama usa Copiar (Ctrl+C) y Pegar (Ctrl+V).",
-                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "El texto no puede estar vacío." : null));
+            var f = Form("Duplicate " + r.Key, _draft.SuggestKey(r.Key), true, r.Text, r.ParentKey, true, "Copies a single keynote (without its children). To copy a branch use Copy (Ctrl+C) and Paste (Ctrl+V).",
+                (k, t, p) => _draft.ValidateNewKey((k ?? "").Trim()) ?? (KeynoteText.Normalize(t).Length == 0 ? "The text cannot be empty." : null));
             if (f == null) return;
             Op(_draft.Add(f.Key, f.Text, f.ParentKey));
             Select(f.Key.Trim());
@@ -670,10 +671,10 @@ namespace CausaFix.Keynotes.ViewModels
             string key = SelectedRow.Key;
             string orig = _draft.OriginalKeyOf(key);
             var u = _usage != null && _usage.Succeeded ? _usage.Of(orig) : null;
-            string usage = _usage == null || !_usage.Succeeded ? "Uso en el modelo desconocido: se comprobará al guardar."
-                : u == null || !u.IsUsed ? "No hay etiquetas ni asignaciones con esta clave en este proyecto."
-                : "Al «Guardar y recargar» se actualizarán " + u.Tags + " etiqueta(s) y " + u.Assignments + " asignación(es) de este proyecto. Otros proyectos que usen el archivo quedarán con la clave antigua.";
-            string n = _dlg.AskText("Cambiar clave", "Clave nueva para '" + key + "'. Las notas hijas pasan a la clave nueva.\n" + usage, key);
+            string usage = _usage == null || !_usage.Succeeded ? "Usage in the model is unknown: it will be checked on save."
+                : u == null || !u.IsUsed ? "There are no tags or assignments with this key in this project."
+                : "\"Save & Reload\" will update " + u.Tags + " tag(s) and " + u.Assignments + " assignment(s) in this project. Other projects that use the file keep the old key.";
+            string n = _dlg.AskText("Change key", "New key for '" + key + "'. Child keynotes move to the new key.\n" + usage, key);
             if (n == null) return;
             n = n.Trim();
             if (n == key) return;
@@ -692,24 +693,24 @@ namespace CausaFix.Keynotes.ViewModels
             foreach (var r in branch)
             {
                 var u = unknown ? null : _usage.Of(_draft.OriginalKeyOf(r.Key));
-                string use = unknown ? " — uso desconocido" : u != null && u.IsUsed ? " — EN USO: " + u.Tags + " etiqueta(s), " + u.Assignments + " asignación(es)" : "";
+                string use = unknown ? " — usage unknown" : u != null && u.IsUsed ? " — IN USE: " + u.Tags + " tag(s), " + u.Assignments + " assignment(s)" : "";
                 if (u != null && u.IsUsed) used++;
                 lines.Add(r.Key + "  " + r.Text + use);
             }
-            string intro = branch.Count == 1 ? "Se eliminará esta nota del borrador." : "Se eliminará la rama completa (" + branch.Count + " notas).";
-            if (used > 0) intro += "\n\n" + used + " de ellas se usan en este proyecto: sus etiquetas quedarán sin texto (clave no encontrada) y las asignaciones apuntarán a una clave inexistente. Revit no borra las etiquetas.";
-            else if (unknown) intro += "\n\nNo se pudo comprobar el uso en el modelo.";
-            intro += "\nNada cambia en el archivo hasta guardar.";
-            if (!_dlg.Review("Eliminar " + key, intro, lines, used > 0 ? "Eliminar de todos modos" : "Eliminar", danger: used > 0 || unknown)) return;
+            string intro = branch.Count == 1 ? "This keynote will be deleted from the draft." : "The whole branch will be deleted (" + branch.Count + " keynotes).";
+            if (used > 0) intro += "\n\n" + used + " of them are used in this project: their tags will show no text (key not found) and assignments will point to a missing key. Revit does not delete the tags.";
+            else if (unknown) intro += "\n\nUsage in the model could not be checked.";
+            intro += "\nNothing changes in the file until you save.";
+            if (!_dlg.Review("Delete " + key, intro, lines, used > 0 ? "Delete anyway" : "Delete", danger: used > 0 || unknown)) return;
             Op(_draft.Delete(key, true));
         }
 
         private void DiscardAll()
         {
-            if (!_dlg.Confirm("Descartar cambios", "¿Descartar los " + ChangeCount + " cambio(s) sin guardar y volver al archivo?")) return;
+            if (!_dlg.Confirm("Discard changes", "Discard the " + ChangeCount + " unsaved change(s) and go back to the file?")) return;
             _draft.ResetTo(_draft.Base);
             _store.DeleteDraft(_path);
-            Status = "Cambios descartados.";
+            Status = "Changes discarded.";
         }
 
         private void TransformSelected(string mode)
@@ -726,17 +727,17 @@ namespace CausaFix.Keynotes.ViewModels
                 default: return;
             }
             var ch = _draft.Transform(keys, f);
-            Status = ch.Count == 0 ? "El texto ya estaba así." : ch.Count + " texto(s) cambiados.";
+            Status = ch.Count == 0 ? "The text was already like that." : ch.Count + " text(s) changed.";
         }
 
         private void SaveTemplate()
         {
-            string name = _dlg.AskText("Guardar plantilla de texto", "Nombre de la plantilla (texto: '" + SelectedRow.Text + "'):", SelectedRow.Text.Length > 30 ? SelectedRow.Text.Substring(0, 30) : SelectedRow.Text);
+            string name = _dlg.AskText("Save text template", "Template name (text: '" + SelectedRow.Text + "'):", SelectedRow.Text.Length > 30 ? SelectedRow.Text.Substring(0, 30) : SelectedRow.Text);
             if (string.IsNullOrWhiteSpace(name)) return;
             var list = Templates.Where(t => !t.BuiltIn && t.Name != name).ToList();
             list.Add(new TextTemplate { Name = name.Trim(), Text = SelectedRow.Text });
-            try { _store.SaveTemplates(list); _templates = null; Status = "Plantilla guardada."; }
-            catch (Exception ex) { _dlg.Error("Plantillas", "No se pudo guardar: " + ex.Message); }
+            try { _store.SaveTemplates(list); _templates = null; Status = "Template saved."; }
+            catch (Exception ex) { _dlg.Error("Templates", "Could not save: " + ex.Message); }
         }
 
         public void Select(string key)
@@ -751,13 +752,13 @@ namespace CausaFix.Keynotes.ViewModels
         /// <summary>Moves <paramref name="key"/> under <paramref name="newParent"/> ("" = first level). Keys never change.</summary>
         public string Move(string key, string newParent)
         {
-            if (!CanEdit) return "El archivo es de solo lectura.";
+            if (!CanEdit) return "The file is read-only.";
             var r = _draft.Current.Find(key);
-            if (r == null) return "La nota no existe.";
+            if (r == null) return "The keynote does not exist.";
             if ((r.ParentKey ?? "") == (newParent ?? "")) return null;
             string e = _draft.SetParent(key, newParent ?? "");
             if (e == null) { if (!string.IsNullOrEmpty(newParent)) _expanded.Add(newParent); Select(key); }
-            else _dlg.Error("Mover", e);
+            else _dlg.Error("Move", e);
             return e;
         }
 
@@ -782,20 +783,20 @@ namespace CausaFix.Keynotes.ViewModels
         {
             var branch = _draft.Current.Branch(SelectedRow.Key);
             _dlg.SetClipboard(ToClipboardText(branch));
-            Status = "Copiada la rama " + SelectedRow.Key + " (" + branch.Count + " nota(s)) en formato de keynotes.";
+            Status = "Copied branch " + SelectedRow.Key + " (" + branch.Count + " keynote(s)) in keynote format.";
         }
 
         private void Paste()
         {
             var recs = FromClipboardText(_dlg.GetClipboard());
-            if (recs == null) { _dlg.Info("Pegar", "El portapapeles no contiene notas en formato «clave TAB texto [TAB padre]». Para pegar texto en una nota, edítala (F2)."); return; }
+            if (recs == null) { _dlg.Info("Paste", "The clipboard does not contain keynotes in \"key TAB text [TAB parent]\" format. To paste text into a keynote, edit it (F2)."); return; }
             string target = SelectedRow?.Key ?? "";
             var plan = KeynoteImport.PlanPaste(_draft, recs, target);
-            if (!_dlg.ReviewIncoming("Pegar " + plan.Count + " nota(s)", "Se pegarán dentro de " + (target.Length == 0 ? "el primer nivel" : "'" + target + "'") + ". Las claves que ya existen reciben una clave nueva propuesta (puedes cambiarla). Nada se guarda hasta «Guardar».", plan, true)) return;
+            if (!_dlg.ReviewIncoming("Paste " + plan.Count + " keynote(s)", "They will be pasted into " + (target.Length == 0 ? "the top level" : "'" + target + "'") + ". Keys that already exist get a suggested new key (you can change it). Nothing is saved until \"Save\".", plan, true)) return;
             string e = KeynoteImport.ApplyPaste(_draft, plan);
-            if (e != null) { _dlg.Error("Pegar", e); return; }
+            if (e != null) { _dlg.Error("Paste", e); return; }
             if (target.Length > 0) _expanded.Add(target);
-            Status = plan.Count(i => i.Take) + " nota(s) pegadas.";
+            Status = plan.Count(i => i.Take) + " keynote(s) pasted.";
             Rebuild();
         }
 
@@ -803,35 +804,35 @@ namespace CausaFix.Keynotes.ViewModels
 
         private async Task ImportAsync()
         {
-            string p = _dlg.PickOpenFile("Importar keynotes (TXT de Revit o exportación de pyRevit)", FileFilter, _path);
+            string p = _dlg.PickOpenFile("Import keynotes (Revit TXT or pyRevit export)", FileFilter, _path);
             if (string.IsNullOrEmpty(p)) return;
             KeynoteDocument doc;
             try { doc = await Task.Run(() => KeynoteFormat.Read(File.ReadAllBytes(p))); }
-            catch (Exception ex) { _dlg.Error("Importar", "No se pudo leer: " + ex.Message); return; }
+            catch (Exception ex) { _dlg.Error("Import", "Could not read: " + ex.Message); return; }
             var plan = KeynoteImport.PlanImport(_draft, doc.Library);
             int nNew = plan.Count(i => i.Status == IncomingStatus.New), nSame = plan.Count(i => i.Status == IncomingStatus.Identical), nConf = plan.Count(i => i.Status == IncomingStatus.Conflict);
-            string intro = Path.GetFileName(p) + " (" + KeynoteFormat.Describe(doc.Encoding) + (doc.IsDeffrelDb ? ", pyRevit DeffrelDB" : "") + "): " + nNew + " nueva(s), " + nSame + " idéntica(s), " + nConf + " en conflicto."
-                + (nConf > 0 ? " En los conflictos se conserva tu versión salvo que marques la importada." : "")
-                + (doc.Unparsed.Count > 0 ? "\n" + doc.Unparsed.Count + " línea(s) mal formada(s) no se importan: " + string.Join("; ", doc.Unparsed.Take(3).Select(u => "línea " + u.Line + " " + u.Reason)) : "");
-            if (!_dlg.ReviewIncoming("Importar keynotes", intro, plan, false)) return;
+            string intro = Path.GetFileName(p) + " (" + KeynoteFormat.Describe(doc.Encoding) + (doc.IsDeffrelDb ? ", pyRevit DeffrelDB" : "") + "): " + nNew + " new, " + nSame + " identical, " + nConf + " in conflict."
+                + (nConf > 0 ? " For conflicts your version is kept unless you select the imported one." : "")
+                + (doc.Unparsed.Count > 0 ? "\n" + doc.Unparsed.Count + " malformed line(s) are not imported: " + string.Join("; ", doc.Unparsed.Take(3).Select(u => "line " + u.Line + " " + u.Reason)) : "");
+            if (!_dlg.ReviewIncoming("Import keynotes", intro, plan, false)) return;
             string e = KeynoteImport.ApplyImport(_draft, plan);
-            if (e != null) { _dlg.Error("Importar", e); return; }
-            Status = "Importadas " + plan.Count(i => i.Take) + " nota(s). Revisa y guarda.";
+            if (e != null) { _dlg.Error("Import", e); return; }
+            Status = "Imported " + plan.Count(i => i.Take) + " keynote(s). Review and save.";
         }
 
         private void Export(bool filtered)
         {
             var recs = Ordered().Where(r => !filtered || _filtered.Contains(r.Key)).ToList();
-            if (recs.Count == 0) { _dlg.Info("Exportar", "No hay notas que exportar con el filtro actual."); return; }
-            string p = _dlg.PickSaveFile(filtered ? "Exportar notas filtradas (con sus padres)" : "Exportar todas las notas", FileFilter, Path.Combine(Path.GetDirectoryName(_path) ?? "", Path.GetFileNameWithoutExtension(_path) + (filtered ? "_filtrado" : "_export") + ".txt"));
+            if (recs.Count == 0) { _dlg.Info("Export", "There are no keynotes to export with the current filter."); return; }
+            string p = _dlg.PickSaveFile(filtered ? "Export filtered keynotes (with their parents)" : "Export all keynotes", FileFilter, Path.Combine(Path.GetDirectoryName(_path) ?? "", Path.GetFileNameWithoutExtension(_path) + (filtered ? "_filtered" : "_export") + ".txt"));
             if (string.IsNullOrEmpty(p)) return;
-            if (SamePath(p, _path)) { _dlg.Error("Exportar", "Elige un archivo distinto del que estás editando (usa «Guardar como…» para eso)."); return; }
+            if (SamePath(p, _path)) { _dlg.Error("Export", "Choose a different file from the one you are editing (use \"Save as…\" for that)."); return; }
             try
             {
                 File.WriteAllBytes(p, KeynoteFormat.Encode(KeynoteFormat.Compose(new KeynoteLibrary(recs)), KeynoteEncoding.Utf16LeBom, out _));
-                Status = "Exportadas " + recs.Count + " nota(s) a " + p + " (UTF-16 LE).";
+                Status = "Exported " + recs.Count + " keynote(s) to " + p + " (UTF-16 LE).";
             }
-            catch (Exception ex) { _dlg.Error("Exportar", ex.Message); }
+            catch (Exception ex) { _dlg.Error("Export", ex.Message); }
         }
 
         // ------------------------------------------------------------------ save & reload
@@ -850,33 +851,33 @@ namespace CausaFix.Keynotes.ViewModels
             if (!CanEdit)
             {
                 if (reload && IsLinked && !_draft.IsDirty) return await ReloadOnlyAsync();
-                _dlg.Error("Guardar", ReadOnlyReason);
+                _dlg.Error("Save", ReadOnlyReason);
                 return false;
             }
-            if (!_draft.IsDirty && !reload) { Status = "No hay cambios que guardar."; return true; }
+            if (!_draft.IsDirty && !reload) { Status = "There are no changes to save."; return true; }
             if (!_draft.IsDirty && reload) return await ReloadOnlyAsync();
 
             var issues = _draft.Current.Validate();
             if (issues.Count > 0)
             {
-                _dlg.Review("No se puede guardar", "Corrige estos problemas antes de guardar (el archivo no se ha modificado):", issues.Select(i => i.Message).ToList(), "Entendido");
+                _dlg.Review("Cannot save", "Fix these issues before saving (the file has not been changed):", issues.Select(i => i.Message).ToList(), "OK");
                 return false;
             }
             var renames = _draft.Renames.Select(r => new KeyRename { From = r.From, To = r.To }).ToList();
             if (renames.Count > 0 && !IsLinked)
             {
-                _dlg.Error("Cambio de clave", "Hay cambios de clave y el archivo abierto no es el del modelo: las referencias del modelo no se podrían actualizar. Vincula el archivo o revierte los cambios de clave.");
+                _dlg.Error("Change key", "There are key changes and the open file is not the model's file: the model's references could not be updated. Link the file or revert the key changes.");
                 return false;
             }
             if (renames.Count > 0) reload = true;
             if (reload && !IsLinked)
             {
-                if (!_dlg.Confirm("Guardar y recargar", "El archivo abierto no es el del modelo. ¿Guardar sin recargar Revit?")) return false;
+                if (!_dlg.Confirm("Save & Reload", "The open file is not the model's file. Save without reloading Revit?")) return false;
                 reload = false;
             }
 
             bool ok = false;
-            await Busy("Guardando", async () =>
+            await Busy("Saving", async () =>
             {
                 // Risky changes are reviewed first: deletions, re-keys, model references.
                 var changes = _draft.Changes();
@@ -887,7 +888,7 @@ namespace CausaFix.Keynotes.ViewModels
                     check = await _gw.CheckRekey(renames);
                     if (!check.CanApply)
                     {
-                        _dlg.Review("Cambio de clave bloqueado", "No se guardó nada. Las referencias del modelo no se pueden actualizar de forma coherente:", check.Blockers, "Entendido");
+                        _dlg.Review("Key change blocked", "Nothing was saved. The model's references cannot be updated consistently:", check.Blockers, "OK");
                         return;
                     }
                 }
@@ -895,11 +896,11 @@ namespace CausaFix.Keynotes.ViewModels
                 {
                     var lines = risky.Select(c => c.Describe()).ToList();
                     if (check != null) lines.AddRange(check.Lines);
-                    if (!_dlg.Review("Revisar antes de guardar", "Estos cambios afectan a notas existentes" + (reload ? " y se aplicarán también al modelo en un solo paso (un Deshacer)." : "."), lines, reload ? "Guardar y recargar" : "Guardar", danger: true)) return;
+                    if (!_dlg.Review("Review before saving", "These changes affect existing keynotes" + (reload ? " and will also be applied to the model in a single step (one Undo)." : "."), lines, reload ? "Save & Reload" : "Save", danger: true)) return;
                 }
                 bool keepUnparsed = true;
                 if (_unparsed.Count > 0)
-                    keepUnparsed = !_dlg.Confirm("Líneas mal formadas", _unparsed.Count + " línea(s) del archivo no son registros válidos (por ejemplo línea " + _unparsed[0].Line + ": " + _unparsed[0].Reason + ").\n\n¿Quitarlas al guardar? (No = se conservan tal cual y Revit las reportará al recargar.)");
+                    keepUnparsed = !_dlg.Confirm("Malformed lines", _unparsed.Count + " line(s) in the file are not valid records (for example line " + _unparsed[0].Line + ": " + _unparsed[0].Reason + ").\n\nRemove them on save? (Cancel = keep them as they are; Revit will report them on reload.)");
 
                 byte[] previous = File.Exists(_path) ? File.ReadAllBytes(_path) : new byte[0];
                 for (int attempt = 0; attempt < 3; attempt++)
@@ -907,18 +908,18 @@ namespace CausaFix.Keynotes.ViewModels
                     var lib = _draft.Current.Clone();
                     byte[] bytes = Compose(lib, keepUnparsed, out var used);
                     var res = _store.Save(_path, bytes, _baseHash);
-                    if (res.Outcome == SaveOutcome.Failed) { _dlg.Error("Guardar", res.Message + "\n\nTus cambios siguen en el borrador (también guardado localmente)."); FileStatus = "Archivo: no guardado — " + res.Message; return; }
+                    if (res.Outcome == SaveOutcome.Failed) { _dlg.Error("Save", res.Message + "\n\nYour changes are still in the draft (also saved locally)."); FileStatus = "File: not saved — " + res.Message; return; }
                     if (res.Outcome == SaveOutcome.Conflict)
                     {
-                        if (res.Theirs == null) { _dlg.Error("Guardar", res.Message + " Usa «Guardar como…»."); return; }
-                        if (!MergeWith(res.Theirs)) { Status = "Guardado cancelado: el archivo cambió y no se resolvieron los conflictos."; return; }
+                        if (res.Theirs == null) { _dlg.Error("Save", res.Message + " Use \"Save as…\"."); return; }
+                        if (!MergeWith(res.Theirs)) { Status = "Save cancelled: the file changed and the conflicts were not resolved."; return; }
                         renames = _draft.Renames.Select(r => new KeyRename { From = r.From, To = r.To }).ToList();
                         continue;
                     }
                     // Saved.
                     if (used != _encoding)
                     {
-                        _dlg.Info("Codificación", "El texto contiene caracteres que " + KeynoteFormat.Describe(_encoding) + " no puede guardar: el archivo se guardó como " + KeynoteFormat.Describe(used) + ".");
+                        _dlg.Info("Encoding", "The text contains characters that " + KeynoteFormat.Describe(_encoding) + " cannot store: the file was saved as " + KeynoteFormat.Describe(used) + ".");
                         _encoding = used;
                     }
                     if (!keepUnparsed) _unparsed.Clear();
@@ -926,10 +927,10 @@ namespace CausaFix.Keynotes.ViewModels
                     _draft.MarkSaved(lib);
                     _store.DeleteDraft(_path);
                     _access = _store.Probe(_path);
-                    FileStatus = "Archivo guardado " + DateTime.Now.ToString("HH:mm:ss") + " · " + lib.Records.Count + " registros · " + KeynoteFormat.Describe(_encoding) + " · copia previa en " + Path.GetFileName(res.BackupPath);
+                    FileStatus = "File saved at " + DateTime.Now.ToString("HH:mm:ss") + " · " + lib.Records.Count + " records · " + KeynoteFormat.Describe(_encoding) + " · Backup: " + Path.GetFileName(res.BackupPath);
                     if (reload)
                     {
-                        BusyText = "Recargando la tabla de keynotes en Revit";
+                        BusyText = "Reloading the keynote table in Revit";
                         ReloadResult rr;
                         try { rr = await _gw.Reload(renames); }
                         catch (Exception ex) { rr = new ReloadResult { Succeeded = false, Status = "Error", Path = _path }; rr.Messages.Add(ex.Message); }
@@ -937,13 +938,13 @@ namespace CausaFix.Keynotes.ViewModels
                         _table = await SafeReadTable();
                         await ReadUsageAsync();
                     }
-                    else Status = "Guardado. Revit todavía usa la versión anterior hasta «Guardar y recargar» (F5 en Revit no recarga el archivo).";
+                    else Status = "Saved. Revit keeps using the previous version until \"Save & Reload\".";
                     UpdateRevitStatus();
                     NotifyFile();
                     ok = true;
                     return;
                 }
-                _dlg.Error("Guardar", "El archivo sigue cambiando mientras se guarda (¿sincronización activa?). Inténtalo de nuevo.");
+                _dlg.Error("Save", "The file keeps changing while saving (active sync?). Try again.");
             });
             return ok;
         }
@@ -964,7 +965,7 @@ namespace CausaFix.Keynotes.ViewModels
         private async Task<bool> ReloadOnlyAsync()
         {
             bool ok = false;
-            await Busy("Recargando la tabla de keynotes en Revit", async () =>
+            await Busy("Reloading the keynote table in Revit", async () =>
             {
                 var rr = await _gw.Reload(new List<KeyRename>());
                 ok = rr.Succeeded;
@@ -981,17 +982,17 @@ namespace CausaFix.Keynotes.ViewModels
             if (rr.Succeeded)
             {
                 bool same = SameContent(rr.LoadedEntries, expected);
-                string refs = rr.UpdatedTags + rr.UpdatedAssignments > 0 ? " Referencias actualizadas: " + rr.UpdatedTags + " etiqueta(s), " + rr.UpdatedAssignments + " asignación(es)." : "";
-                Status = same ? "Guardado y recargado: Revit cargó " + rr.LoadedEntries.Count + " notas, verificado contra el archivo." + refs
-                              : "Revit recargó, pero lo cargado no coincide con el archivo (" + rr.LoadedEntries.Count + " notas en Revit, " + expected.Records.Count + " en el archivo). Revisa los avisos." + refs;
-                if (rr.Messages.Count > 0) _dlg.Review("Avisos de Revit al recargar", "Revit cargó la tabla con estos avisos:", rr.Messages, "Entendido");
+                string refs = rr.UpdatedTags + rr.UpdatedAssignments > 0 ? " References updated: " + rr.UpdatedTags + " tag(s), " + rr.UpdatedAssignments + " assignment(s)." : "";
+                Status = same ? "Saved and reloaded: Revit loaded " + rr.LoadedEntries.Count + " notes, verified against the file." + refs
+                              : "Revit reloaded, but what it loaded does not match the file (" + rr.LoadedEntries.Count + " notes in Revit, " + expected.Records.Count + " in the file). Check the warnings." + refs;
+                if (rr.Messages.Count > 0) _dlg.Review("Revit warnings on reload", "Revit loaded the table with these warnings:", rr.Messages, "OK");
                 return;
             }
             _log("Keynotes: reload failed " + rr.Status + " " + string.Join(" | ", rr.Messages));
-            string msg = "Revit no pudo recargar el archivo (" + rr.Status + "). El modelo no cambió (operación revertida).";
-            if (restore == null) { _dlg.Review("Recarga fallida", msg, rr.Messages, "Entendido"); Status = msg; return; }
+            string msg = "Revit could not reload the file (" + rr.Status + "). The model did not change (operation rolled back).";
+            if (restore == null) { _dlg.Review("Reload failed", msg, rr.Messages, "OK"); Status = msg; return; }
             var lines = rr.Messages.ToList();
-            if (_dlg.Review("Recarga fallida", msg + "\n\nEl archivo SÍ quedó guardado con tus cambios. ¿Restaurar el archivo anterior? (solo si nadie lo ha cambiado desde que se guardó; tus cambios volverán a quedar pendientes en el borrador)", lines, "Restaurar archivo anterior"))
+            if (_dlg.Review("Reload failed", msg + "\n\nThe file WAS saved with your changes. Restore the previous file? (only if nobody changed it since it was saved; your changes will be pending in the draft again)", lines, "Restore previous file"))
             {
                 var r = _store.RestoreIfUnchanged(_path, restore.WrittenHash, restore.Previous);
                 if (r.Outcome == SaveOutcome.Saved)
@@ -1001,11 +1002,11 @@ namespace CausaFix.Keynotes.ViewModels
                     _draft.ResetTo(prev.Library);
                     _draft.Replace(restore.Draft, restore.Renames);
                     _store.SaveDraft(_path, _draft, _baseHash);
-                    Status = "Archivo restaurado; tus cambios siguen pendientes en el borrador.";
+                    Status = "File restored; your changes are still pending in the draft.";
                 }
-                else _dlg.Error("Restaurar", r.Message);
+                else _dlg.Error("Restore", r.Message);
             }
-            else Status = msg + " El archivo quedó guardado con tus cambios.";
+            else Status = msg + " The file was saved with your changes.";
         }
 
         /// <summary>Three-way merge with the file as it is now. Returns false if the user cancelled.</summary>
@@ -1014,8 +1015,8 @@ namespace CausaFix.Keynotes.ViewModels
             var m = KeynoteMerge.Merge(_draft.Base, _draft.Current, theirs.Document.Library, _draft.Renames);
             if (m.Conflicts.Count > 0 && !_dlg.ResolveConflicts(m)) return false;
             var merged = KeynoteMerge.Resolve(m, out string err);
-            if (merged == null || err != null) { _dlg.Error("Combinar", err ?? "No se pudo combinar."); return false; }
-            if (m.TheirChanges.Count > 0 && !_dlg.Review("El archivo cambió", "Otro usuario o proceso cambió el archivo desde que lo abriste. Sus cambios se conservan junto a los tuyos:", m.TheirChanges, "Continuar guardando")) return false;
+            if (merged == null || err != null) { _dlg.Error("Merge", err ?? "The changes could not be merged."); return false; }
+            if (m.TheirChanges.Count > 0 && !_dlg.Review("The file changed", "Another user or process changed the file since you opened it. Their changes are kept along with yours:", m.TheirChanges, "Continue saving")) return false;
             _draft.ResetTo(theirs.Document.Library);
             _draft.Replace(merged, m.Renames);
             _baseHash = theirs.Hash;
@@ -1027,28 +1028,28 @@ namespace CausaFix.Keynotes.ViewModels
 
         private async Task SaveAsAsync()
         {
-            string p = _dlg.PickSaveFile("Guardar como", FileFilter, _path);
+            string p = _dlg.PickSaveFile("Save as", FileFilter, _path);
             if (string.IsNullOrEmpty(p)) return;
             if (SamePath(p, _path)) { await SaveAsync(false); return; }
-            if (_draft.Renames.Count > 0) { _dlg.Error("Guardar como", "Hay cambios de clave pendientes: se aplican al modelo solo con «Guardar y recargar» del archivo vinculado. Guarda primero o revierte el cambio de clave."); return; }
+            if (_draft.Renames.Count > 0) { _dlg.Error("Save as", "There are pending key changes: they are applied to the model only with \"Save & Reload\" of the linked file. Save first or revert the key change."); return; }
             var issues = _draft.Current.Validate();
-            if (issues.Count > 0) { _dlg.Review("No se puede guardar", "Corrige estos problemas:", issues.Select(i => i.Message).ToList(), "Entendido"); return; }
+            if (issues.Count > 0) { _dlg.Review("Cannot save", "Fix these issues:", issues.Select(i => i.Message).ToList(), "OK"); return; }
             string expected = "";
             if (File.Exists(p))
             {
-                if (!_dlg.Confirm("Guardar como", "'" + p + "' ya existe. ¿Reemplazarlo? (se guarda una copia de seguridad)")) return;
+                if (!_dlg.Confirm("Save as", "'" + p + "' already exists. Replace it? (a backup is kept)")) return;
                 expected = _store.CurrentHash(p);
             }
             bool fromDeffrel = _deffrel;
             if (fromDeffrel) { _preamble.Clear(); _unparsed.Clear(); _encoding = KeynoteEncoding.Utf16LeBom; }
             var lib = _draft.Current.Clone();
             var res = _store.Save(p, Compose(lib, true, out var used), expected);
-            if (res.Outcome != SaveOutcome.Saved) { _dlg.Error("Guardar como", res.Message); return; }
+            if (res.Outcome != SaveOutcome.Saved) { _dlg.Error("Save as", res.Message); return; }
             if (HasFile) _store.DeleteDraft(_path);
             OpenPath(p);
-            Status = "Guardado como " + p + (fromDeffrel ? " (copia en formato estándar; el archivo de pyRevit no se modificó)" : "") + ".";
+            Status = "Saved as " + p + (fromDeffrel ? " (copy in standard format; the pyRevit file was not changed)" : "") + ".";
             UpdateRevitStatus();
-            if (!IsLinked && _table != null && !_table.DocumentReadOnly && _dlg.Confirm("Vincular al modelo", "¿Vincular '" + Path.GetFileName(p) + "' como archivo de keynotes del modelo?"))
+            if (!IsLinked && _table != null && !_table.DocumentReadOnly && _dlg.Confirm("Link to model", "Link '" + Path.GetFileName(p) + "' as the model's keynote file?"))
                 await LinkAsync();
         }
 
@@ -1058,17 +1059,17 @@ namespace CausaFix.Keynotes.ViewModels
         {
             var m = mode == "element" ? PlacementMode.Element : mode == "material" ? PlacementMode.Material : PlacementMode.User;
             string key = SelectedRow.Key;
-            if (_table == null || !_table.HasKeynoteTagType) { _dlg.Error("Colocar nota", "El modelo no tiene un tipo de etiqueta de nota clave cargado. Carga una familia de etiqueta de nota clave (Keynote Tag)."); return; }
-            if (!_table.ActiveViewAcceptsTags) { _dlg.Error("Colocar nota", "La vista activa (" + _table.ActiveViewName + ") no admite etiquetas de nota clave. Abre una vista de planta, alzado, sección, detalle o leyenda."); return; }
+            if (_table == null || !_table.HasKeynoteTagType) { _dlg.Error("Place keynote", "The model has no keynote tag type loaded. Load a Keynote Tag family."); return; }
+            if (!_table.ActiveViewAcceptsTags) { _dlg.Error("Place keynote", "The active view (" + _table.ActiveViewName + ") does not accept keynote tags. Open a plan, elevation, section, detail or legend view."); return; }
             bool inRevit = IsLinked && _table.IsLoaded && _table.LoadedEntries.Any(e => e.Key == key);
             bool pending = _draft.ChangeOf(key) != null || _draft.IsDirty && !inRevit;
             if (!inRevit || pending)
             {
-                if (!IsLinked) { _dlg.Error("Colocar nota", "El archivo abierto no es el del modelo: Revit no conoce estas notas. Vincúlalo primero."); return; }
-                if (!_dlg.Confirm("Colocar nota", "'" + key + "' " + (inRevit ? "tiene cambios sin recargar" : "no está todavía en la tabla cargada en Revit") + ". ¿Guardar y recargar ahora?")) return;
+                if (!IsLinked) { _dlg.Error("Place keynote", "The open file is not the model's file: Revit does not know these keynotes. Link it first."); return; }
+                if (!_dlg.Confirm("Place keynote", "'" + key + "' " + (inRevit ? "has changes that are not reloaded" : "is not yet in the table loaded in Revit") + ". Save & Reload now?")) return;
                 if (!await SaveAsync(true)) return;
                 _table = await SafeReadTable();
-                if (!_table.LoadedEntries.Any(e => e.Key == key)) { _dlg.Error("Colocar nota", "'" + key + "' no aparece en la tabla recargada por Revit."); return; }
+                if (!_table.LoadedEntries.Any(e => e.Key == key)) { _dlg.Error("Place keynote", "'" + key + "' is not in the table reloaded by Revit."); return; }
             }
             string msg = await _gw.StartPlacement(m, key);
             Status = msg;
@@ -1100,7 +1101,7 @@ namespace CausaFix.Keynotes.ViewModels
         {
             if (_gw.IsPlacing) _gw.CancelPlacement();
             if (!_draft.IsDirty) return true;
-            switch (_dlg.AskSaveDiscardCancel("Hay " + ChangeCount + " cambio(s) sin guardar en " + Path.GetFileName(_path) + "."))
+            switch (_dlg.AskSaveDiscardCancel("There are " + ChangeCount + " unsaved change(s) in " + Path.GetFileName(_path) + "."))
             {
                 case CloseChoice.Save: return await SaveAsync(IsLinked);
                 case CloseChoice.Discard: _store.DeleteDraft(_path); _draft.ResetTo(_draft.Base); return true;

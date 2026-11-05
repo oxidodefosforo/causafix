@@ -43,7 +43,7 @@ namespace CausaFix.Addin.Modules.Keynotes
             if (trace.IndexOf("CausaFix", StringComparison.Ordinal) < 0) return;
             e.Handled = true;
             Shared.Services.Log.Error("Keynote Manager: unhandled UI exception (Revit kept open)", e.Exception);
-            try { MessageBox.Show(this, "Keynote Manager encontró un error (Revit sigue abierto; tus cambios siguen en el borrador):\n\n" + e.Exception.Message, "CausaFixIt Keynote Manager", MessageBoxButton.OK, MessageBoxImage.Warning); }
+            try { MessageBox.Show(this, "Keynote Manager hit an error (Revit is still open; your changes are still in the draft):\n\n" + e.Exception.Message, "CausaFixIt Keynote Manager", MessageBoxButton.OK, MessageBoxImage.Warning); }
             catch (Exception) { }
         }
 
@@ -57,7 +57,7 @@ namespace CausaFix.Addin.Modules.Keynotes
         {
             base.OnClosing(e);
             if (ForceClose || _closingChecked || Vm == null) return;
-            if (Vm.IsBusy) { e.Cancel = true; MessageBox.Show(this, "Keynote Manager está trabajando. Espera a que termine.", "CausaFixIt Keynote Manager"); return; }
+            if (Vm.IsBusy) { e.Cancel = true; MessageBox.Show(this, "Keynote Manager is working. Wait until it finishes.", "CausaFixIt Keynote Manager"); return; }
             if (!Vm.IsDirty) { _ = Vm.ConfirmCloseAsync(); return; }       // nothing to ask: closes now (ends a placement)
             // Pending changes: keep the window open, ask, and close afterwards (Close cannot be called while closing).
             e.Cancel = true;

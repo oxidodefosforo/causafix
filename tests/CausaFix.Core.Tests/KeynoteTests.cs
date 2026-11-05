@@ -139,15 +139,15 @@ namespace CausaFix.Core.Tests
         public static void AddEditValidateAndNothingChangesOnError()
         {
             var d = Draft();
-            Assert.Contains("ya existe", d.Add("E-LTG-001", "X", "E-LTG"));
-            Assert.Contains("no existe", d.Add("Z", "X", "NOPE"));
-            Assert.Contains("vacío", d.Add("Z", " \r\n ", ""));
-            Assert.Contains("tabulador", d.Add("Z\t1", "X", ""));
+            Assert.Contains("already exists", d.Add("E-LTG-001", "X", "E-LTG"));
+            Assert.Contains("does not exist", d.Add("Z", "X", "NOPE"));
+            Assert.Contains("empty", d.Add("Z", " \r\n ", ""));
+            Assert.Contains("a tab", d.Add("Z\t1", "X", ""));
             Assert.False(d.IsDirty, "errors change nothing");
             Assert.Equal(null, d.Add("E-LTG-003", "THREE\r\nLINES", "E-LTG"));
             Assert.Equal("THREE LINES", d.Current.Find("E-LTG-003").Text);
             Assert.Equal(null, d.Edit("E-LTG-001", "ONE EDITED", "E-LTG"));
-            Assert.Contains("ciclo", d.Edit("E", "ELECTRICAL", "E-LTG-001"));
+            Assert.Contains("cycle", d.Edit("E", "ELECTRICAL", "E-LTG-001"));
             var ch = d.Changes();
             Assert.Equal(2, ch.Count);
             Assert.True(ch.Any(c => c.Kind == ChangeKind.Added && c.Key == "E-LTG-003"));
@@ -164,8 +164,8 @@ namespace CausaFix.Core.Tests
             Assert.Equal("E", d.Current.Find("E-PWR").ParentKey);
             Assert.Equal(null, d.Outdent("E-PWR"));
             Assert.True(d.Current.Find("E-PWR").IsRoot);
-            Assert.Contains("primer nivel", d.Outdent("E-PWR"));
-            Assert.Contains("No hay", d.Indent("E-LTG-001"));
+            Assert.Contains("top level", d.Outdent("E-PWR"));
+            Assert.Contains("There is no previous keynote", d.Indent("E-LTG-001"));
             Assert.True(d.Current.Contains("E-PWR"));
         }
 
@@ -173,7 +173,7 @@ namespace CausaFix.Core.Tests
         public static void DeleteBranchNeedsExplicitBranch()
         {
             var d = Draft();
-            Assert.Contains("dentro", d.Delete("E-LTG", false));
+            Assert.Contains("inside", d.Delete("E-LTG", false));
             Assert.Equal(5, d.Current.Records.Count);
             Assert.Equal(null, d.Delete("E-LTG", true));
             Assert.Equal(2, d.Current.Records.Count);
@@ -192,7 +192,7 @@ namespace CausaFix.Core.Tests
             Assert.Equal(null, d.Rekey("E-LIGHT", "E-LTG"));
             Assert.Equal(0, d.Renames.Count, "renamed back");
             Assert.False(d.IsDirty);
-            Assert.Contains("ya existe", d.Rekey("E-LTG-001", "E-LTG-002"));
+            Assert.Contains("already exists", d.Rekey("E-LTG-001", "E-LTG-002"));
             // A new record renamed is not a model rename.
             d.Add("N-1", "NEW", "E");
             d.Rekey("N-1", "N-2");
@@ -232,7 +232,7 @@ namespace CausaFix.Core.Tests
             Assert.Equal("TWO CHANGED", d.Current.Find("E-LTG-002").Text, "explicit choice");
             // Importing a child without its parent is refused as a whole.
             var orphan = new KeynoteLibrary(new[] { new KeynoteRecord { Key = "Z-1", Text = "z", ParentKey = "Z" } });
-            Assert.Contains("inválida", KeynoteImport.ApplyImport(d, KeynoteImport.PlanImport(d, orphan)));
+            Assert.Contains("invalid", KeynoteImport.ApplyImport(d, KeynoteImport.PlanImport(d, orphan)));
             Assert.False(d.Current.Contains("Z-1"));
         }
 
@@ -269,7 +269,7 @@ namespace CausaFix.Core.Tests
             m = KeynoteMerge.Merge(b, mine, theirs);
             Assert.Equal(1, m.Conflicts.Count);
             Assert.Equal(null, KeynoteMerge.Resolve(m, out string e1));
-            Assert.Contains("sin resolver", e1);
+            Assert.Contains("unresolved", e1);
             m.Conflicts[0].Choice = ConflictChoice.Theirs;
             var lib = KeynoteMerge.Resolve(m, out string e2);
             Assert.Equal(null, e2);
@@ -336,7 +336,7 @@ namespace CausaFix.Core.Tests
                 Assert.True(File.Exists(s.P("kn.lock")), "lock untouched");
                 File.Delete(s.P("kn.lock"));
                 File.SetAttributes(p, FileAttributes.ReadOnly);
-                Assert.Contains("solo lectura", s.Store.Probe(p).ReadOnlyReason);
+                Assert.Contains("read-only", s.Store.Probe(p).ReadOnlyReason);
                 File.SetAttributes(p, FileAttributes.Normal);
                 Assert.True(KeynoteFileStore.IsCloudPath(@"C:\Users\juan\DC\ACCDocs\Firm\Project\Project Files\keynotes.txt"));
                 Assert.False(KeynoteFileStore.IsCloudPath(@"C:\Standards\keynotes.txt"));
@@ -381,7 +381,7 @@ namespace CausaFix.Core.Tests
             {
                 var vm = s.Vm();
                 Assert.False(vm.HasFile);
-                Assert.Contains("no tiene archivo", vm.FileStatus);
+                Assert.Contains("has no keynote file", vm.FileStatus);
 
                 string path = s.P("Electrical Keynotes.txt");
                 s.Dlg.Paths.Enqueue(path);
@@ -406,7 +406,7 @@ namespace CausaFix.Core.Tests
 
                 Assert.True(vm.SaveAsync(true).GetAwaiter().GetResult(), string.Join(";", s.Dlg.Errors));
                 Assert.False(vm.IsDirty);
-                Assert.Contains("verificado", vm.Status);
+                Assert.Contains("verified", vm.Status);
                 var onDisk = KeynoteFormat.Read(File.ReadAllBytes(path));
                 Assert.Equal(KeynoteEncoding.Utf16LeBom, onDisk.Encoding);
                 Assert.Equal("E-LTG", onDisk.Library.Find("E-LTG-001").ParentKey);
@@ -418,12 +418,12 @@ namespace CausaFix.Core.Tests
                 Assert.Equal("E-LTG-001", tag.Key);
                 Assert.Equal(TagSource.User, tag.Source);
                 Assert.Equal("PROVIDE LIGHT FITTING AS SHOWN.", s.Gw.DisplayedText(tag));
-                Assert.Contains("1 etiq.", vm.Rows.Single(r => r.Key == "E-LTG-001").Usage);
+                Assert.Contains("1 tag ·", vm.Rows.Single(r => r.Key == "E-LTG-001").Usage);
 
                 vm.Select("E-LTG-001");
                 s.Dlg.Forms.Enqueue(FakeKeynoteDialogs.Answer(null, "PROVIDE LED LIGHT FITTING AS SHOWN."));
                 vm.EditCommand.Execute(null);
-                Assert.Equal("Modificada", vm.Rows.Single(r => r.Key == "E-LTG-001").State);
+                Assert.Equal("Modified", vm.Rows.Single(r => r.Key == "E-LTG-001").State);
                 Assert.Equal("PROVIDE LIGHT FITTING AS SHOWN.", s.Gw.DisplayedText(tag), "Revit unchanged until Save & Reload");
                 Assert.True(vm.SaveAsync(true).GetAwaiter().GetResult());
                 Assert.Equal("PROVIDE LED LIGHT FITTING AS SHOWN.", s.Gw.DisplayedText(tag), "tag shows the new text");
@@ -433,7 +433,7 @@ namespace CausaFix.Core.Tests
                 Assert.Equal("PROVIDE LED LIGHT FITTING AS SHOWN.", vm2.Draft.Current.Find("E-LTG-001").Text, "persisted");
                 Assert.False(vm2.IsDirty);
                 Assert.True(vm2.IsLinked);
-                Assert.Contains("coincide con el archivo", vm2.RevitStatus);
+                Assert.Contains("Matches file", vm2.RevitStatus);
                 Assert.Equal(0, s.Dlg.Errors.Count, string.Join(";", s.Dlg.Errors));
             }
         }
@@ -470,7 +470,7 @@ namespace CausaFix.Core.Tests
                 Assert.Equal("ONE MINE", lib.Find("E-LTG-001").Text);
                 Assert.Equal("TWO THEIRS", lib.Find("E-LTG-002").Text);
                 Assert.True(lib.Contains("E-LTG-003"));
-                Assert.True(s.Dlg.Reviews.Any(r => r.StartsWith("El archivo cambió")), "their changes were shown");
+                Assert.True(s.Dlg.Reviews.Any(r => r.StartsWith("The file changed")), "their changes were shown");
 
                 // Same record changed on both sides: the user decides; cancelling saves nothing.
                 vm.Select("E-LTG-001");
@@ -500,7 +500,7 @@ namespace CausaFix.Core.Tests
                 s.Dlg.Texts.Enqueue("E-LTG-101");
                 vm.RekeyCommand.Execute(null);
                 Assert.Equal("Re-key", vm.Rows.Single(r => r.Key == "E-LTG-101").State);
-                Assert.Contains("1 etiq.", vm.Rows.Single(r => r.Key == "E-LTG-101").Usage, "usage of the original key shown");
+                Assert.Contains("1 tag ·", vm.Rows.Single(r => r.Key == "E-LTG-101").Usage, "usage of the original key shown");
 
                 s.Gw.BlockRekey = true;
                 Assert.False(vm.SaveAsync(false).GetAwaiter().GetResult());
@@ -526,7 +526,7 @@ namespace CausaFix.Core.Tests
                 s.Dlg.Forms.Enqueue(FakeKeynoteDialogs.Answer(null, "TWO EDITED"));
                 vm.EditCommand.Execute(null);
                 s.Gw.FailNextReload = true;
-                s.Dlg.OnReview = (t, l) => t == "Recarga fallida";        // accept "restore"
+                s.Dlg.OnReview = (t, l) => t == "Reload failed";        // accept "restore"
                 vm.SaveAsync(true).GetAwaiter().GetResult();
                 Assert.Equal("TWO", KeynoteFormat.Read(File.ReadAllBytes(p)).Library.Find("E-LTG-002").Text, "file restored");
                 Assert.True(vm.IsDirty, "edits still pending");
@@ -549,7 +549,7 @@ namespace CausaFix.Core.Tests
                 Assert.Equal(0, vm.Rows.Count, "cannot claim 'without tags' when usage is unknown");
                 vm.UsageFilter = UsageFilter.All;
                 vm.Select("E-LTG-001");
-                Assert.Contains("desconocido", vm.SelectedUsageText);
+                Assert.Contains("unknown", vm.SelectedUsageText);
             }
         }
 
@@ -564,7 +564,7 @@ namespace CausaFix.Core.Tests
                 s.Dlg.OnReview = (t, l) => false;
                 vm.DeleteCommand.Execute(null);
                 Assert.False(vm.IsDirty);
-                Assert.Contains("EN USO", s.Dlg.Reviews.Last());
+                Assert.Contains("IN USE", s.Dlg.Reviews.Last());
                 s.Dlg.OnReview = (t, l) => true;
                 vm.DeleteCommand.Execute(null);
                 Assert.Equal(1, vm.Draft.Current.Records.Count);
@@ -586,7 +586,7 @@ namespace CausaFix.Core.Tests
                 vm.RegexInclude = "^E-LTG-\\d+";
                 Assert.Equal(4, vm.Rows.Count);
                 vm.RegexInclude = "([";
-                Assert.Contains("no válida", vm.RegexError);
+                Assert.Contains("Invalid", vm.RegexError);
                 vm.RegexInclude = "";
                 vm.RegexExclude = "LIGHT";
                 Assert.False(vm.Rows.Any(r => r.Key == "E-LTG-002"));
@@ -654,7 +654,7 @@ namespace CausaFix.Core.Tests
                 s.Gw.HasTagType = false;
                 Run(vm.RefreshCommand.ExecuteAsync());
                 Run(vm.PlaceCommand.ExecuteAsync("user"));
-                Assert.Contains("tipo de etiqueta", s.Dlg.Errors.Last());
+                Assert.Contains("keynote tag type", s.Dlg.Errors.Last());
             }
         }
 

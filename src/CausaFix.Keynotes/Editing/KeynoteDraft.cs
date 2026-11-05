@@ -18,14 +18,14 @@ namespace CausaFix.Keynotes.Editing
         {
             switch (Kind)
             {
-                case ChangeKind.Added: return "Nueva: " + Key + " – " + After?.Text;
-                case ChangeKind.Removed: return "Eliminada: " + Key + " – " + Before?.Text;
-                case ChangeKind.Rekeyed: return "Re-key: " + OldKey + " → " + Key + (Before != null && After != null && Before.Text != After.Text ? " (texto también cambiado)" : "");
+                case ChangeKind.Added: return "New: " + Key + " – " + After?.Text;
+                case ChangeKind.Removed: return "Deleted: " + Key + " – " + Before?.Text;
+                case ChangeKind.Rekeyed: return "Re-key: " + OldKey + " → " + Key + (Before != null && After != null && Before.Text != After.Text ? " (text also changed)" : "");
                 default:
                     var parts = new List<string>();
-                    if (Before?.Text != After?.Text) parts.Add("texto");
-                    if ((Before?.ParentKey ?? "") != (After?.ParentKey ?? "")) parts.Add("padre " + (string.IsNullOrEmpty(Before?.ParentKey) ? "(raíz)" : Before.ParentKey) + " → " + (string.IsNullOrEmpty(After?.ParentKey) ? "(raíz)" : After.ParentKey));
-                    return "Modificada: " + Key + " (" + string.Join(", ", parts) + ")";
+                    if (Before?.Text != After?.Text) parts.Add("text");
+                    if ((Before?.ParentKey ?? "") != (After?.ParentKey ?? "")) parts.Add("parent " + (string.IsNullOrEmpty(Before?.ParentKey) ? "(root)" : Before.ParentKey) + " → " + (string.IsNullOrEmpty(After?.ParentKey) ? "(root)" : After.ParentKey));
+                    return "Modified: " + Key + " (" + string.Join(", ", parts) + ")";
             }
         }
     }
@@ -122,26 +122,26 @@ namespace CausaFix.Keynotes.Editing
 
         public static string ValidateKey(string key)
         {
-            if (string.IsNullOrWhiteSpace(key)) return "La clave no puede estar vacía.";
-            if (key != key.Trim()) return "La clave no puede empezar ni terminar con espacios.";
+            if (string.IsNullOrWhiteSpace(key)) return "The key cannot be empty.";
+            if (key != key.Trim()) return "The key cannot start or end with spaces.";
             string bad = KeynoteText.InvalidCharacters(key);
-            return bad == null ? null : "La clave no puede contener " + bad + ".";
+            return bad == null ? null : "The key cannot contain " + bad + ".";
         }
 
         public string ValidateNewKey(string key, string except = null)
         {
             string e = ValidateKey(key);
             if (e != null) return e;
-            if (key != except && Current.Contains(key)) return "La clave '" + key + "' ya existe.";
+            if (key != except && Current.Contains(key)) return "Key '" + key + "' already exists.";
             return null;
         }
 
         private string ValidateParent(string key, string parent)
         {
             if (string.IsNullOrEmpty(parent)) return null;
-            if (!Current.Contains(parent)) return "El padre '" + parent + "' no existe.";
-            if (parent == key) return "Una nota no puede ser su propio padre.";
-            if (key != null && Current.IsDescendant(parent, key)) return "'" + parent + "' está dentro de '" + key + "': se crearía un ciclo.";
+            if (!Current.Contains(parent)) return "Parent '" + parent + "' does not exist.";
+            if (parent == key) return "A keynote cannot be its own parent.";
+            if (key != null && Current.IsDescendant(parent, key)) return "'" + parent + "' is inside '" + key + "': this would create a cycle.";
             return null;
         }
 
@@ -154,7 +154,7 @@ namespace CausaFix.Keynotes.Editing
             string e = ValidateNewKey(key) ?? ValidateParent(key, parentKey);
             if (e != null) return e;
             string t = KeynoteText.Normalize(text);
-            if (t.Length == 0) return "El texto no puede estar vacío.";
+            if (t.Length == 0) return "The text cannot be empty.";
             Current.Records.Add(new KeynoteRecord { Key = key, Text = t, ParentKey = parentKey ?? "" });
             Raise();
             return null;
@@ -164,9 +164,9 @@ namespace CausaFix.Keynotes.Editing
         public string Edit(string key, string text, string parentKey)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
             string t = KeynoteText.Normalize(text);
-            if (t.Length == 0) return "El texto no puede estar vacío.";
+            if (t.Length == 0) return "The text cannot be empty.";
             string e = ValidateParent(key, parentKey ?? "");
             if (e != null) return e;
             if (r.Text == t && (r.ParentKey ?? "") == (parentKey ?? "")) return null;
@@ -179,7 +179,7 @@ namespace CausaFix.Keynotes.Editing
         public string SetParent(string key, string parentKey)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
             return Edit(key, r.Text, parentKey);
         }
 
@@ -187,10 +187,10 @@ namespace CausaFix.Keynotes.Editing
         public string Indent(string key)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
             var siblings = Current.ChildrenOf(r.ParentKey).OrderBy(x => x.Key, NaturalComparer.Instance).ToList();
             int i = siblings.FindIndex(x => x.Key == key);
-            if (i <= 0) return "No hay una nota anterior al mismo nivel bajo la que mover '" + key + "'.";
+            if (i <= 0) return "There is no previous keynote at the same level to indent '" + key + "' under.";
             return SetParent(key, siblings[i - 1].Key);
         }
 
@@ -198,8 +198,8 @@ namespace CausaFix.Keynotes.Editing
         public string Outdent(string key)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
-            if (r.IsRoot) return "'" + key + "' ya está en el primer nivel.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
+            if (r.IsRoot) return "'" + key + "' is already at the top level.";
             var p = Current.Find(r.ParentKey);
             return SetParent(key, p?.ParentKey ?? "");
         }
@@ -208,7 +208,7 @@ namespace CausaFix.Keynotes.Editing
         public string Duplicate(string key, string newKey)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
             return Add(newKey, r.Text, r.ParentKey);
         }
 
@@ -237,9 +237,9 @@ namespace CausaFix.Keynotes.Editing
         public string Delete(string key, bool branch)
         {
             var r = Current.Find(key);
-            if (r == null) return "La nota '" + key + "' no existe.";
+            if (r == null) return "Keynote '" + key + "' does not exist.";
             var items = Current.Branch(key);
-            if (items.Count > 1 && !branch) return "'" + key + "' tiene " + (items.Count - 1) + " nota(s) dentro: elimina la rama completa o muévelas antes.";
+            if (items.Count > 1 && !branch) return "'" + key + "' has " + (items.Count - 1) + " keynote(s) inside: delete the whole branch or move them first.";
             var gone = new HashSet<string>(items.Select(x => x.Key), StringComparer.Ordinal);
             Current.Records.RemoveAll(x => gone.Contains(x.Key));
             _renames.RemoveAll(x => gone.Contains(x.To));
@@ -255,8 +255,8 @@ namespace CausaFix.Keynotes.Editing
         {
             newKey = (newKey ?? "").Trim();
             var r = Current.Find(oldKey);
-            if (r == null) return "La nota '" + oldKey + "' no existe.";
-            if (newKey == oldKey) return "La clave nueva es igual a la actual.";
+            if (r == null) return "Keynote '" + oldKey + "' does not exist.";
+            if (newKey == oldKey) return "The new key is the same as the current one.";
             string e = ValidateNewKey(newKey);
             if (e != null) return e;
             r.Key = newKey;
@@ -297,16 +297,16 @@ namespace CausaFix.Keynotes.Editing
             switch (ch.Kind)
             {
                 case ChangeKind.Added:
-                    if (Current.Records.Any(x => x.ParentKey == key)) return "'" + key + "' tiene notas nuevas dentro: elimínalas o revierte la rama.";
+                    if (Current.Records.Any(x => x.ParentKey == key)) return "'" + key + "' has new keynotes inside: delete them or revert the branch first.";
                     Current.Records.RemoveAll(x => x.Key == key);
                     break;
                 case ChangeKind.Modified:
                     var r = Current.Find(key);
-                    if (!string.IsNullOrEmpty(ch.Before.ParentKey) && !Current.Contains(ch.Before.ParentKey)) return "Su padre original '" + ch.Before.ParentKey + "' ya no existe en el borrador.";
+                    if (!string.IsNullOrEmpty(ch.Before.ParentKey) && !Current.Contains(ch.Before.ParentKey)) return "Its original parent '" + ch.Before.ParentKey + "' no longer exists in the draft.";
                     r.Text = ch.Before.Text; r.ParentKey = ch.Before.ParentKey;
                     break;
                 case ChangeKind.Rekeyed:
-                    if (Current.Contains(ch.OldKey)) return "La clave original '" + ch.OldKey + "' está ocupada en el borrador.";
+                    if (Current.Contains(ch.OldKey)) return "The original key '" + ch.OldKey + "' is taken in the draft.";
                     return Rekey(key, ch.OldKey) ?? RevertText(ch.OldKey, ch.Before);
                 case ChangeKind.Removed:
                     return "Para recuperar una nota eliminada usa «Descartar cambios» o vuelve a crearla.";

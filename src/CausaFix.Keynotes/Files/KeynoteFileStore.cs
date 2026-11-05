@@ -121,18 +121,18 @@ namespace CausaFix.Keynotes.Files
         public FileAccessInfo Probe(string path, bool testWrite = true)
         {
             var a = new FileAccessInfo { Path = path ?? "" };
-            if (string.IsNullOrWhiteSpace(path)) { a.ReadOnlyReason = "No hay ruta."; return a; }
+            if (string.IsNullOrWhiteSpace(path)) { a.ReadOnlyReason = "No path."; return a; }
             a.IsCloud = IsCloudPath(path);
             a.IsNetwork = IsNetworkPath(path);
-            if (a.IsCloud) a.Notes.Add("Ruta en la nube (ACC/Desktop Connector u otra sincronización): el archivo debe estar descargado y sincronizado; otro usuario puede cambiarlo mientras editas (se detecta al guardar).");
-            if (a.IsNetwork) a.Notes.Add("Ruta de red: se comprobará al guardar que nadie haya cambiado el archivo.");
+            if (a.IsCloud) a.Notes.Add("Cloud location (ACC/Desktop Connector or another sync client): the file must be downloaded and synced. External changes are checked on save.");
+            if (a.IsNetwork) a.Notes.Add("Network location: external changes are checked on save.");
             try
             {
                 var fi = new FileInfo(path);
                 a.Exists = fi.Exists;
                 if (!a.Exists)
                 {
-                    a.ReadOnlyReason = Directory.Exists(fi.DirectoryName ?? "") ? "El archivo no existe." : "No se encuentra la carpeta del archivo (¿unidad desconectada o sin sincronizar?).";
+                    a.ReadOnlyReason = Directory.Exists(fi.DirectoryName ?? "") ? "The file does not exist." : "The file's folder cannot be found (disconnected drive or not synced?).";
                     return a;
                 }
                 a.LastWriteUtc = fi.LastWriteTimeUtc;
@@ -140,15 +140,15 @@ namespace CausaFix.Keynotes.Files
                 if ((attr & (Offline | RecallOnOpen | RecallOnDataAccess)) != 0)
                 {
                     a.IsPlaceholder = true;
-                    a.Notes.Add("El archivo es un marcador de posición sin descargar: leerlo lo descargará; si no hay conexión la lectura fallará.");
+                    a.Notes.Add("The file is an online-only placeholder: reading it downloads it, and reading fails while offline.");
                 }
                 if (File.Exists(PyRevitLockPath(path)))
                 {
                     a.PyRevitLock = true;
-                    a.ReadOnlyReason = "pyRevit tiene un bloqueo activo (" + System.IO.Path.GetFileName(PyRevitLockPath(path)) + "): alguien lo está editando. No se toca el bloqueo.";
+                    a.ReadOnlyReason = "pyRevit has an active lock (" + System.IO.Path.GetFileName(PyRevitLockPath(path)) + "): someone is editing it. The lock is not touched.";
                     return a;
                 }
-                if ((attr & FileAttributes.ReadOnly) != 0) { a.ReadOnlyReason = "El archivo tiene el atributo de solo lectura."; return a; }
+                if ((attr & FileAttributes.ReadOnly) != 0) { a.ReadOnlyReason = "The file has the read-only attribute."; return a; }
                 if (testWrite)
                 {
                     // Opening for write without truncating does not change the file; it fails if it is locked or forbidden.
@@ -156,9 +156,9 @@ namespace CausaFix.Keynotes.Files
                 }
                 a.CanWrite = true;
             }
-            catch (UnauthorizedAccessException) { a.ReadOnlyReason = "Sin permiso de escritura en el archivo o la carpeta."; }
-            catch (IOException ex) { a.ReadOnlyReason = "El archivo está bloqueado o no disponible: " + ex.Message; }
-            catch (Exception ex) { a.ReadOnlyReason = "No se pudo comprobar el archivo: " + ex.Message; }
+            catch (UnauthorizedAccessException) { a.ReadOnlyReason = "No write permission on the file or folder."; }
+            catch (IOException ex) { a.ReadOnlyReason = "The file is locked or unavailable: " + ex.Message; }
+            catch (Exception ex) { a.ReadOnlyReason = "The file could not be checked: " + ex.Message; }
             return a;
         }
 
@@ -187,7 +187,7 @@ namespace CausaFix.Keynotes.Files
         /// <summary>Creates a new file (fails if it exists). New files are UTF-16 LE with BOM and CRLF, as Revit expects.</summary>
         public SaveResult CreateNew(string path, KeynoteLibrary lib)
         {
-            if (File.Exists(path)) return new SaveResult { Outcome = SaveOutcome.Failed, Message = "Ya existe un archivo en esa ruta: elige otro nombre o ábrelo." };
+            if (File.Exists(path)) return new SaveResult { Outcome = SaveOutcome.Failed, Message = "A file already exists at that path: choose another name or open it." };
             byte[] bytes = KeynoteFormat.Encode(KeynoteFormat.Compose(lib), KeynoteEncoding.Utf16LeBom, out var used);
             try
             {
@@ -195,10 +195,10 @@ namespace CausaFix.Keynotes.Files
                 using (var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { fs.Write(bytes, 0, bytes.Length); fs.Flush(true); }
                 string h = CurrentHash(path);
                 return h == KeynoteFormat.Sha256(bytes)
-                    ? new SaveResult { Outcome = SaveOutcome.Saved, WrittenHash = h, EncodingUsed = used, Message = "Archivo creado." }
-                    : new SaveResult { Outcome = SaveOutcome.Failed, Message = "El archivo creado no coincide al leerlo de nuevo." };
+                    ? new SaveResult { Outcome = SaveOutcome.Saved, WrittenHash = h, EncodingUsed = used, Message = "File created." }
+                    : new SaveResult { Outcome = SaveOutcome.Failed, Message = "The created file does not match when read back." };
             }
-            catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "No se pudo crear el archivo: " + ex.Message }; }
+            catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "The file could not be created: " + ex.Message }; }
         }
 
         /// <summary>
@@ -209,24 +209,24 @@ namespace CausaFix.Keynotes.Files
         {
             var access = Probe(path, testWrite: File.Exists(path));
             bool exists = access.Exists;
-            if (exists && !access.CanWrite) return new SaveResult { Outcome = SaveOutcome.Failed, Message = "No se puede escribir: " + access.ReadOnlyReason };
+            if (exists && !access.CanWrite) return new SaveResult { Outcome = SaveOutcome.Failed, Message = "Cannot write: " + access.ReadOnlyReason };
             byte[] now = null;
             if (exists)
             {
                 try { now = ReadAllShared(path); }
-                catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "No se pudo leer el archivo antes de guardar: " + ex.Message }; }
+                catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "The file could not be read before saving: " + ex.Message }; }
                 string nowHash = KeynoteFormat.Sha256(now);
                 if (!string.Equals(nowHash, expectedHash ?? "", StringComparison.OrdinalIgnoreCase))
-                    return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "El archivo cambió desde que se leyó (otro usuario, pyRevit o sincronización).", Theirs = new FileSnapshot { Path = path, Bytes = now, Document = KeynoteFormat.Read(now), Access = access } };
+                    return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "The file changed since it was read (another user, pyRevit or sync).", Theirs = new FileSnapshot { Path = path, Bytes = now, Document = KeynoteFormat.Read(now), Access = access } };
             }
             else if (!string.IsNullOrEmpty(expectedHash))
-                return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "El archivo ya no existe en la ruta (lo movieron o borraron).", Theirs = null };
+                return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "The file is no longer at its path (moved or deleted).", Theirs = null };
 
             var res = new SaveResult();
             if (exists)
             {
                 try { res.BackupPath = Backup(path, now); }
-                catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "No se pudo crear la copia de seguridad; no se guardó nada: " + ex.Message }; }
+                catch (Exception ex) { return new SaveResult { Outcome = SaveOutcome.Failed, Message = "The backup could not be created; nothing was saved: " + ex.Message }; }
             }
             string err = WriteAtomic(path, bytes, exists);
             if (err != null) { res.Outcome = SaveOutcome.Failed; res.Message = err; return res; }
@@ -234,10 +234,10 @@ namespace CausaFix.Keynotes.Files
             if (written != KeynoteFormat.Sha256(bytes))
             {
                 res.Outcome = SaveOutcome.Failed;
-                res.Message = "El contenido leído tras guardar no coincide con el escrito." + (res.BackupPath.Length > 0 ? " Copia previa: " + res.BackupPath : "");
+                res.Message = "The content read back after saving does not match what was written." + (res.BackupPath.Length > 0 ? " Previous copy: " + res.BackupPath : "");
                 return res;
             }
-            res.Outcome = SaveOutcome.Saved; res.WrittenHash = written; res.Message = "Archivo guardado.";
+            res.Outcome = SaveOutcome.Saved; res.WrittenHash = written; res.Message = "File saved.";
             _log("Keynotes: saved " + path + " (" + bytes.Length + " bytes, backup " + res.BackupPath + ")");
             return res;
         }
@@ -250,7 +250,7 @@ namespace CausaFix.Keynotes.Files
             {
                 Directory.CreateDirectory(dir);
                 using (var fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { fs.Write(bytes, 0, bytes.Length); fs.Flush(true); }
-                if (KeynoteFormat.Sha256(ReadAllShared(tmp)) != KeynoteFormat.Sha256(bytes)) throw new IOException("el archivo temporal no coincide");
+                if (KeynoteFormat.Sha256(ReadAllShared(tmp)) != KeynoteFormat.Sha256(bytes)) throw new IOException("the temporary file does not match");
                 if (!exists) { File.Move(tmp, path); return null; }
                 try { File.Replace(tmp, path, null, true); }
                 catch (Exception ex) when (ex is PlatformNotSupportedException || ex is IOException || ex is UnauthorizedAccessException)
@@ -265,7 +265,7 @@ namespace CausaFix.Keynotes.Files
             catch (Exception ex)
             {
                 try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
-                return "No se pudo escribir el archivo (el original no se modificó): " + ex.Message;
+                return "The file could not be written (the original was not changed): " + ex.Message;
             }
         }
 
@@ -293,7 +293,7 @@ namespace CausaFix.Keynotes.Files
         {
             string now = CurrentHash(path);
             if (!string.Equals(now, writtenHash, StringComparison.OrdinalIgnoreCase))
-                return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "El archivo cambió después de guardarlo: no se restaura (se evitaría perder cambios ajenos)." };
+                return new SaveResult { Outcome = SaveOutcome.Conflict, Message = "The file changed after it was saved: it is not restored (that would lose someone else's changes)." };
             return Save(path, original, writtenHash);
         }
 

@@ -31,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -Years 2026     # solo 2026
 powershell -ExecutionPolicy Bypass -File .\build.ps1 -RevitApiRoot D:\RevitApi
 ```
 
-El script ejecuta primero las pruebas automáticas; si fallan, no genera el paquete. Los años sin RevitAPI.dll se omiten y se informan. Resultado: `dist\CausaFixIt-0.4.0\` y `dist\CausaFixIt-0.4.0.zip` con una carpeta por año, el manifiesto y los scripts de instalación. Las DLL de Autodesk nunca se copian al paquete.
+El script ejecuta primero las pruebas automáticas; si fallan, no genera el paquete. Los años sin RevitAPI.dll se omiten y se informan. Resultado: `dist\CausaFixIt-0.4.1\` y `dist\CausaFixIt-0.4.1.zip` con una carpeta por año, el manifiesto y los scripts de instalación. Las DLL de Autodesk nunca se copian al paquete.
 
 Compilación manual de un año:
 
@@ -43,7 +43,7 @@ Solo pruebas: `dotnet run --project tests\CausaFix.Core.Tests -c Release -f net8
 
 ## 3. Instalar y desinstalar
 
-Cierra Revit y, en la carpeta del paquete (`dist\CausaFixIt-0.4.0\` o el zip descargado de GitHub y descomprimido):
+Cierra Revit y, en la carpeta del paquete (`dist\CausaFixIt-0.4.1\` o el zip descargado de GitHub y descomprimido):
 
 | Quiero instalar… | Archivo | Permisos | Binarios | Manifiesto |
 |---|---|---|---|---|

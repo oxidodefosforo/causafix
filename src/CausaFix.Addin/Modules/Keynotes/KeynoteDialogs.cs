@@ -59,22 +59,22 @@ namespace CausaFix.Addin.Modules.Keynotes
             void Label(string t, int row) { var l = new TextBlock { Text = t, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6, 6, 0), FontWeight = FontWeights.SemiBold }; Grid.SetRow(l, row); grid.Children.Add(l); }
             T Put<T>(T c, int row) where T : UIElement { Grid.SetRow(c, row); Grid.SetColumn(c, 1); grid.Children.Add(c); return c; }
 
-            Label("Clave", 0);
+            Label("Key", 0);
             var key = Put(new TextBox { Text = r.Key ?? "", IsEnabled = r.KeyEditable, Margin = new Thickness(0, 3, 0, 3), FontFamily = new FontFamily("Consolas"), FontSize = 13 }, 0);
-            AutomationPropertiesName(key, "Clave");
-            Label("Padre", 1);
+            AutomationPropertiesName(key, "Key");
+            Label("Parent", 1);
             var parent = Put(new ComboBox { IsEnabled = r.ParentEditable, Margin = new Thickness(0, 3, 0, 3), IsEditable = false }, 1);
             parent.ItemsSource = r.ParentChoices.Select(p => new KeyValuePair<string, string>(p.Key, string.IsNullOrEmpty(p.Key) ? p.Text : p.Key + " – " + p.Text)).ToList();
             parent.DisplayMemberPath = "Value";
             parent.SelectedValuePath = "Key";
             parent.SelectedValue = r.ParentKey ?? "";
             if (parent.SelectedIndex < 0) parent.SelectedIndex = 0;
-            Label("Texto", 2);
+            Label("Text", 2);
             var text = Put(new TextBox { Text = r.Text ?? "", AcceptsReturn = true, AcceptsTab = false, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinHeight = 90, Margin = new Thickness(0, 3, 0, 3) }, 2);
-            AutomationPropertiesName(text, "Texto");
+            AutomationPropertiesName(text, "Text");
             var preview = Put(new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(0x1F, 0x5F, 0xBF)), Margin = new Thickness(0, 0, 0, 4) }, 3);
             var templates = new ComboBox { MinWidth = 160, Margin = new Thickness(0, 0, 0, 4) };
-            templates.ItemsSource = new[] { "(insertar plantilla…)" }.Concat(r.Templates ?? new List<string>()).ToList();
+            templates.ItemsSource = new[] { "(insert template…)" }.Concat(r.Templates ?? new List<string>()).ToList();
             templates.SelectedIndex = 0;
             templates.SelectionChanged += (s, e) => { if (templates.SelectedIndex > 0) { text.Text = (string)templates.SelectedItem; templates.SelectedIndex = 0; } };
             Put(templates, 4).SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
@@ -82,14 +82,14 @@ namespace CausaFix.Addin.Modules.Keynotes
             var error = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0x00, 0x20)), TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold };
             void UpdatePreview()
             {
-                preview.Text = KeynoteText.NeedsNormalization(text.Text) ? "Se guardará en una línea: " + KeynoteText.Normalize(text.Text) : "";
+                preview.Text = KeynoteText.NeedsNormalization(text.Text) ? "Will be saved as one line: " + KeynoteText.Normalize(text.Text) : "";
             }
             text.TextChanged += (s, e) => { UpdatePreview(); error.Text = ""; };
             key.TextChanged += (s, e) => error.Text = "";
             UpdatePreview();
 
-            var ok = Accent("Aceptar");
-            var cancel = new Button { Content = "Cancelar", IsCancel = true };
+            var ok = Accent("OK");
+            var cancel = new Button { Content = "Cancel", IsCancel = true };
             var buttons = Buttons(ok, cancel);
             DockPanel.SetDock(buttons, Dock.Bottom);
             DockPanel.SetDock(error, Dock.Bottom);
@@ -120,8 +120,8 @@ namespace CausaFix.Addin.Modules.Keynotes
             var top = new TextBlock { Text = intro ?? "", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
             DockPanel.SetDock(top, Dock.Top);
             var ok = Accent(confirmText, danger);
-            var cancel = new Button { Content = "Cancelar", IsCancel = true };
-            bool single = confirmText == "Entendido";
+            var cancel = new Button { Content = "Cancel", IsCancel = true };
+            bool single = confirmText == "OK";
             var buttons = single ? Buttons(ok) : Buttons(ok, cancel);
             if (single) ok.IsCancel = true;
             DockPanel.SetDock(buttons, Dock.Bottom);
@@ -153,16 +153,16 @@ namespace CausaFix.Addin.Modules.Keynotes
             var top = new TextBlock { Text = intro ?? "", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
             DockPanel.SetDock(top, Dock.Top);
             var grid = new DataGrid { ItemsSource = rows, AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, HeadersVisibility = DataGridHeadersVisibility.Column, GridLinesVisibility = DataGridGridLinesVisibility.Horizontal };
-            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Tomar", Binding = new Binding(nameof(IncomingRow.Take)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 50 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Estado", Binding = new Binding(nameof(IncomingRow.Status)), IsReadOnly = true, Width = 80 });
-            grid.Columns.Add(new DataGridTextColumn { Header = keysEditable ? "Clave nueva (editable)" : "Clave", Binding = new Binding(nameof(IncomingRow.TargetKey)), IsReadOnly = !keysEditable, Width = 140 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Padre", Binding = new Binding(nameof(IncomingRow.Parent)), IsReadOnly = true, Width = 110 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Texto entrante", Binding = new Binding(nameof(IncomingRow.Text)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Actual / nota", Binding = new Binding(nameof(IncomingRow.Current)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            var ok = Accent("Aplicar lo marcado");
-            var all = new Button { Content = "Marcar nuevas" };
+            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Take", Binding = new Binding(nameof(IncomingRow.Take)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 50 });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding(nameof(IncomingRow.Status)), IsReadOnly = true, Width = 80 });
+            grid.Columns.Add(new DataGridTextColumn { Header = keysEditable ? "New key (editable)" : "Key", Binding = new Binding(nameof(IncomingRow.TargetKey)), IsReadOnly = !keysEditable, Width = 140 });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Parent", Binding = new Binding(nameof(IncomingRow.Parent)), IsReadOnly = true, Width = 110 });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Incoming text", Binding = new Binding(nameof(IncomingRow.Text)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Current / note", Binding = new Binding(nameof(IncomingRow.Current)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            var ok = Accent("Apply selected");
+            var all = new Button { Content = "Select new" };
             all.Click += (s, e) => { foreach (var r in rows.Where(x => x.Item.Status == IncomingStatus.New)) r.Take = true; grid.Items.Refresh(); };
-            var cancel = new Button { Content = "Cancelar", IsCancel = true };
+            var cancel = new Button { Content = "Cancel", IsCancel = true };
             var buttons = Buttons(all, ok, cancel);
             DockPanel.SetDock(buttons, Dock.Bottom);
             root.Children.Add(top);
@@ -178,11 +178,11 @@ namespace CausaFix.Addin.Modules.Keynotes
             public IncomingRow(IncomingItem i) { Item = i; }
             public IncomingItem Item { get; }
             public bool Take { get => Item.Take; set => Item.Take = value; }
-            public string Status => Item.Status == IncomingStatus.New ? "Nueva" : Item.Status == IncomingStatus.Identical ? "Igual" : "Conflicto";
+            public string Status => Item.Status == IncomingStatus.New ? "New" : Item.Status == IncomingStatus.Identical ? "Identical" : "Conflict";
             public string TargetKey { get => Item.TargetKey; set => Item.TargetKey = (value ?? "").Trim(); }
-            public string Parent => string.IsNullOrEmpty(Item.TargetParent) ? "(primer nivel)" : Item.TargetParent;
+            public string Parent => string.IsNullOrEmpty(Item.TargetParent) ? "(top level)" : Item.TargetParent;
             public string Text => Item.Incoming?.Text ?? "";
-            public string Current => (Item.Existing != null && Item.Status == IncomingStatus.Conflict ? "Actual: " + Item.Existing.Text + ". " : "") + Item.Note;
+            public string Current => (Item.Existing != null && Item.Status == IncomingStatus.Conflict ? "Current: " + Item.Existing.Text + ". " : "") + Item.Note;
         }
 
         public bool ResolveConflicts(MergeResult merge)
@@ -190,30 +190,30 @@ namespace CausaFix.Addin.Modules.Keynotes
             var rows = merge.Conflicts.Select(c => new ConflictRow(c)).ToList();
             var root = new DockPanel { Margin = new Thickness(14) };
             var top = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
-                Text = "El archivo cambió mientras editabas y estas notas se cambiaron de forma distinta en los dos lados. Elige qué versión se guarda en cada una (nada se sobrescribe sin elegir)." };
+                Text = "The file changed while you were editing, and these keynotes were changed differently on both sides. Choose which version to save for each one (nothing is overwritten without a choice)." };
             DockPanel.SetDock(top, Dock.Top);
             var grid = new DataGrid { ItemsSource = rows, AutoGenerateColumns = false, CanUserAddRows = false, HeadersVisibility = DataGridHeadersVisibility.Column };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Clave", Binding = new Binding(nameof(ConflictRow.Key)), IsReadOnly = true, Width = 110 });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Key", Binding = new Binding(nameof(ConflictRow.Key)), IsReadOnly = true, Width = 110 });
             grid.Columns.Add(new DataGridTextColumn { Header = "Original", Binding = new Binding(nameof(ConflictRow.Base)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Mío (borrador)", Binding = new Binding(nameof(ConflictRow.Mine)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Suyo (archivo actual)", Binding = new Binding(nameof(ConflictRow.Theirs)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridComboBoxColumn { Header = "Guardar", ItemsSource = new[] { "Mío", "Suyo" }, SelectedItemBinding = new Binding(nameof(ConflictRow.Pick)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 80 });
-            var mine = new Button { Content = "Todo mío" };
-            var theirs = new Button { Content = "Todo suyo" };
-            mine.Click += (s, e) => { rows.ForEach(r => r.Pick = "Mío"); grid.Items.Refresh(); };
-            theirs.Click += (s, e) => { rows.ForEach(r => r.Pick = "Suyo"); grid.Items.Refresh(); };
-            var ok = Accent("Guardar combinado");
-            var cancel = new Button { Content = "Cancelar (no guardar)", IsCancel = true };
+            grid.Columns.Add(new DataGridTextColumn { Header = "Mine (draft)", Binding = new Binding(nameof(ConflictRow.Mine)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Theirs (current file)", Binding = new Binding(nameof(ConflictRow.Theirs)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridComboBoxColumn { Header = "Save", ItemsSource = new[] { "Mine", "Theirs" }, SelectedItemBinding = new Binding(nameof(ConflictRow.Pick)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 80 });
+            var mine = new Button { Content = "All mine" };
+            var theirs = new Button { Content = "All theirs" };
+            mine.Click += (s, e) => { rows.ForEach(r => r.Pick = "Mine"); grid.Items.Refresh(); };
+            theirs.Click += (s, e) => { rows.ForEach(r => r.Pick = "Theirs"); grid.Items.Refresh(); };
+            var ok = Accent("Save merged");
+            var cancel = new Button { Content = "Cancel (do not save)", IsCancel = true };
             var err = new TextBlock { Foreground = Brushes.Firebrick, FontWeight = FontWeights.SemiBold };
             var buttons = Buttons(mine, theirs, ok, cancel);
             DockPanel.SetDock(buttons, Dock.Bottom);
             DockPanel.SetDock(err, Dock.Bottom);
             root.Children.Add(top); root.Children.Add(buttons); root.Children.Add(err); root.Children.Add(grid);
-            var w = NewWindow("Conflictos al guardar", root, 1000, 520);
+            var w = NewWindow("Conflicts on save", root, 1000, 520);
             ok.Click += (s, e) =>
             {
                 grid.CommitEdit(DataGridEditingUnit.Row, true);
-                if (merge.Conflicts.Any(c => c.Choice == ConflictChoice.Unresolved)) { err.Text = "Elige «Mío» o «Suyo» en todas las filas."; return; }
+                if (merge.Conflicts.Any(c => c.Choice == ConflictChoice.Unresolved)) { err.Text = "Choose \"Mine\" or \"Theirs\" on every row."; return; }
                 w.DialogResult = true;
             };
             return w.ShowDialog() == true;
@@ -229,8 +229,8 @@ namespace CausaFix.Addin.Modules.Keynotes
             public string Theirs => MergeConflict.Show(_c.Theirs);
             public string Pick
             {
-                get => _c.Choice == ConflictChoice.Mine ? "Mío" : _c.Choice == ConflictChoice.Theirs ? "Suyo" : null;
-                set => _c.Choice = value == "Mío" ? ConflictChoice.Mine : value == "Suyo" ? ConflictChoice.Theirs : ConflictChoice.Unresolved;
+                get => _c.Choice == ConflictChoice.Mine ? "Mine" : _c.Choice == ConflictChoice.Theirs ? "Theirs" : null;
+                set => _c.Choice = value == "Mine" ? ConflictChoice.Mine : value == "Theirs" ? ConflictChoice.Theirs : ConflictChoice.Unresolved;
             }
         }
 
@@ -238,7 +238,7 @@ namespace CausaFix.Addin.Modules.Keynotes
 
         public CloseChoice AskSaveDiscardCancel(string message)
         {
-            var r = MessageBox.Show(_owner, message + "\n\nSí = guardar (y recargar si es el archivo del modelo)\nNo = descartar los cambios\nCancelar = seguir editando", "CausaFixIt Keynote Manager", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            var r = MessageBox.Show(_owner, message + "\n\nYes = save (and reload if it is the model's file)\nNo = discard the changes\nCancel = keep editing", "CausaFixIt Keynote Manager", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             return r == MessageBoxResult.Yes ? CloseChoice.Save : r == MessageBoxResult.No ? CloseChoice.Discard : CloseChoice.Cancel;
         }
 
@@ -284,7 +284,7 @@ namespace CausaFix.Addin.Modules.Keynotes
                 if (File.Exists(path)) Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
                 else if (Directory.Exists(Path.GetDirectoryName(path) ?? "")) Services.OpenWithShell(Path.GetDirectoryName(path));
             }
-            catch (Exception ex) { Error("Abrir carpeta", ex.Message); }
+            catch (Exception ex) { Error("Open folder", ex.Message); }
         }
     }
 }

@@ -311,7 +311,7 @@ namespace CausaFix.Ui.Tests
                 Row("E-LTG-001").Focus(); Pump(100);
                 s.Dlg.Forms.Enqueue(FakeKeynoteDialogs.Answer(null, "ONE EDITED"));
                 Key(0x71);                                                     // F2
-                Check(vm.Draft.Current.Find("E-LTG-001").Text == "ONE EDITED" && vm.Rows.First(r => r.Key == "E-LTG-001").State == "Modificada", "F2 edits the selected keynote");
+                Check(vm.Draft.Current.Find("E-LTG-001").Text == "ONE EDITED" && vm.Rows.First(r => r.Key == "E-LTG-001").State == "Modified", "F2 edits the selected keynote");
 
                 Step("keynote: search");
                 var search = (TextBox)win.FindName("SearchBox");
@@ -322,6 +322,25 @@ namespace CausaFix.Ui.Tests
                 Check(vm.Rows.Select(r => r.Key).SequenceEqual(new[] { "E", "E-LTG", "E-LTG-002" }), "search (debounced) keeps the parents as context");
                 search.Text = ""; Pump(600);
 
+                Step("keynote: toolbar and More menu");
+                Check(Find<Button>(win, b => (b.Content as string)?.StartsWith("Change key", StringComparison.Ordinal) == true) == null
+                      && Find<Button>(win, b => (b.Content as string)?.StartsWith("Delete", StringComparison.Ordinal) == true) == null
+                      && Find<Button>(win, b => (b.Content as string)?.StartsWith("Indent", StringComparison.Ordinal) == true) == null, "Change key / Delete / Indent / Outdent are not toolbar buttons");
+                Check(Find<Button>(win, b => (b.Content as string) == "User keynote" || (b.Content as string) == "Nota de usuario") == null, "the Place in active view section is gone");
+                foreach (var n in new[] { "New group", "New subgroup", "New keynote (Ctrl+N)", "Edit (F2)", "Duplicate (Ctrl+D)" })
+                    Check(Find<Button>(win, b => (b.Content as string) == n) != null, "toolbar keeps " + n);
+                var more = (Button)win.FindName("MoreButton");
+                var headers = more.ContextMenu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
+                Check(headers.Take(4).SequenceEqual(new[] { "Change key…", "Delete", "Outdent", "Indent" }) && headers.Contains("Copy branch") && headers.Contains("Discard all changes…"),
+                      "More menu starts with Change key…, Delete, Outdent, Indent and keeps its items (" + string.Join(", ", headers) + ")");
+                vm.Select("E-LTG-002"); Pump(200);
+                Row("E-LTG-002").Focus(); Pump(100);
+                Key(0x09);                                                     // Tab = Indent
+                Check(vm.Draft.Current.Find("E-LTG-002").ParentKey == "E-LTG-001", "Tab still indents (shortcut kept)");
+                vm.Select("E-LTG-002"); Pump(200);
+                Row("E-LTG-002").Focus(); Pump(100);
+                Key(0x2E);                                                     // Del
+                Check(!vm.Draft.Current.Contains("E-LTG-002"), "Del still deletes after review (shortcut kept)");
                 Step("keynote: close");
                 s.Dlg.CloseAnswer = CloseChoice.Discard;
                 win.Close(); Pump(400);

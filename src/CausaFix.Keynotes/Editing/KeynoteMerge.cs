@@ -40,13 +40,13 @@ namespace CausaFix.Keynotes.Editing
             {
                 var mine = draft.Current.Find(r.Key);
                 var item = new IncomingItem { Incoming = r.Clone(), Existing = mine?.Clone(), TargetKey = r.Key, TargetParent = r.ParentKey };
-                if (dup.Contains(r.Key)) { item.Status = IncomingStatus.Conflict; item.Take = false; item.Note = "La clave aparece varias veces en el archivo importado: no se elige ninguna."; }
+                if (dup.Contains(r.Key)) { item.Status = IncomingStatus.Conflict; item.Take = false; item.Note = "The key appears several times in the imported file: none is taken."; }
                 else if (mine == null) { item.Status = IncomingStatus.New; item.Take = true; }
                 else if (mine.SameAs(r)) { item.Status = IncomingStatus.Identical; item.Take = false; }
                 else
                 {
                     item.Status = IncomingStatus.Conflict; item.Take = false;
-                    item.Note = (mine.Text != r.Text ? "texto distinto" : "") + ((mine.ParentKey ?? "") != (r.ParentKey ?? "") ? (mine.Text != r.Text ? " y " : "") + "padre distinto" : "") + ": se conserva el del borrador salvo que elijas el importado.";
+                    item.Note = (mine.Text != r.Text ? "different text" : "") + ((mine.ParentKey ?? "") != (r.ParentKey ?? "") ? (mine.Text != r.Text ? " and " : "") + "different parent" : "") + ": the draft version is kept unless you take the imported one.";
                 }
                 list.Add(item);
             }
@@ -56,7 +56,7 @@ namespace CausaFix.Keynotes.Editing
         /// <summary>Applies the chosen items atomically: on any error the draft is not changed.</summary>
         public static string ApplyImport(KeynoteDraft draft, IList<IncomingItem> items)
         {
-            if (items.Any(i => i.Take && i.Note.StartsWith("La clave aparece varias veces", StringComparison.Ordinal))) return "Una clave repetida en el archivo importado no se puede tomar: corrige el archivo.";
+            if (items.Any(i => i.Take && i.Note.StartsWith("The key appears several times", StringComparison.Ordinal))) return "A key repeated in the imported file cannot be taken: fix the file.";
             var lib = draft.Current.Clone();
             foreach (var i in items.Where(i => i.Take))
             {
@@ -68,7 +68,7 @@ namespace CausaFix.Keynotes.Editing
                 }
             }
             var issues = lib.Validate();
-            if (issues.Count > 0) return "La importación dejaría la biblioteca inválida: " + string.Join(" ", issues.Take(5).Select(x => x.Message)) + " Marca también los padres necesarios.";
+            if (issues.Count > 0) return "The import would leave the library invalid: " + string.Join(" ", issues.Take(5).Select(x => x.Message)) + " Also select the parents they need.";
             draft.Replace(lib, draft.Renames.ToList());
             return null;
         }
@@ -87,7 +87,7 @@ namespace CausaFix.Keynotes.Editing
                 {
                     Incoming = r.Clone(), Status = draft.Current.Contains(r.Key) ? IncomingStatus.Conflict : IncomingStatus.New, Take = true, TargetKey = target,
                     TargetParent = keys.Contains(r.ParentKey) ? r.ParentKey : (targetParent ?? ""),
-                    Note = target != r.Key ? "La clave ya existe: se propone " + target + "." : ""
+                    Note = target != r.Key ? "The key already exists: suggested " + target + "." : ""
                 });
             }
             return list;
@@ -103,12 +103,12 @@ namespace CausaFix.Keynotes.Editing
                 string k = map[i.Incoming.Key];
                 string e = KeynoteDraft.ValidateKey(k);
                 if (e != null) return k + ": " + e;
-                if (lib.Contains(k) || !seen.Add(k)) return "La clave '" + k + "' ya existe: cámbiala en la lista.";
+                if (lib.Contains(k) || !seen.Add(k)) return "Key '" + k + "' already exists: change it in the list.";
                 string parent = map.TryGetValue(i.TargetParent ?? "", out string mapped) ? mapped : i.TargetParent ?? "";
                 lib.Records.Add(new KeynoteRecord { Key = k, Text = i.Incoming.Text, ParentKey = parent });
             }
             var issues = lib.Validate();
-            if (issues.Count > 0) return "El pegado dejaría la biblioteca inválida: " + string.Join(" ", issues.Take(5).Select(x => x.Message));
+            if (issues.Count > 0) return "The paste would leave the library invalid: " + string.Join(" ", issues.Take(5).Select(x => x.Message));
             draft.Replace(lib, draft.Renames.ToList());
             return null;
         }
@@ -123,7 +123,7 @@ namespace CausaFix.Keynotes.Editing
         public KeynoteRecord Mine { get; set; }
         public KeynoteRecord Theirs { get; set; }
         public ConflictChoice Choice { get; set; }
-        public static string Show(KeynoteRecord r) => r == null ? "(eliminada)" : r.Text + (r.IsRoot ? "" : "  [padre " + r.ParentKey + "]");
+        public static string Show(KeynoteRecord r) => r == null ? "(deleted)" : r.Text + (r.IsRoot ? "" : "  [parent " + r.ParentKey + "]");
     }
 
     public sealed class MergeResult
@@ -157,7 +157,7 @@ namespace CausaFix.Keynotes.Editing
             foreach (var k in order)
             {
                 var bb = Get(B, k); var mm = Get(M, k); var tt = Get(T, k);
-                if (!Same(tt, bb)) res.TheirChanges.Add(tt == null ? "Eliminada por otro usuario: " + k : bb == null ? "Añadida por otro usuario: " + k : "Modificada por otro usuario: " + k);
+                if (!Same(tt, bb)) res.TheirChanges.Add(tt == null ? "Deleted by another user: " + k : bb == null ? "Added by another user: " + k : "Modified by another user: " + k);
                 if (Same(mm, bb)) chosen[k] = tt;
                 else if (Same(tt, bb)) chosen[k] = mm;
                 else if (Same(mm, tt)) chosen[k] = mm;
@@ -172,7 +172,7 @@ namespace CausaFix.Keynotes.Editing
         public static KeynoteLibrary Resolve(MergeResult m, out string error)
         {
             error = null;
-            if (m.Conflicts.Any(c => c.Choice == ConflictChoice.Unresolved)) { error = "Hay conflictos sin resolver."; return null; }
+            if (m.Conflicts.Any(c => c.Choice == ConflictChoice.Unresolved)) { error = "There are unresolved conflicts."; return null; }
             var lib = m.Merged.Clone();
             foreach (var c in m.Conflicts)
             {
@@ -180,7 +180,7 @@ namespace CausaFix.Keynotes.Editing
                 if (r != null) lib.Records.Add(r.Clone());
             }
             var issues = lib.Validate();
-            if (issues.Count > 0) error = "El resultado combinado no es válido: " + string.Join(" ", issues.Take(5).Select(x => x.Message));
+            if (issues.Count > 0) error = "The merged result is not valid: " + string.Join(" ", issues.Take(5).Select(x => x.Message));
             return lib;
         }
     }

@@ -24,8 +24,8 @@ Inicio rápido (Windows, con Revit instalado):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1      # pruebas + builds por año + paquete en dist\
-dist\CausaFixIt-0.4.0\Install.cmd            # solo para el usuario actual
-dist\CausaFixIt-0.4.0\Install-AllUsers.cmd   # para todos los usuarios (administrador)
+dist\CausaFixIt-0.4.1\Install.cmd            # solo para el usuario actual
+dist\CausaFixIt-0.4.1\Install-AllUsers.cmd   # para todos los usuarios (administrador)
 ```
 
 `samples/` contiene un libro de ejemplo generado por CausaFixIt (Lighting Fixtures de prueba) para ver el formato en Excel.

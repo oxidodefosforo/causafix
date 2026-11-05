@@ -45,7 +45,7 @@ namespace CausaFix.Keynotes.Model
         public int Line { get; set; }
         public string Message { get; set; } = string.Empty;
         public bool IsError => true;
-        public override string ToString() => (Line > 0 ? "Línea " + Line + ": " : "") + Message;
+        public override string ToString() => (Line > 0 ? "Line " + Line + ": " : "") + Message;
     }
 
     /// <summary>
@@ -113,15 +113,15 @@ namespace CausaFix.Keynotes.Model
             var issues = new List<LibraryIssue>();
             var counts = Records.GroupBy(r => r.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
             foreach (var kv in counts.Where(k => k.Value > 1))
-                issues.Add(new LibraryIssue { Kind = IssueKind.DuplicateKey, Key = kv.Key, Message = "La clave '" + kv.Key + "' aparece " + kv.Value + " veces." });
+                issues.Add(new LibraryIssue { Kind = IssueKind.DuplicateKey, Key = kv.Key, Message = "Key '" + kv.Key + "' appears " + kv.Value + " times." });
             var keys = new HashSet<string>(counts.Keys, StringComparer.Ordinal);
             foreach (var r in Records)
             {
-                if (string.IsNullOrWhiteSpace(r.Key)) { issues.Add(new LibraryIssue { Kind = IssueKind.EmptyKey, Message = "Hay un registro sin clave (texto: '" + Short(r.Text) + "')." }); continue; }
+                if (string.IsNullOrWhiteSpace(r.Key)) { issues.Add(new LibraryIssue { Kind = IssueKind.EmptyKey, Message = "A record has no key (text: '" + Short(r.Text) + "')." }); continue; }
                 string bad = KeynoteText.InvalidCharacters(r.Key) ?? KeynoteText.InvalidCharacters(r.Text) ?? KeynoteText.InvalidCharacters(r.ParentKey);
-                if (bad != null) issues.Add(new LibraryIssue { Kind = IssueKind.InvalidCharacters, Key = r.Key, Message = "'" + r.Key + "' contiene " + bad + ": el archivo quedaría con registros rotos." });
-                if (!r.IsRoot && r.ParentKey == r.Key) issues.Add(new LibraryIssue { Kind = IssueKind.SelfParent, Key = r.Key, Message = "'" + r.Key + "' es su propio padre." });
-                else if (!r.IsRoot && !keys.Contains(r.ParentKey)) issues.Add(new LibraryIssue { Kind = IssueKind.MissingParent, Key = r.Key, Message = "El padre '" + r.ParentKey + "' de '" + r.Key + "' no existe." });
+                if (bad != null) issues.Add(new LibraryIssue { Kind = IssueKind.InvalidCharacters, Key = r.Key, Message = "'" + r.Key + "' contains " + bad + ": the file would have broken records." });
+                if (!r.IsRoot && r.ParentKey == r.Key) issues.Add(new LibraryIssue { Kind = IssueKind.SelfParent, Key = r.Key, Message = "'" + r.Key + "' is its own parent." });
+                else if (!r.IsRoot && !keys.Contains(r.ParentKey)) issues.Add(new LibraryIssue { Kind = IssueKind.MissingParent, Key = r.Key, Message = "Parent '" + r.ParentKey + "' of '" + r.Key + "' does not exist." });
             }
             // Cycles: follow parents; a key visited twice on one path is a cycle (reported once per cycle).
             var reported = new HashSet<string>(StringComparer.Ordinal);
@@ -137,7 +137,7 @@ namespace CausaFix.Keynotes.Model
                     {
                         var cycle = path.Skip(at).ToList();
                         if (cycle.All(k => reported.Add(k)))
-                            issues.Add(new LibraryIssue { Kind = IssueKind.Cycle, Key = cycle[0], Message = "Ciclo de padres: " + string.Join(" → ", cycle.Concat(new[] { cycle[0] })) + "." });
+                            issues.Add(new LibraryIssue { Kind = IssueKind.Cycle, Key = cycle[0], Message = "Parent cycle: " + string.Join(" → ", cycle.Concat(new[] { cycle[0] })) + "." });
                         break;
                     }
                     path.Add(cur.Key);
@@ -187,9 +187,9 @@ namespace CausaFix.Keynotes.Model
         public static string InvalidCharacters(string value)
         {
             if (string.IsNullOrEmpty(value)) return null;
-            if (value.IndexOf('\t') >= 0) return "un tabulador";
-            if (value.IndexOfAny(Breaks) >= 0) return "un salto de línea";
-            if (value.Any(c => c < ' ' && c != '\t')) return "un carácter de control";
+            if (value.IndexOf('\t') >= 0) return "a tab";
+            if (value.IndexOfAny(Breaks) >= 0) return "a line break";
+            if (value.Any(c => c < ' ' && c != '\t')) return "a control character";
             return null;
         }
 

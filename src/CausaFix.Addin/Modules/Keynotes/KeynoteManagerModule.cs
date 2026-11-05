@@ -26,8 +26,8 @@ namespace CausaFix.Addin.Modules.Keynotes
             {
                 Name = "CausaFix.KeynoteManager",
                 Text = "Keynote\nManager",
-                Tooltip = "Crear y editar las keynotes de Revit: grupos, subgrupos, notas y su texto; guardar y recargar.",
-                LongDescription = "Editor del archivo de keynotes del modelo (formato TXT nativo de Revit): grupos y subgrupos, nuevas notas, edición de texto, cambio de clave con actualización de referencias, importación y exportación, búsqueda y filtros, uso en el proyecto y colocación de notas de usuario, elemento o material. Guarda el archivo de forma segura (copia previa y detección de cambios ajenos) y recarga la tabla en Revit verificando lo cargado. No guarda ni sincroniza el modelo.",
+                Tooltip = "Create and edit Revit keynotes: groups, subgroups, keynotes and their text; save and reload.",
+                LongDescription = "Editor for the model's keynote file (Revit's native TXT format): groups and subgroups, new keynotes, text edits, key changes that update model references, import and export, search and filters, and usage in the project. Saves the file safely (backup and detection of external changes) and reloads the table in Revit, verifying what was loaded. It does not save or sync the model.",
                 CommandType = typeof(KeynoteManagerCommand),
                 AvailabilityType = typeof(ProjectDocumentAvailability),
                 IconGlyph = "KN",

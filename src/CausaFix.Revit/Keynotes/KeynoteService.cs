@@ -42,7 +42,7 @@ namespace CausaFix.Revit.Keynotes
             ResolvePath(doc, kt, info);
             info.LoadedEntries = Entries(kt);
             info.IsLoaded = info.LoadedEntries.Count > 0 || info.LoadStatus.IndexOf("Loaded", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (doc.IsReadOnly) { info.DocumentReadOnly = true; info.DocumentReadOnlyReason = "el documento es de solo lectura"; }
+            if (doc.IsReadOnly) { info.DocumentReadOnly = true; info.DocumentReadOnlyReason = "the document is read-only"; }
             else if (doc.IsWorkshared)
             {
                 try
@@ -50,7 +50,7 @@ namespace CausaFix.Revit.Keynotes
                     if (WorksharingUtils.GetCheckoutStatus(doc, kt.Id) == CheckoutStatus.OwnedByOtherUser)
                     {
                         info.DocumentReadOnly = true;
-                        info.DocumentReadOnlyReason = "la tabla de keynotes está tomada por " + SafeStr(() => WorksharingUtils.GetWorksharingTooltipInfo(doc, kt.Id).Owner);
+                        info.DocumentReadOnlyReason = "the keynote table is owned by " + SafeStr(() => WorksharingUtils.GetWorksharingTooltipInfo(doc, kt.Id).Owner);
                     }
                 }
                 catch (Exception ex) { Log("checkout status: " + ex.Message); }
@@ -95,7 +95,7 @@ namespace CausaFix.Revit.Keynotes
                     {
                         string p = R.Get(e.Value, "InSessionPath") as string ?? "";
                         info.Path = p;
-                        info.PathType = "Recurso externo";
+                        info.PathType = "External resource";
                         bool local = p.Length > 2 && (Path.IsPathRooted(p) && (p[1] == ':' || p.StartsWith("\\\\", StringComparison.Ordinal)));
                         if (!local)
                         {
@@ -121,7 +121,7 @@ namespace CausaFix.Revit.Keynotes
                 }
             }
             catch (Exception ex) { Log("external file reference: " + ex.Message); }
-            if (string.IsNullOrEmpty(info.LoadStatus)) info.LoadStatus = string.IsNullOrEmpty(info.Path) ? "sin archivo" : "estado no informado";
+            if (string.IsNullOrEmpty(info.LoadStatus)) info.LoadStatus = string.IsNullOrEmpty(info.Path) ? "no file" : "status not reported";
         }
 
         /// <summary>Entries Revit has loaded now (KeynoteEntry: Key, ParentKey, KeynoteText).</summary>
@@ -211,7 +211,7 @@ namespace CausaFix.Revit.Keynotes
                     if (t.Source == TagSource.Material) u.MaterialTags++;
                     else if (t.Source == TagSource.Element) u.ElementTags++;
                     else u.UserTags++;
-                    if (!names.TryGetValue(t.ViewId, out string vn)) names[t.ViewId] = vn = doc.GetElement(RevitCompat.Id(t.ViewId))?.Name ?? ("Vista " + t.ViewId);
+                    if (!names.TryGetValue(t.ViewId, out string vn)) names[t.ViewId] = vn = doc.GetElement(RevitCompat.Id(t.ViewId))?.Name ?? ("View " + t.ViewId);
                     var v = u.Views.FirstOrDefault(x => x.Id == t.ViewId);
                     if (v == null) u.Views.Add(v = new ViewRef { Id = t.ViewId, Name = vn });
                     v.Count++;
@@ -245,23 +245,23 @@ namespace CausaFix.Revit.Keynotes
             {
                 var t = tags.Where(x => x.Key == rn.From).ToList();
                 var a = assigns.Where(x => x.p.AsString() == rn.From).ToList();
-                c.Lines.Add(rn.From + " → " + rn.To + ": " + t.Count + " etiqueta(s), " + a.Count(x => !x.material) + " tipo(s), " + a.Count(x => x.material) + " material(es) se actualizarán.");
+                c.Lines.Add(rn.From + " → " + rn.To + ": " + t.Count + " tag(s), " + a.Count(x => !x.material) + " type(s), " + a.Count(x => x.material) + " material(s) will be updated.");
                 if (tags.Any(x => x.Key == rn.To) || assigns.Any(x => x.p.AsString() == rn.To))
-                    c.Blockers.Add("La clave nueva '" + rn.To + "' ya está usada en el modelo: se mezclarían referencias distintas.");
+                    c.Blockers.Add("The new key '" + rn.To + "' is already used in the model: different references would be mixed.");
                 foreach (var x in t)
                 {
                     Parameter p = x.Tag.get_Parameter(BuiltInParameter.KEY_VALUE);
                     // Element/material tags take their key from the type/material: those are updated there instead.
-                    if (x.Source == TagSource.User && (p == null || p.IsReadOnly)) c.Blockers.Add("Etiqueta " + RevitCompat.Value(x.Tag.Id) + " de '" + rn.From + "' no editable.");
-                    if (Locked(doc, x.Tag, out string who)) c.Blockers.Add("Etiqueta " + RevitCompat.Value(x.Tag.Id) + " tomada por " + who + ".");
+                    if (x.Source == TagSource.User && (p == null || p.IsReadOnly)) c.Blockers.Add("Tag " + RevitCompat.Value(x.Tag.Id) + " of '" + rn.From + "' is not editable.");
+                    if (Locked(doc, x.Tag, out string who)) c.Blockers.Add("Tag " + RevitCompat.Value(x.Tag.Id) + " is owned by " + who + ".");
                 }
                 foreach (var x in a)
                 {
-                    if (x.p.IsReadOnly) c.Blockers.Add("'" + x.owner.Name + "': parámetro Keynote de solo lectura.");
-                    if (Locked(doc, x.owner, out string who)) c.Blockers.Add("'" + x.owner.Name + "' tomado por " + who + ".");
+                    if (x.p.IsReadOnly) c.Blockers.Add("'" + x.owner.Name + "': the Keynote parameter is read-only.");
+                    if (Locked(doc, x.owner, out string who)) c.Blockers.Add("'" + x.owner.Name + "' is owned by " + who + ".");
                 }
             }
-            if (doc.IsReadOnly) c.Blockers.Add("El documento es de solo lectura.");
+            if (doc.IsReadOnly) c.Blockers.Add("The document is read-only.");
             c.CanApply = c.Blockers.Count == 0;
             return c;
         });
@@ -293,14 +293,14 @@ namespace CausaFix.Revit.Keynotes
         {
             Document doc = _session.Require(app);
             var res = new ReloadResult();
-            if (doc.IsModifiable) { res.Status = "Ocupado"; res.Messages.Add("Hay otra transacción abierta en Revit: termina el comando en curso y vuelve a intentarlo."); return res; }
-            if (doc.IsReadOnly) { res.Status = "Solo lectura"; res.Messages.Add("El documento es de solo lectura."); return res; }
+            if (doc.IsModifiable) { res.Status = "Busy"; res.Messages.Add("Another transaction is open in Revit: finish the current command and try again."); return res; }
+            if (doc.IsReadOnly) { res.Status = "Read-only"; res.Messages.Add("The document is read-only."); return res; }
             KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
             var failures = new FailureCollector();
-            using (var group = new TransactionGroup(doc, linkPath == null ? "CausaFixIt – Guardar y recargar keynotes" : "CausaFixIt – Vincular archivo de keynotes"))
+            using (var group = new TransactionGroup(doc, linkPath == null ? "CausaFixIt – Save & Reload keynotes" : "CausaFixIt – Link keynote file"))
             {
                 group.Start();
-                using (var t = new Transaction(doc, linkPath == null ? "Recargar keynotes" : "Vincular keynotes"))
+                using (var t = new Transaction(doc, linkPath == null ? "Reload keynotes" : "Link keynotes"))
                 {
                     var fho = t.GetFailureHandlingOptions();
                     fho.SetFailuresPreprocessor(failures);
@@ -347,7 +347,7 @@ namespace CausaFix.Revit.Keynotes
                     if (t.Commit() != TransactionStatus.Committed || failures.HadErrors)
                     {
                         group.RollBack();
-                        res.Status = "Revertido";
+                        res.Status = "Rolled back";
                         res.Messages.AddRange(failures.Messages);
                         return res;
                     }
@@ -420,7 +420,7 @@ namespace CausaFix.Revit.Keynotes
             Document doc = _session.Require(app);
             UIDocument uidoc = app.ActiveUIDocument;
             var tags = Tags(doc).Where(t => t.Key == key).ToList();
-            if (tags.Count == 0) return "No hay etiquetas de '" + key + "' en este proyecto.";
+            if (tags.Count == 0) return "There are no tags of '" + key + "' in this project.";
             long target = viewId;
             if (target == 0)
             {
@@ -431,7 +431,7 @@ namespace CausaFix.Revit.Keynotes
             View v = doc.GetElement(RevitCompat.Id(target)) as View;
             if (v != null && RevitCompat.Value(uidoc.ActiveView?.Id) != target) uidoc.RequestViewChange(v);
             uidoc.Selection.SetElementIds(inView);
-            return inView.Count + " etiqueta(s) de '" + key + "' seleccionadas en " + (v?.Name ?? "la vista") + ".";
+            return inView.Count + " tag(s) of '" + key + "' selected in " + (v?.Name ?? "the view") + ".";
         });
 
         // ------------------------------------------------------------------ placement
@@ -457,12 +457,12 @@ namespace CausaFix.Revit.Keynotes
         public Task<string> StartPlacement(PlacementMode mode, string key) => _dispatcher.InvokeAsync(app =>
         {
             Document doc = _session.Require(app);
-            if (_placing != null) return "Ya hay una colocación en curso.";
-            if (DefaultTagType(doc) == null) return "No hay ningún tipo de etiqueta de nota clave cargado en el proyecto.";
-            if (!Entries(KeynoteTable.GetKeynoteTable(doc)).Any(e => e.Key == key)) return "'" + key + "' no está en la tabla cargada en Revit: guarda y recarga primero.";
+            if (_placing != null) return "A placement is already in progress.";
+            if (DefaultTagType(doc) == null) return "No keynote tag type is loaded in the project.";
+            if (!Entries(KeynoteTable.GetKeynoteTable(doc)).Any(e => e.Key == key)) return "'" + key + "' is not in the table loaded in Revit: Save & Reload first.";
             PostableCommand cmd = mode == PlacementMode.Element ? PostableCommand.ElementKeynote : mode == PlacementMode.Material ? PostableCommand.MaterialKeynote : PostableCommand.UserKeynote;
             RevitCommandId id = RevitCommandId.LookupPostableCommandId(cmd);
-            if (id == null || !app.CanPostCommand(id)) return "Revit no permite iniciar el comando de nota clave ahora (¿hay otro comando activo?).";
+            if (id == null || !app.CanPostCommand(id)) return "Revit cannot start the keynote command now (is another command active?).";
             _placing = new Placement { Doc = doc, App = app, Key = key, Mode = mode };
             app.Application.DocumentChanged += OnDocumentChanged;
             app.Idling += OnIdling;
@@ -470,8 +470,8 @@ namespace CausaFix.Revit.Keynotes
             app.PostCommand(id);
             Log("placement started " + mode + " " + key);
             return mode == PlacementMode.Material
-                ? "Coloca la nota de material en la vista. Revit mostrará su diálogo para elegir la clave del material (API: no permite fijarla desde aquí). Esc para terminar."
-                : "Haz clic en la vista para colocar " + key + " (" + (mode == PlacementMode.User ? "nota de usuario" : "nota de elemento") + "). Esc para terminar.";
+                ? "Place the material keynote in the view. Revit shows its dialog to choose the material's key (the API does not allow setting it from here). Esc to finish."
+                : "Click in the view to place " + key + " (" + (mode == PlacementMode.User ? "user keynote" : "element keynote") + "). Esc to finish.";
         });
 
         private void OnDocumentChanged(object sender, DocumentChangedEventArgs e)
@@ -518,7 +518,7 @@ namespace CausaFix.Revit.Keynotes
                     if (p.Doc.IsModifiable) return;                      // still inside the command's transaction
                     var ids = p.Pending.ToList();
                     p.Pending.Clear();
-                    using (var t = new Transaction(p.Doc, "CausaFixIt – Nota clave " + p.Key))
+                    using (var t = new Transaction(p.Doc, "CausaFixIt – Keynote " + p.Key))
                     {
                         t.Start();
                         foreach (ElementId id in ids) KeyTag(p, p.Doc.GetElement(id));
@@ -546,7 +546,7 @@ namespace CausaFix.Revit.Keynotes
             {
                 Parameter kp = tag.get_Parameter(BuiltInParameter.KEY_VALUE);
                 if (kp != null && !kp.IsReadOnly && kp.Set(p.Key)) p.Keyed++;
-                else p.Notes.Add("Etiqueta " + RevitCompat.Value(tag.Id) + ": no se pudo escribir la clave.");
+                else p.Notes.Add("Tag " + RevitCompat.Value(tag.Id) + ": the key could not be written.");
                 return;
             }
             if (p.Mode == PlacementMode.Element)
@@ -559,12 +559,12 @@ namespace CausaFix.Revit.Keynotes
                 }
                 Element type = host == null ? null : p.Doc.GetElement(host.GetTypeId()) ?? host;
                 Parameter kp = type?.get_Parameter(BuiltInParameter.KEYNOTE_PARAM);
-                if (kp == null) { p.Notes.Add("Etiqueta " + RevitCompat.Value(tag.Id) + ": el elemento etiquetado no tiene parámetro Keynote."); return; }
+                if (kp == null) { p.Notes.Add("Tag " + RevitCompat.Value(tag.Id) + ": the tagged element has no Keynote parameter."); return; }
                 string current = kp.AsString() ?? "";
                 if (current == p.Key) { p.Keyed++; return; }
-                if (current.Length > 0) { p.Notes.Add("'" + type.Name + "' ya tiene la clave " + current + ": no se cambió (la etiqueta muestra la clave del tipo)."); return; }
-                if (kp.IsReadOnly || Locked(p.Doc, type, out _)) { p.Notes.Add("'" + type.Name + "': parámetro Keynote no editable."); return; }
-                if (kp.Set(p.Key)) { p.Keyed++; p.Notes.Add("Clave " + p.Key + " asignada al tipo '" + type.Name + "' (afecta a todas sus instancias)."); }
+                if (current.Length > 0) { p.Notes.Add("'" + type.Name + "' already has key " + current + ": not changed (the tag shows the type's key)."); return; }
+                if (kp.IsReadOnly || Locked(p.Doc, type, out _)) { p.Notes.Add("'" + type.Name + "': the Keynote parameter is not editable."); return; }
+                if (kp.Set(p.Key)) { p.Keyed++; p.Notes.Add("Key " + p.Key + " assigned to type '" + type.Name + "' (affects all its instances)."); }
             }
         }
 
@@ -576,9 +576,9 @@ namespace CausaFix.Revit.Keynotes
             try { p.App.Application.DocumentChanged -= OnDocumentChanged; } catch { }
             try { p.App.Idling -= OnIdling; } catch { }
             try { p.App.DialogBoxShowing -= OnDialog; } catch { }
-            string msg = cancelled ? "Colocación terminada." :
-                p.Created == 0 ? "No se colocó ninguna etiqueta." :
-                p.Created + " etiqueta(s) colocada(s)" + (p.Mode == PlacementMode.Material ? " (clave elegida en el diálogo de Revit)." : ", " + p.Keyed + " con " + p.Key + ".");
+            string msg = cancelled ? "Placement finished." :
+                p.Created == 0 ? "No tag was placed." :
+                p.Created + " tag(s) placed" + (p.Mode == PlacementMode.Material ? " (key chosen in Revit's dialog)." : ", " + p.Keyed + " with " + p.Key + ".");
             if (p.Notes.Count > 0) msg += " " + string.Join(" ", p.Notes.Distinct().Take(5));
             Log("placement finished: " + msg);
             try { PlacementFinished?.Invoke(this, new PlacementResult { Key = p.Key, Mode = p.Mode, TagsCreated = p.Created, TagsKeyed = p.Keyed, Message = msg, Cancelled = cancelled }); }
