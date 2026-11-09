@@ -258,6 +258,9 @@ namespace Autodesk.Revit.DB
     public class Grid : Element { public Curve Curve => throw X.N(); public bool IsCurved => throw X.N(); }
 
     public class SketchPlane : Element { }
+    public class CurveElement : Element { }
+    public class ModelCurve : CurveElement { }
+    public class DetailCurve : CurveElement { }
 
     public class ViewFamilyType : ElementType { public ViewFamily ViewFamily => throw X.N(); }
 
@@ -576,6 +579,7 @@ namespace Autodesk.Revit.DB
     public class FailuresAccessor : IDisposable
     {
         public IList<FailureMessageAccessor> GetFailureMessages() => throw X.N();
+        public void DeleteWarning(FailureMessageAccessor m) => throw X.N();
         public void Dispose() { }
     }
 

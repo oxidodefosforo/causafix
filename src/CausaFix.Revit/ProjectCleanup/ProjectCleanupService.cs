@@ -76,7 +76,7 @@ namespace CausaFix.Revit.ProjectCleanup
             var documentary = Documentary(doc);
             Trace?.Invoke("Project Cleanup: run " + plan.Signature + " – " + toDelete.Count + " to delete, " + outOfScope.Count + " model elements guarded");
 
-            var collector = new FailureCollector();
+            var collector = new FailureCollector { DismissWarnings = true };
             using (var group = new TransactionGroup(doc, "CausaFixIt Project Cleanup"))
             {
                 group.Start();
@@ -170,6 +170,8 @@ namespace CausaFix.Revit.ProjectCleanup
         /// <summary>
         /// Model elements outside the scope: model-category elements not owned by a view, levels, grids, reference planes,
         /// links, electrical circuits, families, types and materials. Deleting documentation must never remove one of them.
+        /// Lines are not guarded: model lines and detail lines that Revit removes together with a view, a sheet or a CAD
+        /// are deleted as well (they are drawing content, not building elements) and are counted in the result.
         /// </summary>
         private static Dictionary<long, string> OutOfScope(Document doc)
         {
@@ -180,6 +182,7 @@ namespace CausaFix.Revit.ProjectCleanup
                 ElementId ov;
                 try { ov = e.OwnerViewId; } catch (Exception) { continue; }
                 if (RevitCompat.IsValid(ov)) continue;                                   // view-owned: documentary
+                if (IsLine(e)) continue;                                                 // model/detail lines: always deletable
                 string label = null;
                 if (e is Level) label = "Nivel '" + e.Name + "'";
                 else if (e is Grid) label = "Eje '" + e.Name + "'";
@@ -203,7 +206,8 @@ namespace CausaFix.Revit.ProjectCleanup
             foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string kind = null;
-                if (e is Viewport) kind = "Viewports";
+                if (IsLine(e)) kind = "Líneas (de modelo y de detalle)";
+                else if (e is Viewport) kind = "Viewports";
                 else if (e is ImportInstance) kind = "Instancias de CAD";
                 else if (e is RevitLinkInstance) kind = "Instancias de vínculos Revit";
                 else if (e is ImageInstance) kind = "Instancias de imagen";
@@ -229,6 +233,9 @@ namespace CausaFix.Revit.ProjectCleanup
             foreach (Element e in new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType))) d[RevitCompat.Value(e.Id)] = "Vínculos Revit anidados";
             return d;
         }
+
+        /// <summary>Model lines and detail lines (any line style), including those created from CAD or sketches of views.</summary>
+        private static bool IsLine(Element e) => e is ModelCurve || e is DetailCurve;
 
         private static string Safe(Func<string> f) { try { return f() ?? ""; } catch (Exception) { return ""; } }
 

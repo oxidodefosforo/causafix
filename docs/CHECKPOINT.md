@@ -54,6 +54,14 @@ Tercera herramienta («Eliminar documentación conservando la vista activa»). P
   - comprobación WPF en CI (ventana real, vista conservada, recuentos, «Cancelar» sin cambios).
 - Pendiente en Revit (§5 de la guía): cascadas reales, colocaciones de schedules segmentados y panel schedules, cierre de vistas abiertas, rollback con un error real y el Deshacer.
 
+## Project Cleanup: las líneas se borran sin alerta (versión 0.4.2)
+
+- Antes, si borrar una vista, un plano o un CAD arrastraba líneas de modelo, la protección de elementos del modelo lo trataba como «elemento fuera del alcance» y revertía todo con una alerta.
+- Ahora las líneas de modelo y de detalle (`ModelCurve` / `DetailCurve`, cualquier estilo) no están protegidas: se borran con su vista, plano o CAD y se cuentan como «Líneas (de modelo y de detalle)».
+- Niveles, ejes, elementos del modelo, familias, tipos, materiales, vínculos y circuitos siguen protegidos.
+- Los avisos (warnings) de Revit de la transacción de limpieza se guardan en el informe y no abren diálogos; los errores siguen revirtiendo todo.
+- Prueba nueva: `Run_LinesDeletedWithAViewDoNotBlock`.
+
 ## Keynote Manager: interfaz en inglés y barra simplificada (versión 0.4.1)
 
 - Toda la interfaz de Keynote Manager (botones, menús, diálogos, tooltips, estados y errores) está en inglés. Los nombres de proyecto, rutas, claves y textos de las notas no se traducen.

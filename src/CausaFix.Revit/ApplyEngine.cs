@@ -128,6 +128,8 @@ namespace CausaFix.Revit
     {
         public List<string> Messages { get; } = new List<string>();
         public bool HadErrors { get; private set; }
+        /// <summary>Warnings are recorded and removed so Revit does not show them in a dialog (errors still roll back).</summary>
+        public bool DismissWarnings { get; set; }
 
         public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
         {
@@ -137,6 +139,7 @@ namespace CausaFix.Revit
                 FailureSeverity sev = m.GetSeverity();
                 Messages.Add(sev + ": " + m.GetDescriptionText());
                 if (sev != FailureSeverity.Warning) error = true;
+                else if (DismissWarnings) { try { accessor.DeleteWarning(m); } catch (Exception) { } }
             }
             if (error)
             {

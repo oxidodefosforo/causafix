@@ -1,4 +1,4 @@
-# Matriz de funciones – CausaFixIt 0.4.1 (Excel Link + Project Setup + Project Cleanup + Keynote Manager)
+# Matriz de funciones – CausaFixIt 0.4.2 (Excel Link + Project Setup + Project Cleanup + Keynote Manager)
 
 Estado: **Implementado** · **Restringido** (implementado con un límite deliberado) · **Pendiente** (no incluido en 0.1.0).
 
@@ -180,7 +180,7 @@ C = cubierto por pruebas automáticas (núcleo, Revit simulado, archivos reales)
 | Uso | Etiquetas (usuario/elemento/material, vistas) y asignaciones; fallo = desconocido | Implementado | C | ☐ |
 | Guardar seguro | Hash, combinación a 3 bandas con elección, copia de seguridad, temporal + Replace, verificación | Implementado | C | ☐ |
 | Guardar y recargar | Reload con resultados en TransactionGroup, verificación de lo cargado, restaurar solo si no cambió | Implementado | C (simulado) | ☐ |
-| Colocar | Sección quitada de la ventana en 0.4.1: se usan las herramientas nativas de Revit; la lógica PostCommand se conserva en el código | Retirado de la UI | C (simulado) | — |
+| Colocar | Sección quitada de la ventana en 0.4.2: se usan las herramientas nativas de Revit; la lógica PostCommand se conserva en el código | Retirado de la UI | C (simulado) | — |
 | Interfaz en inglés | Botones, menús, diálogos, tooltips, estados y errores; datos del usuario sin traducir | Implementado | C, W | ☐ |
 | Menú More | Change key…, Delete (Del), Outdent (Shift+Tab), Indent (Tab) movidos desde la barra; atajos conservados | Implementado | W | ☐ |
 | Borrador y cierre | Autoguardado local, recuperación, guardar/descartar/cancelar | Implementado | C, W | ☐ |

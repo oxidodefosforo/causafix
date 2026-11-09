@@ -236,6 +236,20 @@ namespace CausaFix.Core.Tests
             Assert.Equal(ItemOutcome.Failed, res.Items.Single(i => i.Id == 30).Outcome);
         }
 
+        /// <summary>Model and detail lines that Revit deletes with a view are deleted too (not guarded) and counted as lines.</summary>
+        [Test]
+        public static void Run_LinesDeletedWithAViewDoNotBlock()
+        {
+            var p = CleanupPlanner.Build(Doc(1));
+            var h = HostFor(p); h.Alive.Add(950); h.Alive.Add(951); h.Cascade[21] = new long[] { 950, 951 };   // a model line and a detail line removed with the view
+            var docu = new Dictionary<long, string>(Documentary) { { 950, "Líneas (de modelo y de detalle)" }, { 951, "Líneas (de modelo y de detalle)" } };
+            var res = new CleanupResult();
+            // The adapter no longer lists lines as out of scope; only real model elements (here a level) stay guarded.
+            var run = CleanupRunner.Run(p, h, new Dictionary<long, string> { { 900, "Nivel 'L01'" } }, docu, res);
+            Assert.True(run.Ok, run.Failure);
+            Assert.Equal(2, res.Dependents["Líneas (de modelo y de detalle)"]);
+        }
+
         // ------------------------------------------------------------------ view model
 
         private sealed class Gateway : ICleanupGateway
