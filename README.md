@@ -20,6 +20,8 @@ Suite de herramientas para Autodesk Revit 2024–2026:
 | [docs/CHECKPOINT.md](docs/CHECKPOINT.md) | Estado, verificación realizada y próximos pasos |
 | [docs/GITHUB.md](docs/GITHUB.md) | Compilar en GitHub y descargar el instalador |
 
+**Descarga directa del instalador (última versión):** https://github.com/oxidodefosforo/causafix/releases/latest/download/CausaFixIt.zip — cierra Revit, descomprime y ejecuta `Install.cmd`.
+
 Inicio rápido (Windows, con Revit instalado):
 
 ```powershell

@@ -1,7 +1,8 @@
 # Compila y prueba CausaFix en Windows (GitHub Actions) y publica el paquete instalable.
 # - En cada push / pull request: pruebas (.NET 8 y .NET Framework 4.8) + builds 2024, 2025, 2026.
 #   El zip queda en la pestaña Actions -> ejecución -> "Artifacts".
-# - Al crear una etiqueta v* (por ejemplo v0.1.0): además crea un Release con el zip.
+# - En cada push a main (o etiqueta v*): publica o actualiza el Release de la versión con el zip (enlace público fijo:
+#   https://github.com/oxidodefosforo/causafix/releases/latest/download/CausaFixIt.zip).
 # Las DLL de Revit se toman de los paquetes de referencia Nice3point.Revit.Api (no se distribuyen).
 name: build
 
@@ -60,8 +61,30 @@ jobs:
           name: ui-check-report
           path: dist/ui-check-report.txt
 
+      # Every push to main publishes (or updates) the Release of its version, so the installer always has a public
+      # download link: releases/latest/download/CausaFixIt.zip (fixed name) and the versioned zip.
+      - name: Release version
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        id: ver
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          "version=$v" >> $env:GITHUB_OUTPUT
+          $zip = Get-ChildItem dist -Filter 'CausaFixIt-*.zip' | Select-Object -First 1
+          Copy-Item $zip.FullName (Join-Path dist 'CausaFixIt.zip') -Force
+
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          tag_name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: CausaFixIt ${{ steps.ver.outputs.version }}
+          make_latest: true
+          overwrite_files: true
+          body: |
+            Instalador por usuario: descarga **CausaFixIt.zip**, cierra Revit, descomprime y ejecuta `Install.cmd`.
+            Commit ${{ github.sha }}.
+          files: |
+            dist/CausaFixIt.zip
+            dist/CausaFixIt-*.zip
